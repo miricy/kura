@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+    Copyright (c) 2011, 2018 Eurotech and/or its affiliates
 
      All rights reserved. This program and the accompanying materials
      are made available under the terms of the Eclipse Public License v1.0
@@ -19,22 +19,13 @@
         
         <Icon resource="http://s3.amazonaws.com/kura-resources/application/icon/applications-other.png" size="32"/>
         
-        <AD id="cloud.service.pid"
-            name="cloud.service.pid"
+        <AD id="cloud.publisher.pid"
+            name="cloud.publisher.pid"
             type="String"
             cardinality="0"
             required="true"
-            default="org.eclipse.kura.cloud.CloudService"
-            description="Specify the pid of the Cloud Service that has to used to publish messages to the cloud platform.">
-        </AD>
-        
-        <AD id="app.id"
-            name="app.id"
-            type="String"
-            cardinality="0"
-            required="true"
-            default="EXAMPLE_PUBLISHER"
-            description="Application ID">
+            default=""
+            description="Specify the pid of the Cloud publisher that has to used to publish messages to the cloud platform.">
         </AD>
         
         <AD id="publish.rate"  
@@ -45,43 +36,6 @@
             default="1000"
             min="1"
             description="Default message publishing rate in milliseconds (min 1)."/>
-            
-        <AD id="publish.qos"  
-            name="publish.qos"
-            type="Integer"
-            cardinality="0" 
-            required="true"
-            default="0" 
-            description="Default QoS to publish the messages with.">
-           <Option label="0 - At most once" value="0"/>
-           <Option label="1 - At least once" value="1"/>          
-           <Option label="2 - Exactly once" value="2"/>
-        </AD>
-
-        <AD id="publish.retain"  
-            name="publish.retain"
-            type="Boolean"
-            cardinality="0" 
-            required="true"
-            default="false" 
-            description="Default retaing flag for the published messages."/>
-        
-        <AD id="publish.appTopic"  
-            name="publish.appTopic"
-            type="String"
-            cardinality="0" 
-            required="true"
-            default="data/metrics" 
-            description="Default semantic topic to publish the metrics to."/>
-            
-        <AD id="subscribe.topic"  
-            name="subscribe.topic"
-            type="String"
-            cardinality="0" 
-            required="true"
-            default="inbound/#" 
-            description="Application topic used for incoming messages from cloud. Will subscribe to #account-name/#client-id/#app.name/#subscribe.topic/">       
-        </AD>
         
         <AD id="metric.temperature.initial"  
             name="metric.temperature.initial"

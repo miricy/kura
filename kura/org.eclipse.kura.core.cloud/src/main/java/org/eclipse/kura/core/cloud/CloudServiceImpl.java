@@ -357,7 +357,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         }
     }
 
-    byte[] encodePayload(KuraPayload payload) throws KuraException {
+    public byte[] encodePayload(KuraPayload payload) throws KuraException {
         byte[] bytes = new byte[0];
         CloudPayloadEncoding preferencesEncoding = this.options.getPayloadEncoding();
 
