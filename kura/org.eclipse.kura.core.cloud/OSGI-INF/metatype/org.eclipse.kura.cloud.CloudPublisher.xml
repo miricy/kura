@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (c) 2018 Eurotech and/or its affiliates, and others
+
+     All rights reserved. This program and the accompanying materials
+     are made available under the terms of the Eclipse Public License v1.0
+     which accompanies this distribution, and is available at
+     http://www.eclipse.org/legal/epl-v10.html
+
+    Contributors:
+      Eurotech
+
+-->
+<MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.2.0" localization="en_us">
+    <OCD id="org.eclipse.kura.cloud.CloudPublisher" 
+         name="Cloud Publisher" 
+         description="The CloudService allows for setting a user friendly name for the current device. It also provides the option to compress message payloads to reduce network traffic.">
+
+        <Icon resource="CloudService" size="32"/>
+        
+        <AD id="cloud.service.pid"
+            name="cloud.service.pid"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="org.eclipse.kura.cloud.CloudService"
+            description="Friendly name pid">
+        </AD>
+        
+        <AD id="semantic.topic"
+        	name="semantic.topic"
+        	type="String"
+        	cardinality="0"
+        	required="false"
+        	default="/data"
+        	description='semantic topic'>
+        </AD>
+                    
+        <AD id="qos"
+            name="qos"
+            type="Integer"
+            cardinality="0"
+            required="true"
+            default="0"
+            description='Topic prefix for system and device management messages.'>
+            <Option label="0" value="1" />
+            <Option label="1" value="1" />
+        </AD>
+                    
+        <AD id="retain"
+            name="retain"
+            type="Boolean"
+            cardinality="0"
+            required="true"
+            default="false"
+            description="Compress message payloads before sending them to the remote server to reduce the network traffic.">
+        </AD>
+        
+        <AD id="message.type"
+            name="message.type"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="data"
+            description="Whether or not to republish the MQTT Birth Certificate on GPS lock event"/>
+            <Option label="Data" value="data" />
+            <Option label="Control" value="control" />
+    </OCD>
+    
+    <Designate pid="org.eclipse.kura.cloud.CloudPublisher" factoryPid="org.eclipse.kura.cloud.CloudPublisher">
+        <Object ocdref="org.eclipse.kura.cloud.CloudPublisher"/>
+    </Designate>
+</MetaData>

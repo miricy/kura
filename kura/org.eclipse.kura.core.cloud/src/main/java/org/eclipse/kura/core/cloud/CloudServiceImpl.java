@@ -741,4 +741,9 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
                 : new CloudConnectionLostEvent(eventProperties);
         this.eventAdmin.postEvent(event);
     }
+
+//    @Override
+//    public int publish(Map<String, Object> cloudProps, KuraPayload message) throws KuraException {
+//        throw new UnsupportedOperationException();
+//    }
 }
