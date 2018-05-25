@@ -1,34 +1,43 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ *******************************************************************************/
 package org.eclipse.kura.core.cloud.publisher;
 
 import java.util.Map;
 
 public class CloudPublisherOptions {
 
-    private static final Property<String> CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
+    private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
             "org.eclipse.kura.cloud.CloudService");
-    private static final Property<String> APP_ID = new Property<>("appId", "heater");
-    private static final Property<String> SEMANTIC_TOPIC = new Property<>("semantic.topic", "/data");
-    private static final Property<Integer> QOS = new Property<>("qos", 0);
-    private static final Property<Boolean> RETAIN = new Property<>("retain", false);
-    private static final Property<String> MESSAGE_TYPE = new Property<>("message.type", "data");
-    private static final Property<Integer> PRIORITY = new Property<>("priority", 7);
+    private static final Property<String> PROPERTY_APP_ID = new Property<>("appId", "heater");
+    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic", "data");
+    private static final Property<Integer> PROPERTY_QOS = new Property<>("qos", 0);
+    private static final Property<Boolean> PROPERTY_RETAIN = new Property<>("retain", false);
+    private static final Property<String> PROPERTY_MESSAGE_TYPE = new Property<>("message.type", "data");
+    private static final Property<Integer> PROPERTY_PRIORITY = new Property<>("priority", 7);
 
     private final String cloudServicePid;
     private final String appId;
     private final String semanticTopic;
     private final int qos;
     private final boolean retain;
-    private final String messageType; // TODO: enum
+    private final String messageType;
     private final int priority;
 
     public CloudPublisherOptions(final Map<String, Object> properties) {
-        this.cloudServicePid = CLOUD_SERVICE_PID.get(properties);
-        this.appId = APP_ID.get(properties);
-        this.semanticTopic = SEMANTIC_TOPIC.get(properties);
-        this.qos = QOS.get(properties);
-        this.retain = RETAIN.get(properties);
-        this.messageType = MESSAGE_TYPE.get(properties);
-        this.priority = PRIORITY.get(properties);
+        this.cloudServicePid = PROPERTY_CLOUD_SERVICE_PID.get(properties);
+        this.appId = PROPERTY_APP_ID.get(properties);
+        this.semanticTopic = PROPERTY_SEMANTIC_TOPIC.get(properties);
+        this.qos = PROPERTY_QOS.get(properties);
+        this.retain = PROPERTY_RETAIN.get(properties);
+        this.messageType = PROPERTY_MESSAGE_TYPE.get(properties);
+        this.priority = PROPERTY_PRIORITY.get(properties);
     }
 
     public String getCloudServicePid() {
@@ -38,7 +47,7 @@ public class CloudPublisherOptions {
     public String getAppId() {
         return this.appId;
     }
-    
+
     public String getSemanticTopic() {
         return this.semanticTopic;
     }
@@ -51,8 +60,8 @@ public class CloudPublisherOptions {
         return this.retain;
     }
 
-    public String getMessageType() {
-        return this.messageType;
+    public MessageType getMessageType() {
+        return MessageType.fromValue(this.messageType);
     }
 
     public int getPriority() {

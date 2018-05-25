@@ -15,7 +15,7 @@
 <MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.2.0" localization="en_us">
     <OCD id="org.eclipse.kura.cloud.publisher.CloudPublisher" 
          name="CloudPublisher" 
-         description="The CloudService allows for setting a user friendly name for the current device. It also provides the option to compress message payloads to reduce network traffic.">
+         description="The CloudPublisher allows to define publishing parameters and provide a simple endpoint where the applications can attach to publish their messages.">
         
         <AD id="cloud.service.pid"
             name="cloud.service.pid"
@@ -23,7 +23,7 @@
             cardinality="0"
             required="true"
             default="org.eclipse.kura.cloud.CloudService"
-            description="Friendly name pid">
+            description="The Kura Service PID of the Cloud Service to use to publish messages.">
         </AD>
         
         <AD id="appId"
@@ -32,7 +32,7 @@
             cardinality="0"
             required="false"
             default="heater"
-            description='app id'>
+            description='The application id used to publish messages.'>
         </AD>
         
         <AD id="semantic.topic"
@@ -40,8 +40,8 @@
         	type="String"
         	cardinality="0"
         	required="false"
-        	default="/data"
-        	description='semantic topic'>
+        	default="data"
+        	description='Follows the application Id and specifies the rest of the publishing topic.'>
         </AD>
                     
         <AD id="qos"
@@ -50,7 +50,7 @@
             cardinality="0"
             required="true"
             default="0"
-            description='Topic prefix for system and device management messages.'>
+            description='The desired quality of service for the messages that have to be published.'>
             <Option label="0" value="0" />
             <Option label="1" value="1" />
         </AD>
@@ -61,7 +61,7 @@
             cardinality="0"
             required="true"
             default="false"
-            description="Compress message payloads before sending them to the remote server to reduce the network traffic.">
+            description="Default retaing flag for the published messages.">
         </AD>
         
         <AD id="message.type"
@@ -70,7 +70,7 @@
             cardinality="0"
             required="true"
             default="data"
-            description="Whether or not to republish the MQTT Birth Certificate on GPS lock event">
+            description="Type of message to be published.">
             <Option label="Data" value="data" />
             <Option label="Control" value="control" />
         </AD>

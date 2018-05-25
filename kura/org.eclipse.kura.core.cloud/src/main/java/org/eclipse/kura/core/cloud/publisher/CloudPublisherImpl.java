@@ -1,3 +1,12 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ *******************************************************************************/
 package org.eclipse.kura.core.cloud.publisher;
 
 import static java.util.Objects.nonNull;
@@ -49,7 +58,7 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
 
         @Override
         public void modifiedService(ServiceReference<CloudService> reference, CloudService service) {
-
+            // Not needed
         }
     }
 
@@ -61,7 +70,6 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
     private CloudPublisherOptions cloudPublisherOptions;
     private CloudServiceImpl cloudService;
     private BundleContext bundleContext;
-
 
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         logger.debug("Activating Cloud Publisher...");
@@ -103,7 +111,7 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
             logger.info("Null cloud service");
             throw new KuraException(KuraErrorCode.NOT_CONNECTED); // TODO: create a more meaningful one
         }
-        
+
         DataService dataService = this.cloudService.getDataService();
         CloudServiceOptions cloudServiceOptions = this.cloudService.getCloudServiceOptions();
 
@@ -113,9 +121,9 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         boolean retain = this.cloudPublisherOptions.isRetain();
         int priority = this.cloudPublisherOptions.getPriority();
         byte[] appPayload = this.cloudService.encodePayload(message);
-
-        boolean isControl = "control".equals(this.cloudPublisherOptions.getMessageType());
+        boolean isControl = MessageType.CONTROL.equals(this.cloudPublisherOptions.getMessageType());
         String fullTopic = encodeTopic(deviceId, appTopic, isControl);
+
         return dataService.publish(fullTopic, appPayload, qos, retain, priority);
     }
 
