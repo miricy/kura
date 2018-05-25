@@ -16,8 +16,6 @@
     <OCD id="org.eclipse.kura.cloud.publisher.CloudPublisher" 
          name="CloudPublisher" 
          description="The CloudService allows for setting a user friendly name for the current device. It also provides the option to compress message payloads to reduce network traffic.">
-
-        <Icon resource="CloudService" size="32"/>
         
         <AD id="cloud.service.pid"
             name="cloud.service.pid"
@@ -53,7 +51,7 @@
             required="true"
             default="0"
             description='Topic prefix for system and device management messages.'>
-            <Option label="0" value="1" />
+            <Option label="0" value="0" />
             <Option label="1" value="1" />
         </AD>
                     
@@ -72,9 +70,10 @@
             cardinality="0"
             required="true"
             default="data"
-            description="Whether or not to republish the MQTT Birth Certificate on GPS lock event"/>
+            description="Whether or not to republish the MQTT Birth Certificate on GPS lock event">
             <Option label="Data" value="data" />
             <Option label="Control" value="control" />
+        </AD>
             
         <AD id="priority"
             name="priority"
