@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudClient;
 import org.eclipse.kura.cloud.CloudClientListener;
@@ -41,7 +42,7 @@ public class CloudClientImpl implements CloudClient, CloudClientListener {
         this.applicationId = applicationId;
         this.dataService = dataService;
         this.cloudServiceImpl = cloudServiceImpl;
-        this.listeners = new CopyOnWriteArrayList<CloudClientListenerAdapter>();
+        this.listeners = new CopyOnWriteArrayList<>();
     }
 
     /**
@@ -134,6 +135,10 @@ public class CloudClientImpl implements CloudClient, CloudClientListener {
     @Override
     public int publish(String deviceId, String appTopic, byte[] payload, int qos, boolean retain, int priority)
             throws KuraException {
+        if (qos == 2 || retain) {
+            throw new KuraException(KuraErrorCode.INVALID_PARAMETER);
+        }
+        
         boolean isControl = false;
         String fullTopic = encodeTopic(deviceId, appTopic, isControl);
         return this.dataService.publish(fullTopic, payload, qos, retain, priority);
@@ -142,75 +147,59 @@ public class CloudClientImpl implements CloudClient, CloudClientListener {
     @Override
     public int controlPublish(String appTopic, KuraPayload payload, int qos, boolean retain, int priority)
             throws KuraException {
-        CloudServiceOptions options = this.cloudServiceImpl.getCloudServiceOptions();
-        return controlPublish(options.getTopicClientIdToken(), appTopic, payload, qos, retain, priority);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int controlPublish(String deviceId, String appTopic, KuraPayload payload, int qos, boolean retain, int priority)
             throws KuraException {
-        byte[] appPayload = this.cloudServiceImpl.encodePayload(payload);
-        return controlPublish(deviceId, appTopic, appPayload, qos, retain, priority);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int controlPublish(String deviceId, String appTopic, byte[] payload, int qos, boolean retain, int priority)
             throws KuraException {
-        boolean isControl = true;
-        String fullTopic = encodeTopic(deviceId, appTopic, isControl);
-        return this.dataService.publish(fullTopic, payload, qos, retain, priority);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void subscribe(String appTopic, int qos) throws KuraException {
-        CloudServiceOptions options = this.cloudServiceImpl.getCloudServiceOptions();
-        subscribe(options.getTopicClientIdToken(), appTopic, qos);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void subscribe(String deviceId, String appTopic, int qos) throws KuraException {
-        boolean isControl = false;
-        String fullTopic = encodeTopic(deviceId, appTopic, isControl);
-        this.dataService.subscribe(fullTopic, qos);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void controlSubscribe(String appTopic, int qos) throws KuraException {
-        CloudServiceOptions options = this.cloudServiceImpl.getCloudServiceOptions();
-        controlSubscribe(options.getTopicClientIdToken(), appTopic, qos);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void controlSubscribe(String deviceId, String appTopic, int qos) throws KuraException {
-        boolean isControl = true;
-        String fullTopic = encodeTopic(deviceId, appTopic, isControl);
-        this.dataService.subscribe(fullTopic, qos);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void unsubscribe(String appTopic) throws KuraException {
-        CloudServiceOptions options = this.cloudServiceImpl.getCloudServiceOptions();
-        unsubscribe(options.getTopicClientIdToken(), appTopic);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void unsubscribe(String deviceId, String appTopic) throws KuraException {
-        boolean isControl = false;
-        String fullTopic = encodeTopic(deviceId, appTopic, isControl);
-        this.dataService.unsubscribe(fullTopic);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void controlUnsubscribe(String appTopic) throws KuraException {
-        CloudServiceOptions options = this.cloudServiceImpl.getCloudServiceOptions();
-        controlUnsubscribe(options.getTopicClientIdToken(), appTopic);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void controlUnsubscribe(String deviceId, String appTopic) throws KuraException {
-        boolean isControl = true;
-        String fullTopic = encodeTopic(deviceId, appTopic, isControl);
-        this.dataService.unsubscribe(fullTopic);
+        throw new UnsupportedOperationException();
     }
 
     @Override
