@@ -482,6 +482,11 @@
                                     <artifactId>org.eclipse.kura.wire.component.join.provider</artifactId>
                                     <version>${org.eclipse.kura.wire.component.join.provider.version}</version>
                                 </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.kura</groupId>
+                                    <artifactId>org.eclipse.kura.cloud.mqtt.eclipseiot</artifactId>
+                                    <version>${org.eclipse.kura.cloud.mqtt.eclipseiot.version}</version>
+                                </artifactItem>
                             </artifactItems>
                             <stripVersion>true</stripVersion>
                             <outputDirectory>${project.basedir}/target/plugins</outputDirectory>
@@ -684,6 +689,8 @@
                                     tofile="target/plugins/org.eclipse.kura.wire.component.conditional.provider_${org.eclipse.kura.wire.component.conditional.provider.version}.jar" />
                                 <move file="target/plugins/org.eclipse.kura.wire.component.join.provider.jar"
                                     tofile="target/plugins/org.eclipse.kura.wire.component.join.provider_${org.eclipse.kura.wire.component.join.provider.version}.jar" />
+                                <move file="target/plugins/org.eclipse.kura.cloud.mqtt.eclipseiot.jar"
+                                    tofile="target/plugins/org.eclipse.kura.cloud.mqtt.eclipseiot_${org.eclipse.kura.cloud.mqtt.eclipseiot.version}.jar" />
                             </tasks>
                         </configuration>
                     </execution>

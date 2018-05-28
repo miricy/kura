@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (c) 2018 Eurotech and/or its affiliates, and others
+
+     All rights reserved. This program and the accompanying materials
+     are made available under the terms of the Eclipse Public License v1.0
+     which accompanies this distribution, and is available at
+     http://www.eclipse.org/legal/epl-v10.html
+
+    Contributors:
+      Eurotech
+
+-->
+<MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.2.0" localization="en_us">
+    <OCD id="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher" 
+         name="CloudPublisher" 
+         description="The CloudPublisher allows to define publishing parameters and provide a simple endpoint where the applications can attach to publish their messages.">
+        
+        <AD id="cloud.service.pid"
+            name="cloud.service.pid"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService"
+            description="The Kura Service PID of the Cloud Service to use to publish messages.">
+        </AD>
+        
+        <AD id="semantic.topic"
+        	name="semantic.topic"
+        	type="String"
+        	cardinality="0"
+        	required="false"
+        	default="data"
+        	description='Specifies the semantic topic.'>
+        </AD>
+        
+        <AD id="message.type"
+            name="message.type"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="telemetryQos0"
+            description="Type of message to be published.">
+            <Option label="Telemetry QoS 0" value="telemetryQos0" />
+            <Option label="Telemetry QoS 1" value="telemetryQos1" />
+            <Option label="Events" value="events" />
+            <Option label="Alerts" value="alerts" />
+        </AD>
+    </OCD>
+    
+    <Designate pid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher" factoryPid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher">
+        <Object ocdref="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher"/>
+    </Designate>
+</MetaData>
