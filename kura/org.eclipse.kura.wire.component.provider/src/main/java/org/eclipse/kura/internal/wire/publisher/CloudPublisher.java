@@ -21,13 +21,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.CloudClient;
 import org.eclipse.kura.cloud.CloudClientListener;
-import org.eclipse.kura.cloud.CloudService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;
@@ -68,52 +63,39 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
      * Specific methods can refresh the cloudService definition and setup again the Cloud Client.
      *
      */
-    private final class CloudPublisherServiceTrackerCustomizer
-            implements ServiceTrackerCustomizer<CloudService, CloudService> {
+    private final class CloudPublisherServiceTrackerCustomizer implements
+            ServiceTrackerCustomizer<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> {
 
         @Override
-        public CloudService addingService(final ServiceReference<CloudService> reference) {
-            CloudPublisher.this.cloudService = CloudPublisher.this.bundleContext.getService(reference);
-            try {
-                // recreate the Cloud Client
-                setupCloudClient();
-            } catch (final KuraException e) {
-                logger.error("Cannot setup CloudClient...", e);
-            }
-            return CloudPublisher.this.cloudService;
+        public org.eclipse.kura.cloud.publisher.CloudPublisher addingService(
+                final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference) {
+            CloudPublisher.this.cloudPublisher = CloudPublisher.this.bundleContext.getService(reference);
+
+            return CloudPublisher.this.cloudPublisher;
         }
 
         @Override
-        public void modifiedService(final ServiceReference<CloudService> reference, final CloudService service) {
-            CloudPublisher.this.cloudService = CloudPublisher.this.bundleContext.getService(reference);
-            try {
-                // recreate the Cloud Client
-                setupCloudClient();
-            } catch (final KuraException e) {
-                logger.error("Cannot setup CloudClient...", e);
-            }
+        public void modifiedService(final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference,
+                final org.eclipse.kura.cloud.publisher.CloudPublisher service) {
+            CloudPublisher.this.cloudPublisher = CloudPublisher.this.bundleContext.getService(reference);
         }
 
         @Override
-        public void removedService(final ServiceReference<CloudService> reference, final CloudService service) {
-            CloudPublisher.this.cloudService = null;
+        public void removedService(final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference,
+                final org.eclipse.kura.cloud.publisher.CloudPublisher service) {
+            CloudPublisher.this.cloudPublisher = null;
         }
     }
 
     private static final Logger logger = LoggerFactory.getLogger(CloudPublisher.class);
 
-    private static final String TOPIC_PATTERN_STRING = "\\$([^\\s/]+)";
-    private static final Pattern TOPIC_PATTERN = Pattern.compile(TOPIC_PATTERN_STRING);
-
     private BundleContext bundleContext;
 
-    private ServiceTrackerCustomizer<CloudService, CloudService> cloudServiceTrackerCustomizer;
+    private ServiceTrackerCustomizer<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> cloudPublisherTrackerCustomizer;
 
-    private ServiceTracker<CloudService, CloudService> cloudServiceTracker;
+    private ServiceTracker<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> cloudPublisherTracker;
 
-    private volatile CloudService cloudService;
-
-    private CloudClient cloudClient;
+    private volatile org.eclipse.kura.cloud.publisher.CloudPublisher cloudPublisher;
 
     private CloudPublisherOptions cloudPublisherOptions;
 
@@ -183,8 +165,8 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
         // Update properties
         this.cloudPublisherOptions = new CloudPublisherOptions(properties);
 
-        this.cloudServiceTrackerCustomizer = new CloudPublisherServiceTrackerCustomizer();
-        initCloudServiceTracking();
+        this.cloudPublisherTrackerCustomizer = new CloudPublisherServiceTrackerCustomizer();
+        initCloudPublisherTracking();
 
         logger.debug("Activating Cloud Publisher Wire Component... Done");
     }
@@ -200,10 +182,10 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
         // Update properties
         this.cloudPublisherOptions = new CloudPublisherOptions(properties);
 
-        if (nonNull(this.cloudServiceTracker)) {
-            this.cloudServiceTracker.close();
+        if (nonNull(this.cloudPublisherTracker)) {
+            this.cloudPublisherTracker.close();
         }
-        initCloudServiceTracking();
+        initCloudPublisherTracking();
 
         logger.debug("Updating Cloud Publisher Wire Component... Done");
     }
@@ -216,11 +198,9 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
      */
     protected void deactivate(final ComponentContext componentContext) {
         logger.debug("Deactivating Cloud Publisher Wire Component...");
-        // close the client
-        closeCloudClient();
 
-        if (nonNull(this.cloudServiceTracker)) {
-            this.cloudServiceTracker.close();
+        if (nonNull(this.cloudPublisherTracker)) {
+            this.cloudPublisherTracker.close();
         }
         logger.debug("Deactivating Cloud Publisher Wire Component... Done");
     }
@@ -248,7 +228,7 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
     public void onWireReceive(final WireEnvelope wireEnvelope) {
         requireNonNull(wireEnvelope, "Wire Envelope cannot be null");
 
-        if (nonNull(this.cloudService) && nonNull(this.cloudClient)) {
+        if (nonNull(this.cloudPublisher)) {
             final List<WireRecord> records = wireEnvelope.getRecords();
             publish(records);
         }
@@ -294,18 +274,19 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
     /**
      * Service tracker to manage Cloud Services
      */
-    private void initCloudServiceTracking() {
-        String selectedCloudServicePid = this.cloudPublisherOptions.getCloudServicePid();
+    private void initCloudPublisherTracking() {
+        String selectedCloudPublisherPid = this.cloudPublisherOptions.getCloudPublisherPid();
         String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                CloudService.class.getName(), selectedCloudServicePid);
+                org.eclipse.kura.cloud.publisher.CloudPublisher.class.getName(), selectedCloudPublisherPid);
         Filter filter = null;
         try {
             filter = this.bundleContext.createFilter(filterString);
         } catch (InvalidSyntaxException e) {
             logger.error("Filter setup exception ", e);
         }
-        this.cloudServiceTracker = new ServiceTracker<>(this.bundleContext, filter, this.cloudServiceTrackerCustomizer);
-        this.cloudServiceTracker.open();
+        this.cloudPublisherTracker = new ServiceTracker<>(this.bundleContext, filter,
+                this.cloudPublisherTrackerCustomizer);
+        this.cloudPublisherTracker.open();
     }
 
     /**
@@ -354,17 +335,6 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
     }
 
     /**
-     * Closes the cloud client.
-     */
-    private void closeCloudClient() {
-        if (nonNull(this.cloudClient)) {
-            this.cloudClient.removeCloudClientListener(this);
-            this.cloudClient.release();
-            this.cloudClient = null;
-        }
-    }
-
-    /**
      * Publishes the list of provided {@link WireRecord}s
      *
      * @param wireRecords
@@ -373,63 +343,15 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
      *             if one of the arguments is null
      */
     private void publish(final List<WireRecord> wireRecords) {
-        requireNonNull(this.cloudClient, "Cloud Client cannot be null");
         requireNonNull(wireRecords, "Wire Records cannot be null");
 
         try {
             for (final WireRecord dataRecord : wireRecords) {
-                // prepare the topic
-                final String appTopic = buildPublishAppTopic(dataRecord);
-
                 final KuraPayload kuraPayload = buildKuraPayload(dataRecord);
-                if (this.cloudPublisherOptions.isControlMessage()) {
-                    this.cloudClient.controlPublish(appTopic, kuraPayload,
-                            this.cloudPublisherOptions.getPublishingQos(),
-                            this.cloudPublisherOptions.getPublishingRetain(),
-                            this.cloudPublisherOptions.getPublishingPriority());
-                } else {
-                    this.cloudClient.publish(appTopic, kuraPayload, this.cloudPublisherOptions.getPublishingQos(),
-                            this.cloudPublisherOptions.getPublishingRetain(),
-                            this.cloudPublisherOptions.getPublishingPriority());
-                }
-
+                this.cloudPublisher.publish(kuraPayload);
             }
         } catch (final Exception e) {
             logger.error("Error in publishing wire records using cloud publisher..", e);
         }
-    }
-
-    private String buildPublishAppTopic(WireRecord dataRecord) {
-        Matcher matcher = TOPIC_PATTERN.matcher(this.cloudPublisherOptions.getPublishingTopic());
-        StringBuffer buffer = new StringBuffer();
-
-        while (matcher.find()) {
-            Map<String, TypedValue<?>> properties = dataRecord.getProperties();
-            if (properties.containsKey(matcher.group(1))) {
-                String replacement = matcher.group(0);
-
-                TypedValue<?> value = properties.get(matcher.group(1));
-                if (replacement != null) {
-                    matcher.appendReplacement(buffer, value.getValue().toString());
-                    continue;
-                }
-            }
-        }
-        matcher.appendTail(buffer);
-        return buffer.toString();
-    }
-
-    /**
-     * Setup cloud client.
-     *
-     * @throws KuraException
-     *             if cloud client setup fails.
-     */
-    private void setupCloudClient() throws KuraException {
-        closeCloudClient();
-        // create the new CloudClient for the specified application
-        final String appId = this.cloudPublisherOptions.getPublishingApplication();
-        this.cloudClient = this.cloudService.newCloudClient(appId);
-        this.cloudClient.addCloudClientListener(this);
     }
 }

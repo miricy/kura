@@ -12,6 +12,8 @@ package org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.publisher;
 import static java.util.Objects.nonNull;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
@@ -63,6 +65,9 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
     }
 
     private static final Logger logger = LoggerFactory.getLogger(CloudPublisherImpl.class);
+
+    private static final String TOPIC_PATTERN_STRING = "\\$([^\\s/]+)";
+    private static final Pattern TOPIC_PATTERN = Pattern.compile(TOPIC_PATTERN_STRING);
 
     private ServiceTrackerCustomizer<CloudService, CloudService> cloudServiceTrackerCustomizer;
     private ServiceTracker<CloudService, CloudService> cloudServiceTracker;
@@ -118,7 +123,7 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         MessageType messageType = this.cloudPublisherOptions.getMessageType();
 
         String deviceId = cloudServiceOptions.getTopicClientIdToken();
-        String semanticTopic = this.cloudPublisherOptions.getSemanticTopic();
+        String semanticTopic = buildPublishSemanticTopic(message);
         int qos = messageType.getQos();
 
         boolean retain = false;
@@ -157,6 +162,25 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         }
 
         return sb.toString();
+    }
+
+    private String buildPublishSemanticTopic(KuraPayload message) {
+        Matcher matcher = TOPIC_PATTERN.matcher(this.cloudPublisherOptions.getSemanticTopic());
+        StringBuffer buffer = new StringBuffer();
+
+        while (matcher.find()) {
+            Map<String, Object> properties = message.metrics();
+            if (properties.containsKey(matcher.group(1))) {
+                String replacement = matcher.group(0);
+
+                Object value = properties.get(matcher.group(1));
+                if (replacement != null) {
+                    matcher.appendReplacement(buffer, value.toString());
+                }
+            }
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
     }
 
 }

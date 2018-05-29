@@ -15,7 +15,7 @@ public class CloudPublisherOptions {
 
     private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
             "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService");
-    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic", "data");
+    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic", "W1/A1/$assetName");
     private static final Property<Integer> PROPERTY_QOS = new Property<>("qos", 0);
     private static final Property<String> PROPERTY_MESSAGE_TYPE = new Property<>("message.type", "telemetryQos0");
 

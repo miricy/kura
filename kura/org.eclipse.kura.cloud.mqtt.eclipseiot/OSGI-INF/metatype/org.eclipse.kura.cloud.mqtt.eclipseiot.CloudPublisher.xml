@@ -31,7 +31,7 @@
         	type="String"
         	cardinality="0"
         	required="false"
-        	default="data"
+        	default="W1/A1/$assetName"
         	description='Specifies the semantic topic.'>
         </AD>
         

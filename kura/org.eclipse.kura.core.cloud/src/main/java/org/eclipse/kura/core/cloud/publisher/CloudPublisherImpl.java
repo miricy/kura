@@ -12,6 +12,8 @@ package org.eclipse.kura.core.cloud.publisher;
 import static java.util.Objects.nonNull;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
@@ -63,6 +65,9 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
     }
 
     private static final Logger logger = LoggerFactory.getLogger(CloudPublisherImpl.class);
+
+    private static final String TOPIC_PATTERN_STRING = "\\$([^\\s/]+)";
+    private static final Pattern TOPIC_PATTERN = Pattern.compile(TOPIC_PATTERN_STRING);
 
     private ServiceTrackerCustomizer<CloudService, CloudService> cloudServiceTrackerCustomizer;
     private ServiceTracker<CloudService, CloudService> cloudServiceTracker;
@@ -116,7 +121,7 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         CloudServiceOptions cloudServiceOptions = this.cloudService.getCloudServiceOptions();
 
         String deviceId = cloudServiceOptions.getTopicClientIdToken();
-        String appTopic = this.cloudPublisherOptions.getSemanticTopic();
+        String appTopic = buildPublishAppTopic(message);
         int qos = this.cloudPublisherOptions.getQos();
         boolean retain = this.cloudPublisherOptions.isRetain();
         int priority = this.cloudPublisherOptions.getPriority();
@@ -156,6 +161,25 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         }
 
         return sb.toString();
+    }
+
+    private String buildPublishAppTopic(KuraPayload message) {
+        Matcher matcher = TOPIC_PATTERN.matcher(this.cloudPublisherOptions.getAppTopic());
+        StringBuffer buffer = new StringBuffer();
+
+        while (matcher.find()) {
+            Map<String, Object> properties = message.metrics();
+            if (properties.containsKey(matcher.group(1))) {
+                String replacement = matcher.group(0);
+
+                Object value = properties.get(matcher.group(1));
+                if (replacement != null) {
+                    matcher.appendReplacement(buffer, value.toString());
+                }
+            }
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
     }
 
 }

@@ -15,8 +15,8 @@ public class CloudPublisherOptions {
 
     private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
             "org.eclipse.kura.cloud.CloudService");
-    private static final Property<String> PROPERTY_APP_ID = new Property<>("appId", "heater");
-    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic", "data");
+    private static final Property<String> PROPERTY_APP_ID = new Property<>("appId", "W1");
+    private static final Property<String> PROPERTY_APP_TOPIC = new Property<>("app.topic", "A1/$assetName");
     private static final Property<Integer> PROPERTY_QOS = new Property<>("qos", 0);
     private static final Property<Boolean> PROPERTY_RETAIN = new Property<>("retain", false);
     private static final Property<String> PROPERTY_MESSAGE_TYPE = new Property<>("message.type", "data");
@@ -24,7 +24,7 @@ public class CloudPublisherOptions {
 
     private final String cloudServicePid;
     private final String appId;
-    private final String semanticTopic;
+    private final String appTopic;
     private final int qos;
     private final boolean retain;
     private final String messageType;
@@ -33,7 +33,7 @@ public class CloudPublisherOptions {
     public CloudPublisherOptions(final Map<String, Object> properties) {
         this.cloudServicePid = PROPERTY_CLOUD_SERVICE_PID.get(properties);
         this.appId = PROPERTY_APP_ID.get(properties);
-        this.semanticTopic = PROPERTY_SEMANTIC_TOPIC.get(properties);
+        this.appTopic = PROPERTY_APP_TOPIC.get(properties);
         this.qos = PROPERTY_QOS.get(properties);
         this.retain = PROPERTY_RETAIN.get(properties);
         this.messageType = PROPERTY_MESSAGE_TYPE.get(properties);
@@ -48,8 +48,8 @@ public class CloudPublisherOptions {
         return this.appId;
     }
 
-    public String getSemanticTopic() {
-        return this.semanticTopic;
+    public String getAppTopic() {
+        return this.appTopic;
     }
 
     public int getQos() {
