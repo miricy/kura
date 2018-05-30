@@ -14,20 +14,19 @@
 
 -->
 <scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" activate="activate" configuration-policy="require" deactivate="deactivate" modified="updated" name="org.eclipse.kura.cloud.app.command.CommandCloudApp">
-   <implementation class="org.eclipse.kura.cloud.app.command.CommandCloudApp"/>
-   <reference name="CloudService"
-              policy="static"
-              cardinality="1..1"
-              bind="setCloudService"
-              unbind="unsetCloudService"
-              target="(kura.service.pid=org.eclipse.kura.cloud.CloudService)"
-              interface="org.eclipse.kura.cloud.CloudService"/>		 
+   <implementation class="org.eclipse.kura.cloud.app.command.CommandCloudApp"/>	 
    <reference name="CryptoService"
               policy="static"
               cardinality="1..1" 
               bind="setCryptoService"
               unbind="unsetCryptoService"
               interface="org.eclipse.kura.crypto.CryptoService"/>
+   <reference name="CloudletService"
+              policy="dynamic"
+              cardinality="0..n" 
+              bind="setCloudletService"
+              unbind="unsetCloudletService"
+              interface="org.eclipse.kura.cloud.CloudletService"/>
    	<service>
    		<provide interface="org.eclipse.kura.command.PasswordCommandService"/>
      <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>

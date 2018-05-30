@@ -41,7 +41,7 @@ public class CloudClientImpl implements CloudClient, CloudClientListener {
         this.applicationId = applicationId;
         this.dataService = dataService;
         this.cloudServiceImpl = cloudServiceImpl;
-        this.listeners = new CopyOnWriteArrayList<CloudClientListenerAdapter>();
+        this.listeners = new CopyOnWriteArrayList<>();
     }
 
     /**

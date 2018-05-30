@@ -11,10 +11,7 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud;
 
-import java.util.Map;
-
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
@@ -35,7 +32,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * The CloudService can be used through the {@link CloudClient} API or by extending the {@link Cloudlet} class.
  * {@link Cloudlet} simplifies the interactions with remote servers providing a servlet-like API
  * to implement request and response flows and remote resource management.
- * 
+ *
  * @noimplement This interface is not intended to be implemented by clients.
  */
 @ProviderType
@@ -78,9 +75,4 @@ public interface CloudService {
      * @return
      */
     public boolean isConnected();
-//    
-//    /**
-//     * @since 1.5
-//     */
-//    public int publish(Map<String, Object> cloudProps, KuraPayload message) throws KuraException;
 }

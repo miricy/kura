@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,7 +18,8 @@ import java.util.Map;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.Cloudlet;
+import org.eclipse.kura.cloud.CloudletInterface;
+import org.eclipse.kura.cloud.CloudletService;
 import org.eclipse.kura.cloud.CloudletTopic;
 import org.eclipse.kura.command.PasswordCommandService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
@@ -30,7 +31,7 @@ import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CommandCloudApp extends Cloudlet implements ConfigurableComponent, PasswordCommandService {
+public class CommandCloudApp implements ConfigurableComponent, PasswordCommandService, CloudletInterface {
 
     private static final Logger logger = LoggerFactory.getLogger(CommandCloudApp.class);
     private static final String EDC_PASSWORD_METRIC_NAME = "command.password";
@@ -44,17 +45,12 @@ public class CommandCloudApp extends Cloudlet implements ConfigurableComponent, 
 
     private Map<String, Object> properties;
 
-    private ComponentContext compCtx;
     private CryptoService cryptoService;
 
     private boolean currentStatus;
 
     /* EXEC */
     public static final String RESOURCE_COMMAND = "command";
-
-    public CommandCloudApp() {
-        super(APP_ID);
-    }
 
     // ----------------------------------------------------------------
     //
@@ -73,6 +69,22 @@ public class CommandCloudApp extends Cloudlet implements ConfigurableComponent, 
         this.cryptoService = null;
     }
 
+    public void setCloudletService(CloudletService cloudletService) {
+        try {
+            cloudletService.registerCloudlet(APP_ID, this);
+        } catch (KuraException e) {
+            logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
+        }
+    }
+
+    public void unsetCloudletService(CloudletService cloudletService) {
+        try {
+            cloudletService.unregisterCloudlet(APP_ID);
+        } catch (KuraException e) {
+            logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
+        }
+    }
+
     // ----------------------------------------------------------------
     //
     // Activation APIs
@@ -81,20 +93,17 @@ public class CommandCloudApp extends Cloudlet implements ConfigurableComponent, 
 
     // This component inherits the activation methods from the parent
     // class CloudApp.
-    protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
+    protected void activate(Map<String, Object> properties) {
         logger.info("Cloudlet {} has started with config!", APP_ID);
-        this.compCtx = componentContext;
         this.currentStatus = (Boolean) properties.get(COMMAND_ENABLED_ID);
-        if (this.currentStatus) {
-            super.activate(this.compCtx);
-        }
+
         updated(properties);
     }
 
     public void updated(Map<String, Object> properties) {
         logger.info("updated...: {}", properties);
 
-        this.properties = new HashMap<String, Object>();
+        this.properties = new HashMap<>();
 
         for (Map.Entry<String, Object> entry : properties.entrySet()) {
             String key = entry.getKey();
@@ -111,31 +120,21 @@ public class CommandCloudApp extends Cloudlet implements ConfigurableComponent, 
                 this.properties.put(key, value);
             }
         }
-
-        boolean newStatus = (Boolean) properties.get(COMMAND_ENABLED_ID);
-        boolean stateChanged = this.currentStatus != newStatus;
-        if (stateChanged) {
-            this.currentStatus = newStatus;
-            if (!this.currentStatus && getCloudApplicationClient() != null) {
-                super.deactivate(this.compCtx);
-            }
-            if (this.currentStatus) {
-                super.activate(this.compCtx);
-            }
-        }
     }
 
-    @Override
     protected void deactivate(ComponentContext componentContext) {
         logger.info("Cloudlet {} is deactivating!", APP_ID);
-        if (getCloudApplicationClient() != null) {
-            super.deactivate(this.compCtx);
-        }
+
     }
 
     @Override
-    protected void doExec(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
+    public void doExec(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
             throws KuraException {
+
+        if (!this.currentStatus) {
+            respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+            return;
+        }
 
         String[] resources = reqTopic.getResources();
 

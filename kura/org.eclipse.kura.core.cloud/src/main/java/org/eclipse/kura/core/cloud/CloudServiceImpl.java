@@ -18,10 +18,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.kura.KuraErrorCode;
@@ -35,6 +39,8 @@ import org.eclipse.kura.cloud.CloudPayloadEncoding;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufDecoder;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufEncoder;
 import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloud.CloudletInterface;
+import org.eclipse.kura.cloud.CloudletService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataService;
@@ -58,7 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CloudServiceImpl implements CloudService, DataServiceListener, ConfigurableComponent, EventHandler,
-        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder {
+        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudletService {
 
     private static final Logger logger = LoggerFactory.getLogger(CloudServiceImpl.class);
 
@@ -66,6 +72,10 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     private static final String TOPIC_MQTT_APP = "MQTT";
 
     private static final String CONNECTION_EVENT_PID_PROPERTY_KEY = "cloud.service.pid";
+
+    private static final int NUM_CONCURRENT_CALLBACKS = 2;
+
+    private static ExecutorService callbackExecutor = Executors.newFixedThreadPool(NUM_CONCURRENT_CALLBACKS);
 
     private ComponentContext ctx;
 
@@ -95,9 +105,12 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     private ServiceRegistration<?> cloudServiceRegistration;
 
+    private final Map<String, CloudletInterface> registeredCloudlets;
+
     public CloudServiceImpl() {
         this.cloudClients = new CopyOnWriteArrayList<>();
         this.messageId = new AtomicInteger();
+        this.registeredCloudlets = new HashMap<>();
     }
 
     // ----------------------------------------------------------------
@@ -325,6 +338,10 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         for (CloudClientImpl cloudClient : this.cloudClients) {
             appIds.add(cloudClient.getApplicationId());
         }
+
+        for (Entry<String, CloudletInterface> entry : this.registeredCloudlets.entrySet()) {
+            appIds.add(entry.getKey());
+        }
         return appIds.toArray(new String[0]);
     }
 
@@ -358,7 +375,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     }
 
     public byte[] encodePayload(KuraPayload payload) throws KuraException {
-        byte[] bytes = new byte[0];
+        byte[] bytes;
         CloudPayloadEncoding preferencesEncoding = this.options.getPayloadEncoding();
 
         if (preferencesEncoding == KURA_PROTOBUF) {
@@ -385,7 +402,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
             logger.warn("Cannot setup cloud service connection");
         }
 
-        this.postConnectionStateChangeEvent(true);
+        postConnectionStateChangeEvent(true);
 
         // notify listeners
         for (CloudClientImpl cloudClient : this.cloudClients) {
@@ -454,40 +471,71 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
                 kuraPayload = createKuraPayloadFromProtoBuf(topic, payload);
             }
 
-            for (CloudClientImpl cloudClient : this.cloudClients) {
-                if (cloudClient.getApplicationId().equals(kuraTopic.getApplicationId())) {
-                    try {
-                        if (this.options.getTopicControlPrefix().equals(kuraTopic.getPrefix())) {
-                            if (this.certificatesService == null) {
-                                ServiceReference<CertificatesService> sr = this.ctx.getBundleContext()
-                                        .getServiceReference(CertificatesService.class);
-                                if (sr != null) {
-                                    this.certificatesService = this.ctx.getBundleContext().getService(sr);
-                                }
-                            }
-                            boolean validMessage = false;
-                            if (this.certificatesService == null
-                                    || this.certificatesService.verifySignature(kuraTopic, kuraPayload)) {
-                                validMessage = true;
-                            }
+            try {
+                if (this.options.getTopicControlPrefix().equals(kuraTopic.getPrefix())) {
+                    boolean validMessage = isValidMessage(kuraTopic, kuraPayload);
 
-                            if (validMessage) {
-                                cloudClient.onControlMessageArrived(kuraTopic.getDeviceId(),
-                                        kuraTopic.getApplicationTopic(), kuraPayload, qos, retained);
-                            } else {
-                                logger.warn("Message verification failed! Not valid signature or message not signed.");
-                            }
-                        } else {
-                            cloudClient.onMessageArrived(kuraTopic.getDeviceId(), kuraTopic.getApplicationTopic(),
-                                    kuraPayload, qos, retained);
-                        }
-                    } catch (Exception e) {
-                        logger.error("Error during CloudClientListener notification.", e);
+                    if (validMessage) {
+                        dispatchControlMessage(qos, retained, kuraTopic, kuraPayload);
+                    } else {
+                        logger.warn("Message verification failed! Not valid signature or message not signed.");
                     }
+                } else {
+                    dispatchDataMessage(qos, retained, kuraTopic, kuraPayload);
                 }
-
+            } catch (Exception e) {
+                logger.error("Error during CloudClientListener notification.", e);
             }
         }
+
+    }
+
+    private void dispatchControlMessage(int qos, boolean retained, KuraTopic kuraTopic, KuraPayload kuraPayload) {
+        String applicationId = kuraTopic.getApplicationId();
+
+        CloudletInterface cloudlet = this.registeredCloudlets.get(applicationId);
+        if (cloudlet != null) {
+            StringBuilder sb = new StringBuilder(applicationId).append("/").append("REPLY");
+
+            if (kuraTopic.getApplicationTopic().startsWith(sb.toString())) {
+                // Ignore replies
+                return;
+            }
+
+            callbackExecutor.submit(new MessageHandlerCallable(cloudlet, applicationId, kuraTopic.getApplicationTopic(),
+                    kuraPayload, this));
+        } else {
+            for (CloudClientImpl cloudClient : this.cloudClients) {
+                if (cloudClient.getApplicationId().equals(kuraTopic.getApplicationId())) {
+                    cloudClient.onControlMessageArrived(kuraTopic.getDeviceId(), kuraTopic.getApplicationTopic(),
+                            kuraPayload, qos, retained);
+                }
+            }
+        }
+    }
+
+    private void dispatchDataMessage(int qos, boolean retained, KuraTopic kuraTopic, KuraPayload kuraPayload) {
+        for (CloudClientImpl cloudClient : this.cloudClients) {
+            if (cloudClient.getApplicationId().equals(kuraTopic.getApplicationId())) {
+                cloudClient.onMessageArrived(kuraTopic.getDeviceId(), kuraTopic.getApplicationTopic(), kuraPayload, qos,
+                        retained);
+            }
+        }
+    }
+
+    private boolean isValidMessage(KuraTopic kuraTopic, KuraPayload kuraPayload) {
+        if (this.certificatesService == null) {
+            ServiceReference<CertificatesService> sr = this.ctx.getBundleContext()
+                    .getServiceReference(CertificatesService.class);
+            if (sr != null) {
+                this.certificatesService = this.ctx.getBundleContext().getService(sr);
+            }
+        }
+        boolean validMessage = false;
+        if (this.certificatesService == null || this.certificatesService.verifySignature(kuraTopic, kuraPayload)) {
+            validMessage = true;
+        }
+        return validMessage;
     }
 
     @Override
@@ -735,15 +783,20 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     private void postConnectionStateChangeEvent(final boolean isConnected) {
 
         final Map<String, Object> eventProperties = Collections.singletonMap(CONNECTION_EVENT_PID_PROPERTY_KEY,
-                (String) ctx.getProperties().get(ConfigurationService.KURA_SERVICE_PID));
+                (String) this.ctx.getProperties().get(ConfigurationService.KURA_SERVICE_PID));
 
         final Event event = isConnected ? new CloudConnectionEstablishedEvent(eventProperties)
                 : new CloudConnectionLostEvent(eventProperties);
         this.eventAdmin.postEvent(event);
     }
 
-//    @Override
-//    public int publish(Map<String, Object> cloudProps, KuraPayload message) throws KuraException {
-//        throw new UnsupportedOperationException();
-//    }
+    @Override
+    public void registerCloudlet(String appId, CloudletInterface cloudlet) {
+        this.registeredCloudlets.put(appId, cloudlet);
+    }
+
+    @Override
+    public void unregisterCloudlet(String appId) {
+        this.registeredCloudlets.remove(appId);
+    }
 }

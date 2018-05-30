@@ -43,7 +43,7 @@ import org.osgi.service.component.ComponentConstants;
  * <tbody>
  * <tr>
  * <td>org.eclipse.kura.cloud.CloudService</td>
- * <td>{@link CloudService}</td>
+ * <td>{@link DataService}</td>
  * </tr>
  * <tr>
  * <td>org.eclipse.kura.data.DataService</td>

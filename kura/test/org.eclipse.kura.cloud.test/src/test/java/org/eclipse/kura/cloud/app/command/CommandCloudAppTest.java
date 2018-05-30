@@ -83,12 +83,13 @@ public class CommandCloudAppTest {
 
         CommandCloudApp cca = new CommandCloudApp();
         cca.setCryptoService(csMock);
-        TestUtil.setFieldValue(cca, "m_cloudService", clsMock);
 
         try {
             cca.updated(properties);
         } catch (ComponentException e) {
         }
+        
+        TestUtil.setFieldValue(cca, "currentStatus", true);
 
         Map<String, Object> props = (Map<String, Object>) TestUtil.getFieldValue(cca, "properties");
 
@@ -120,8 +121,8 @@ public class CommandCloudAppTest {
         when(clsMock.newCloudClient(anyString())).thenReturn(ccMock);
 
         CommandCloudApp cca = new CommandCloudApp();
+        TestUtil.setFieldValue(cca, "currentStatus", true);
         cca.setCryptoService(csMock);
-        TestUtil.setFieldValue(cca, "m_cloudService", clsMock);
 
         try {
             cca.updated(properties);
@@ -152,11 +153,8 @@ public class CommandCloudAppTest {
         properties.put("key", "value");
         properties.put("command.enable", false);
 
-        CloudClient ccMock = mock(CloudClient.class);
-
         CommandCloudApp cca = new CommandCloudApp();
         cca.setCryptoService(csMock);
-        TestUtil.setFieldValue(cca, "m_cloudClient", ccMock);
         TestUtil.setFieldValue(cca, "currentStatus", true);
 
         cca.updated(properties);
@@ -168,8 +166,6 @@ public class CommandCloudAppTest {
         assertEquals(false, props.get("command.enable"));
         assertTrue(props.get(passKey) instanceof Password);
         assertArrayEquals(decpass, ((Password) props.get(passKey)).getPassword());
-
-        verify(ccMock, times(1)).release();
     }
 
     @Test
@@ -435,6 +431,7 @@ public class CommandCloudAppTest {
     @Test
     public void testDoExecNoResources() throws Throwable {
         CommandCloudApp cca = new CommandCloudApp();
+        TestUtil.setFieldValue(cca, "currentStatus", true);
 
         String appTopic = "EXEC";
         CloudletTopic reqTopic = CloudletTopic.parseAppTopic(appTopic);
@@ -449,6 +446,8 @@ public class CommandCloudAppTest {
     @Test
     public void testDoExecTooManyResources() throws Throwable {
         CommandCloudApp cca = new CommandCloudApp();
+        
+        TestUtil.setFieldValue(cca, "currentStatus", true);
 
         String appTopic = "EXEC/command/test";
         CloudletTopic reqTopic = CloudletTopic.parseAppTopic(appTopic);
@@ -487,6 +486,8 @@ public class CommandCloudAppTest {
                 return kcrp;
             }
         };
+        
+        TestUtil.setFieldValue(cca, "currentStatus", true);
 
         String appTopic = "EXEC/command";
         CloudletTopic reqTopic = CloudletTopic.parseAppTopic(appTopic);

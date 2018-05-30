@@ -48,7 +48,7 @@ import org.osgi.service.component.ComponentConstants;
  * </tr>
  * <tr>
  * <td>org.eclipse.kura.data.DataService</td>
- * <td>{@link DataService}</td>
+ * <td>{@link CloudService}</td>
  * </tr>
  * <tr>
  * <td>org.eclipse.kura.core.data.transport.mqtt.MqttDataTransport</td>
