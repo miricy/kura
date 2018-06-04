@@ -9,7 +9,7 @@
  *******************************************************************************/
 package org.eclipse.kura.message;
 
-/*
+/**
  * @since 1.5
  */
 public enum KuraAlertSeverity {

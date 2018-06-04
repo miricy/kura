@@ -791,12 +791,12 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     }
 
     @Override
-    public void registerCloudlet(String appId, CloudletInterface cloudlet) {
+    public void register(String appId, CloudletInterface cloudlet) {
         this.registeredCloudlets.put(appId, cloudlet);
     }
 
     @Override
-    public void unregisterCloudlet(String appId) {
+    public void unregister(String appId) {
         this.registeredCloudlets.remove(appId);
     }
 }

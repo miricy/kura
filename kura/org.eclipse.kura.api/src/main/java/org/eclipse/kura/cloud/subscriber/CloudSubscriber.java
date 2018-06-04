@@ -7,17 +7,19 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud;
+package org.eclipse.kura.cloud.subscriber;
 
-import org.eclipse.kura.KuraException;
+import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
+import org.osgi.annotation.versioning.ProviderType;
 
 /**
  * @since 1.5
  */
-public interface CloudletService {
+@ProviderType
+public interface CloudSubscriber {
 
-    public void register(String id, CloudletInterface cloudlet) throws KuraException;
+    public void register(SubscriberListener listener);
 
-    public void unregister(String id) throws KuraException;
+    public void unregister(SubscriberListener listener);
 
 }

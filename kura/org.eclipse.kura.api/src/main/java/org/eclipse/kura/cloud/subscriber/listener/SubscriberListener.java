@@ -7,17 +7,23 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud;
+package org.eclipse.kura.cloud.subscriber.listener;
 
-import org.eclipse.kura.KuraException;
+import java.util.Map;
+
+import org.eclipse.kura.message.KuraPayload;
+import org.osgi.annotation.versioning.ConsumerType;
 
 /**
  * @since 1.5
  */
-public interface CloudletService {
+@ConsumerType
+public interface SubscriberListener {
 
-    public void register(String id, CloudletInterface cloudlet) throws KuraException;
+    public void onMessageArrived(Map<String, Object> properties, KuraPayload payload);
 
-    public void unregister(String id) throws KuraException;
+    public void onConnectionLost();
+
+    public void onConnectionEstablished();
 
 }

@@ -1,0 +1,37 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Eurotech and/or its affiliates
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Eurotech
+ *******************************************************************************/
+package org.eclipse.kura.cloud;
+
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+
+import org.osgi.annotation.versioning.ProviderType;
+
+/**
+ * @noextend This class is not intended to be subclassed by clients.
+ * @since 1.5
+ */
+@ProviderType
+public class CloudletResources {
+
+    private final List<String> resources;
+
+    public CloudletResources(List<String> resources) {
+        this.resources = requireNonNull(resources);
+    }
+
+    public List<String> getResources() {
+        return this.resources;
+    }
+
+}

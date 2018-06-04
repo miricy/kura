@@ -9,38 +9,33 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud;
 
+import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.message.KuraRequestPayload;
-import org.eclipse.kura.message.KuraResponsePayload;
+import org.eclipse.kura.message.KuraPayload;
 
 /**
  * @since 1.5
  */
 public interface CloudletInterface {
-    
-    public default void doGet(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
-        respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+
+    public default KuraPayload doGet(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
-    public default void doPut(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
-        respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+    public default KuraPayload doPut(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
-    public default void doPost(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
-        respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+    public default KuraPayload doPost(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
-    public default void doDel(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
-        respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+    public default KuraPayload doDel(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
-    public default void doExec(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
-        respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
+    public default KuraPayload doExec(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
 }

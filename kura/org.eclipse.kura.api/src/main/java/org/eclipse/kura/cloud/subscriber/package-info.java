@@ -7,17 +7,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud;
-
-import org.eclipse.kura.KuraException;
-
 /**
- * @since 1.5
+ * Provides services for subscribing to remote servers and allows to invoke local applications.
+ *
  */
-public interface CloudletService {
-
-    public void register(String id, CloudletInterface cloudlet) throws KuraException;
-
-    public void unregister(String id) throws KuraException;
-
-}
+package org.eclipse.kura.cloud.subscriber;

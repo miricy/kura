@@ -14,18 +14,19 @@ package org.eclipse.kura.cloud.app.command;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudletInterface;
+import org.eclipse.kura.cloud.CloudletResources;
 import org.eclipse.kura.cloud.CloudletService;
-import org.eclipse.kura.cloud.CloudletTopic;
 import org.eclipse.kura.command.PasswordCommandService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.Password;
 import org.eclipse.kura.crypto.CryptoService;
-import org.eclipse.kura.message.KuraRequestPayload;
+import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraResponsePayload;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
@@ -71,7 +72,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
 
     public void setCloudletService(CloudletService cloudletService) {
         try {
-            cloudletService.registerCloudlet(APP_ID, this);
+            cloudletService.register(APP_ID, this);
         } catch (KuraException e) {
             logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
         }
@@ -79,7 +80,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
 
     public void unsetCloudletService(CloudletService cloudletService) {
         try {
-            cloudletService.unregisterCloudlet(APP_ID);
+            cloudletService.unregister(APP_ID);
         } catch (KuraException e) {
             logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
         }
@@ -95,13 +96,14 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
     // class CloudApp.
     protected void activate(Map<String, Object> properties) {
         logger.info("Cloudlet {} has started with config!", APP_ID);
-        this.currentStatus = (Boolean) properties.get(COMMAND_ENABLED_ID);
 
         updated(properties);
     }
 
     public void updated(Map<String, Object> properties) {
         logger.info("updated...: {}", properties);
+        
+        this.currentStatus = (Boolean) properties.get(COMMAND_ENABLED_ID);
 
         this.properties = new HashMap<>();
 
@@ -128,43 +130,32 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
     }
 
     @Override
-    public void doExec(CloudletTopic reqTopic, KuraRequestPayload reqPayload, KuraResponsePayload respPayload)
-            throws KuraException {
+    public KuraPayload doExec(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
 
         if (!this.currentStatus) {
-            respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
-            return;
+            throw new KuraException(KuraErrorCode.NOT_FOUND);
         }
 
-        String[] resources = reqTopic.getResources();
-
-        if (resources == null || resources.length != 1) {
-            logger.error("Bad request topic: {}", reqTopic);
-            logger.error("Expected one resource but found {}", resources != null ? resources.length : "none");
-            respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_BAD_REQUEST);
-            return;
+        List<String> resources = reqResources.getResources();
+        if (resources.size() != 1) {
+            logger.error("Bad request topic: {}", reqResources);
+            logger.error("Expected one resource but found {}", resources.size());
+            throw new KuraException(KuraErrorCode.BAD_REQUEST);
         }
 
-        if (!resources[0].equals(RESOURCE_COMMAND)) {
-            logger.error("Bad request topic: {}", reqTopic);
-            logger.error("Cannot find resource with name: {}", resources[0]);
-            respPayload.setResponseCode(KuraResponsePayload.RESPONSE_CODE_NOTFOUND);
-            return;
+        if (!resources.get(0).equals(RESOURCE_COMMAND)) {
+            logger.error("Bad request topic: {}", reqResources);
+            logger.error("Cannot find resource with name: {}", resources.get(0));
+            throw new KuraException(KuraErrorCode.NOT_FOUND);
         }
 
         logger.info("EXECuting resource: {}", RESOURCE_COMMAND);
 
-        KuraCommandResponsePayload commandResp = execute(reqPayload);
-
-        for (String name : commandResp.metricNames()) {
-            Object value = commandResp.getMetric(name);
-            respPayload.addMetric(name, value);
-        }
-        respPayload.setBody(commandResp.getBody());
+        return execute(reqPayload);
     }
 
     @Override
-    public KuraCommandResponsePayload execute(KuraRequestPayload reqPayload) {
+    public KuraPayload execute(KuraPayload reqPayload) throws KuraException {
         KuraCommandRequestPayload commandReq = new KuraCommandRequestPayload(reqPayload);
 
         String receivedPassword = (String) commandReq.getMetric(EDC_PASSWORD_METRIC_NAME);
@@ -178,8 +169,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
             String command = commandReq.getCommand();
             if (command == null || command.trim().isEmpty()) {
                 logger.error("null command");
-                commandResp.setResponseCode(KuraResponsePayload.RESPONSE_CODE_BAD_REQUEST);
-                return commandResp;
+                throw new KuraException(KuraErrorCode.BAD_REQUEST);
             }
 
             String[] cmdarray = prepareCommandArray(commandReq, command);
@@ -193,9 +183,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
                     UnZip.unZipBytes(zipBytes, dir);
                 } catch (IOException e) {
                     logger.error("Error unzipping command zip bytes", e);
-                    commandResp.setResponseCode(KuraResponsePayload.RESPONSE_CODE_ERROR);
-                    commandResp.setException(e);
-                    return commandResp;
+                    throw new KuraException(KuraErrorCode.DECODER_ERROR);
                 }
             }
 
@@ -204,9 +192,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
                 proc = createExecutionProcess(dir, cmdarray, envp);
             } catch (Throwable t) {
                 logger.error("Error executing command {}", t);
-                commandResp.setResponseCode(KuraResponsePayload.RESPONSE_CODE_ERROR);
-                commandResp.setException(t);
-                return commandResp;
+                throw new KuraException(KuraErrorCode.PROCESS_EXECUTION_ERROR);
             }
 
             boolean runAsync = commandReq.isRunAsync() != null ? commandReq.isRunAsync() : false;
@@ -228,8 +214,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
 
         } else {
             logger.error("Password required but not correct and/or missing");
-            commandResp.setResponseCode(KuraResponsePayload.RESPONSE_CODE_ERROR);
-            commandResp.setExceptionMessage("Password missing or not correct");
+            throw new KuraException(KuraErrorCode.BAD_REQUEST);
         }
 
         return commandResp;
