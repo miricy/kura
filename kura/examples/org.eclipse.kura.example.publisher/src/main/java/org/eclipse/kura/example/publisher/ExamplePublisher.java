@@ -24,8 +24,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.kura.cloud.CloudClientListener;
 import org.eclipse.kura.cloud.publisher.CloudPublisher;
+import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;
@@ -40,7 +41,7 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExamplePublisher implements ConfigurableComponent, CloudClientListener {
+public class ExamplePublisher implements ConfigurableComponent, SubscriberListener {
 
     /**
      * Inner class defined to track the CloudServices as they get added, modified or removed.
@@ -59,7 +60,7 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
 
         @Override
         public void modifiedService(final ServiceReference<CloudPublisher> reference, final CloudPublisher service) {
-            ExamplePublisher.this.cloudPublisher = ExamplePublisher.this.bundleContext.getService(reference);
+            // Not needed
         }
 
         @Override
@@ -68,11 +69,38 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
         }
     }
 
+    private final class CloudSubscriberServiceTrackerCustomizer
+            implements ServiceTrackerCustomizer<CloudSubscriber, CloudSubscriber> {
+
+        @Override
+        public CloudSubscriber addingService(final ServiceReference<CloudSubscriber> reference) {
+            ExamplePublisher.this.cloudSubscriber = ExamplePublisher.this.bundleContext.getService(reference);
+            ExamplePublisher.this.cloudSubscriber.register(ExamplePublisher.this);
+
+            return ExamplePublisher.this.cloudSubscriber;
+        }
+
+        @Override
+        public void modifiedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
+            // Not needed
+        }
+
+        @Override
+        public void removedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
+            ExamplePublisher.this.cloudSubscriber.unregister(ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber = null;
+        }
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(ExamplePublisher.class);
 
     private ServiceTrackerCustomizer<CloudPublisher, CloudPublisher> cloudServiceTrackerCustomizer;
     private ServiceTracker<CloudPublisher, CloudPublisher> cloudPublisherTracker;
     private CloudPublisher cloudPublisher;
+
+    private ServiceTrackerCustomizer<CloudSubscriber, CloudSubscriber> cloudSubscriberServiceTrackerCustomizer;
+    private ServiceTracker<CloudSubscriber, CloudSubscriber> cloudSubscriberTracker;
+    private CloudSubscriber cloudSubscriber;
 
     private ScheduledExecutorService worker;
     private ScheduledFuture<?> handle;
@@ -105,6 +133,10 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
 
         this.cloudServiceTrackerCustomizer = new CloudPublisherServiceTrackerCustomizer();
         initCloudPublisherTracking();
+
+        this.cloudSubscriberServiceTrackerCustomizer = new CloudSubscriberServiceTrackerCustomizer();
+        initCloudSubscriberTracking();
+
         doUpdate();
 
         logger.info("Activating ExamplePublisher... Done.");
@@ -119,6 +151,10 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
 
         if (nonNull(this.cloudPublisherTracker)) {
             this.cloudPublisherTracker.close();
+        }
+
+        if (nonNull(this.cloudSubscriberTracker)) {
+            this.cloudSubscriberTracker.close();
         }
 
         logger.info("Deactivating ExamplePublisher... Done.");
@@ -138,47 +174,14 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
         }
         initCloudPublisherTracking();
 
+        if (nonNull(this.cloudSubscriberTracker)) {
+            this.cloudSubscriberTracker.close();
+        }
+        initCloudSubscriberTracking();
+
         // try to kick off a new job
         doUpdate();
         logger.info("Updated ExamplePublisher... Done.");
-    }
-
-    // ----------------------------------------------------------------
-    //
-    // Cloud Application Callback Methods
-    //
-    // ----------------------------------------------------------------
-
-    @Override
-    public void onConnectionEstablished() {
-        logger.info("Connection established");
-    }
-
-    @Override
-    public void onConnectionLost() {
-        logger.warn("Connection lost!");
-    }
-
-    @Override
-    public void onControlMessageArrived(String deviceId, String appTopic, KuraPayload msg, int qos, boolean retain) {
-        logger.info("Control message arrived on assetId: {} and semantic topic: {}", deviceId, appTopic);
-        logReceivedMessage(msg);
-    }
-
-    @Override
-    public void onMessageArrived(String deviceId, String appTopic, KuraPayload msg, int qos, boolean retain) {
-        logger.info("Message arrived on assetId: {} and semantic topic: {}", deviceId, appTopic);
-        logReceivedMessage(msg);
-    }
-
-    @Override
-    public void onMessagePublished(int messageId, String appTopic) {
-        logger.info("Published message with ID: {} on application topic: {}", messageId, appTopic);
-    }
-
-    @Override
-    public void onMessageConfirmed(int messageId, String appTopic) {
-        logger.info("Confirmed message with ID: {} on application topic: {}", messageId, appTopic);
     }
 
     // ----------------------------------------------------------------
@@ -285,6 +288,21 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
         this.cloudPublisherTracker.open();
     }
 
+    private void initCloudSubscriberTracking() {
+        String selectedCloudSubscriberPid = this.examplePublisherOptions.getCloudSubscriberPid();
+        String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
+                CloudSubscriber.class.getName(), selectedCloudSubscriberPid);
+        Filter filter = null;
+        try {
+            filter = this.bundleContext.createFilter(filterString);
+        } catch (InvalidSyntaxException e) {
+            logger.error("Filter setup exception ", e);
+        }
+        this.cloudSubscriberTracker = new ServiceTracker<>(this.bundleContext, filter,
+                this.cloudSubscriberServiceTrackerCustomizer);
+        this.cloudSubscriberTracker.open();
+    }
+
     private void logReceivedMessage(KuraPayload msg) {
         Date timestamp = msg.getTimestamp();
         if (timestamp != null) {
@@ -314,5 +332,20 @@ public class ExamplePublisher implements ConfigurableComponent, CloudClientListe
                 logger.info("Message metric: {}, value: {}", entry.getKey(), entry.getValue());
             }
         }
+    }
+    
+    @Override
+    public void onConnectionEstablished() {
+        logger.info("Connection established");
+    }
+
+    @Override
+    public void onConnectionLost() {
+        logger.warn("Connection lost!");
+    }
+
+    @Override
+    public void onMessageArrived(Map<String, Object> properties, KuraPayload payload) {
+        logReceivedMessage(payload);
     }
 }

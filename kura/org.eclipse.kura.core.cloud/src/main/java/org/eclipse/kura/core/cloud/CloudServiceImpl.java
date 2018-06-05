@@ -43,6 +43,7 @@ import org.eclipse.kura.cloud.CloudletInterface;
 import org.eclipse.kura.cloud.CloudletService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
+import org.eclipse.kura.core.cloud.subscriber.CloudSubscriberImpl;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.listener.DataServiceListener;
 import org.eclipse.kura.message.KuraPayload;
@@ -107,10 +108,13 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     private final Map<String, CloudletInterface> registeredCloudlets;
 
+    private final List<CloudSubscriberImpl> registeredSubscribers;
+
     public CloudServiceImpl() {
         this.cloudClients = new CopyOnWriteArrayList<>();
         this.messageId = new AtomicInteger();
         this.registeredCloudlets = new HashMap<>();
+        this.registeredSubscribers = new ArrayList<>();
     }
 
     // ----------------------------------------------------------------
@@ -404,10 +408,9 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
         postConnectionStateChangeEvent(true);
 
-        // notify listeners
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            cloudClient.onConnectionEstablished();
-        }
+        this.cloudClients.forEach(CloudClientImpl::onConnectionEstablished);
+        
+        this.registeredSubscribers.forEach(CloudSubscriberImpl::onConnectionEstablished);
     }
 
     private void setupDeviceSubscriptions(boolean subscribe) throws KuraException {
@@ -448,10 +451,9 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         // raise event
         postConnectionStateChangeEvent(false);
 
-        // notify listeners
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            cloudClient.onConnectionLost();
-        }
+        this.cloudClients.forEach(CloudClientImpl::onConnectionLost);
+
+        this.registeredSubscribers.forEach(CloudSubscriberImpl::onConnectionLost);
     }
 
     @Override
@@ -504,23 +506,28 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
             callbackExecutor.submit(new MessageHandlerCallable(cloudlet, applicationId, kuraTopic.getApplicationTopic(),
                     kuraPayload, this));
-        } else {
-            for (CloudClientImpl cloudClient : this.cloudClients) {
-                if (cloudClient.getApplicationId().equals(kuraTopic.getApplicationId())) {
-                    cloudClient.onControlMessageArrived(kuraTopic.getDeviceId(), kuraTopic.getApplicationTopic(),
-                            kuraPayload, qos, retained);
-                }
-            }
         }
+        this.cloudClients.stream()
+                .filter(cloudClient -> cloudClient.getApplicationId().equals(kuraTopic.getApplicationId()))
+                .forEach(cloudClient -> cloudClient.onControlMessageArrived(kuraTopic.getDeviceId(),
+                        kuraTopic.getApplicationTopic(), kuraPayload, qos, retained));
+
+        this.registeredSubscribers.stream()
+                .filter(cloudSubscriber -> cloudSubscriber.getAppId().equals(kuraTopic.getApplicationId()))
+                .forEach(cloudSubscriber -> cloudSubscriber.onControlMessageArrived(kuraTopic.getDeviceId(),
+                        kuraTopic.getApplicationTopic(), kuraPayload, qos, retained));
     }
 
     private void dispatchDataMessage(int qos, boolean retained, KuraTopic kuraTopic, KuraPayload kuraPayload) {
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            if (cloudClient.getApplicationId().equals(kuraTopic.getApplicationId())) {
-                cloudClient.onMessageArrived(kuraTopic.getDeviceId(), kuraTopic.getApplicationTopic(), kuraPayload, qos,
-                        retained);
-            }
-        }
+        this.cloudClients.stream()
+                .filter(cloudClient -> cloudClient.getApplicationId().equals(kuraTopic.getApplicationId()))
+                .forEach(cloudClient -> cloudClient.onMessageArrived(kuraTopic.getDeviceId(),
+                        kuraTopic.getApplicationTopic(), kuraPayload, qos, retained));
+
+        this.registeredSubscribers.stream()
+                .filter(cloudSubscriber -> cloudSubscriber.getAppId().equals(kuraTopic.getApplicationId()))
+                .forEach(cloudSubscriber -> cloudSubscriber.onMessageArrived(kuraTopic.getDeviceId(),
+                        kuraTopic.getApplicationTopic(), kuraPayload, qos, retained));
     }
 
     private boolean isValidMessage(KuraTopic kuraTopic, KuraPayload kuraPayload) {
@@ -798,5 +805,13 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     @Override
     public void unregister(String appId) {
         this.registeredCloudlets.remove(appId);
+    }
+
+    public void registerSubscriber(CloudSubscriberImpl cloudSubscriber) {
+        this.registeredSubscribers.add(cloudSubscriber);
+    }
+
+    public void unregisterSubscriber(CloudSubscriberImpl cloudSubscriber) {
+        this.registeredSubscribers.remove(cloudSubscriber);
     }
 }

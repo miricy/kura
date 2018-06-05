@@ -21,6 +21,7 @@ final class ExamplePublisherOptions {
 
     // Cloud Application identifier
     private static final String DEFAULT_CLOUD_PUBLISHER_PID = "";
+    private static final String DEFAULT_CLOUD_SUBSCRIBER_PID = "";
     private static final int DEFAULT_PUBLISH_RATE = 1000;
     private static final float DEFAULT_TEMPERATURE_INITIAL = 10;
     private static final float DEFAULT_TEMPERATURE_INCREMENT = 0.1f;
@@ -33,6 +34,7 @@ final class ExamplePublisherOptions {
             "metric.integer", "metric.integer.fixed", "metric.short", "metric.double", "metric.float", "metric.char",
             "metric.byte", "metric.boolean", "metric.password" };
     private static final String CLOUD_PUBLISHER_PROP_NAME = "cloud.publisher.pid";
+    private static final String CLOUD_SUBSCRIBER_PROP_NAME = "cloud.subscriber.pid";
 
     private final Map<String, Object> properties;
 
@@ -48,6 +50,15 @@ final class ExamplePublisherOptions {
             cloudPublisherPid = (String) configCloudPublisherPid;
         }
         return cloudPublisherPid;
+    }
+    
+    String getCloudSubscriberPid() {
+        String cloudSubscriberPid = DEFAULT_CLOUD_SUBSCRIBER_PID;
+        Object configCloudSubscriberPid = this.properties.get(CLOUD_SUBSCRIBER_PROP_NAME);
+        if (nonNull(configCloudSubscriberPid) && configCloudSubscriberPid instanceof String) {
+            cloudSubscriberPid = (String) configCloudSubscriberPid;
+        }
+        return cloudSubscriberPid;
     }
 
     int getPublishRate() {
