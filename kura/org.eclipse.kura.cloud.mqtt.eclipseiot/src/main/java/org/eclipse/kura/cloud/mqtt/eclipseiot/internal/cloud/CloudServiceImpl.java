@@ -15,25 +15,24 @@ import static org.eclipse.kura.cloud.CloudPayloadEncoding.KURA_PROTOBUF;
 import static org.eclipse.kura.cloud.CloudPayloadEncoding.SIMPLE_JSON;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.KuraInvalidMessageException;
-import org.eclipse.kura.cloud.CloudClient;
 import org.eclipse.kura.cloud.CloudConnectionEstablishedEvent;
 import org.eclipse.kura.cloud.CloudConnectionLostEvent;
 import org.eclipse.kura.cloud.CloudPayloadEncoding;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufDecoder;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufEncoder;
-import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataService;
@@ -54,8 +53,8 @@ import org.osgi.service.event.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CloudServiceImpl implements CloudService, DataServiceListener, ConfigurableComponent, EventHandler,
-        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder {
+public class CloudServiceImpl implements DataServiceListener, ConfigurableComponent, EventHandler,
+        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudConnectionService {
 
     private static final String ERROR = "ERROR";
 
@@ -74,9 +73,6 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     private PositionService positionService;
     private EventAdmin eventAdmin;
 
-    // use a synchronized implementation for the list
-    private final List<CloudClientImpl> cloudClients;
-
     // package visibility for LyfeCyclePayloadBuilder
     String imei;
     String iccid;
@@ -89,9 +85,11 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     private ServiceRegistration<?> cloudServiceRegistration;
 
+    private final Set<CloudConnectionListener> registeredCloudConnectionListeners;
+
     public CloudServiceImpl() {
-        this.cloudClients = new CopyOnWriteArrayList<>();
         this.messageId = new AtomicInteger();
+        this.registeredCloudConnectionListeners = new CopyOnWriteArraySet<>();
     }
 
     // ----------------------------------------------------------------
@@ -235,11 +233,6 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
         this.dataService.removeDataServiceListener(this);
 
-        // no need to release the cloud clients as the updated app
-        // certificate is already published due the missing dependency
-        // we only need to empty our CloudClient list
-        this.cloudClients.clear();
-
         this.dataService = null;
         this.systemService = null;
         this.systemAdminService = null;
@@ -298,30 +291,6 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     // ----------------------------------------------------------------
 
     @Override
-    public CloudClient newCloudClient(String applicationId) throws KuraException {
-        // create new instance
-        CloudClientImpl cloudClient = new CloudClientImpl(applicationId, this.dataService, this);
-        this.cloudClients.add(cloudClient);
-
-        // publish updated birth certificate with list of active apps
-        if (isConnected()) {
-            publishAppCertificate();
-        }
-
-        // return
-        return cloudClient;
-    }
-
-    @Override
-    public String[] getCloudApplicationIdentifiers() {
-        List<String> appIds = new ArrayList<>();
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            appIds.add(cloudClient.getApplicationId());
-        }
-        return appIds.toArray(new String[0]);
-    }
-
-    @Override
     public boolean isConnected() {
         return this.dataService != null && this.dataService.isConnected();
     }
@@ -334,20 +303,6 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     public CloudServiceOptions getCloudServiceOptions() {
         return this.options;
-    }
-
-    public void removeCloudClient(CloudClientImpl cloudClient) {
-        // remove the client
-        this.cloudClients.remove(cloudClient);
-
-        // publish updated birth certificate with updated list of active apps
-        if (isConnected()) {
-            try {
-                publishAppCertificate();
-            } catch (KuraException e) {
-                logger.warn("Cannot publish app certificate");
-            }
-        }
     }
 
     public byte[] encodePayload(KuraPayload payload) throws KuraException {
@@ -380,10 +335,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
         postConnectionStateChangeEvent(true);
 
-        // notify listeners
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            cloudClient.onConnectionEstablished();
-        }
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onConnectionEstablished);
     }
 
     @Override
@@ -402,6 +354,8 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     public void onDisconnected() {
         // raise event
         postConnectionStateChangeEvent(false);
+
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onDisconnected);
     }
 
     @Override
@@ -409,10 +363,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         // raise event
         postConnectionStateChangeEvent(false);
 
-        // notify listeners
-        for (CloudClientImpl cloudClient : this.cloudClients) {
-            cloudClient.onConnectionLost();
-        }
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onConnectionLost);
     }
 
     @Override
@@ -536,21 +487,6 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         publishLifeCycleMessage(topic, payload);
     }
 
-    private void publishAppCertificate() throws KuraException {
-        if (this.options.isLifecycleCertsDisabled()) {
-            return;
-        }
-
-        StringBuilder sbTopic = new StringBuilder();
-        sbTopic.append("e").append(this.options.getTopicSeparator()).append(this.options.getTopicAccountToken())
-                .append(this.options.getTopicSeparator()).append(this.options.getTopicClientIdToken())
-                .append(this.options.getTopicSeparator()).append(this.options.getTopicAppsSuffix());
-
-        String topic = sbTopic.toString();
-        KuraPayload payload = createBirthPayload();
-        publishLifeCycleMessage(topic, payload);
-    }
-
     private KuraPayload createBirthPayload() {
         LifeCyclePayloadBuilder payloadBuilder = new LifeCyclePayloadBuilder(this);
         return payloadBuilder.buildBirthPayload();
@@ -610,5 +546,29 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         final Event event = isConnected ? new CloudConnectionEstablishedEvent(eventProperties)
                 : new CloudConnectionLostEvent(eventProperties);
         this.eventAdmin.postEvent(event);
+    }
+
+    @Override
+    public void connect() throws KuraException {
+        if (this.dataService != null) {
+            this.dataService.connect();
+        }
+    }
+
+    @Override
+    public void disconnect() throws KuraException {
+        if (this.dataService != null) {
+            this.dataService.disconnect(10);
+        }
+    }
+
+    @Override
+    public void register(CloudConnectionListener cloudConnectionListener) {
+        this.registeredCloudConnectionListeners.add(cloudConnectionListener);
+    }
+
+    @Override
+    public void unregister(CloudConnectionListener cloudConnectionListener) {
+        this.registeredCloudConnectionListeners.remove(cloudConnectionListener);
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Eurotech and/or its affiliates and others
+ * Copyright (c) 2016, 2018 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -22,12 +22,17 @@ import static org.eclipse.kura.web.shared.model.GwtCloudConnectionState.UNREGIST
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
 import org.eclipse.kura.cloud.factory.CloudServiceFactory;
 import org.eclipse.kura.web.server.util.ServiceLocator;
 import org.eclipse.kura.web.server.util.ServiceLocator.ServiceConsumer;
@@ -69,7 +74,7 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
             return o1.getValue().compareTo(o2.getValue());
         }
     };
-    
+
     @Override
     public GwtAllTypesReference referenceTypesEnums() {
         return null;
@@ -78,39 +83,34 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
     @Override
     public List<GwtCloudConnectionEntry> findCloudServices() throws GwtKuraException {
 
-        final List<GwtCloudConnectionEntry> pairs = new ArrayList<GwtCloudConnectionEntry>();
+        final Set<GwtCloudConnectionEntry> pairs = new HashSet<>();
 
-        applyToAllServices(CloudServiceFactory.class, new ServiceConsumer<CloudServiceFactory>() {
+        ServiceLocator.applyToAllServices(o -> {
 
-            @Override
-            public void consume(final CloudServiceFactory service) throws Exception {
+            final CloudConnectionServiceFactory service = wrap(o);
 
-                final String factoryPid = service.getFactoryPid();
-                if (factoryPid == null) {
-                    return;
-                }
-
-                for (final String pid : service.getManagedCloudServicePids()) {
-                    if (pid == null) {
-                        continue;
-                    }
-
-                    final GwtCloudConnectionEntry cloudConnectionEntry = new GwtCloudConnectionEntry();
-                    cloudConnectionEntry.setCloudFactoryPid(factoryPid);
-                    cloudConnectionEntry.setCloudServicePid(pid);
-
-                    fillState(cloudConnectionEntry);
-
-                    pairs.add(cloudConnectionEntry);
-                }
+            final String factoryPid = service.getFactoryPid();
+            if (factoryPid == null) {
+                return;
             }
-        });
 
-        // provide a stable order
+            for (final String pid : service.getManagedCloudServicePids()) {
+                if (pid == null) {
+                    continue;
+                }
 
-        Collections.sort(pairs, CLOUD_CONNECTION_ENTRY_COMPARTOR);
+                final GwtCloudConnectionEntry cloudConnectionEntry = new GwtCloudConnectionEntry();
+                cloudConnectionEntry.setCloudFactoryPid(factoryPid);
+                cloudConnectionEntry.setCloudServicePid(pid);
 
-        return pairs;
+                fillState(cloudConnectionEntry);
+
+                pairs.add(cloudConnectionEntry);
+            }
+
+        }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
+
+        return pairs.stream().sorted(CLOUD_CONNECTION_ENTRY_COMPARTOR).collect(Collectors.toList());
     }
 
     /**
@@ -124,40 +124,37 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
         cloudConnectionEntry.setState(UNREGISTERED);
 
         final String filter = format("(%s=%s)", KURA_SERVICE_PID, cloudConnectionEntry.getCloudServicePid());
+        withAllServices(CloudConnectionService.class, filter, new ServiceConsumer<CloudConnectionService>() {
+
+            @Override
+            public void consume(final CloudConnectionService service) throws Exception {
+                cloudConnectionEntry.setState(service.isConnected() ? CONNECTED : DISCONNECTED);
+            }
+        });
+
         withAllServices(CloudService.class, filter, new ServiceConsumer<CloudService>() {
 
             @Override
             public void consume(final CloudService service) throws Exception {
-                cloudConnectionEntry.setState(service.isConnected() ? CONNECTED: DISCONNECTED);
+                cloudConnectionEntry.setState(service.isConnected() ? CONNECTED : DISCONNECTED);
             }
         });
     }
 
     @Override
     public List<GwtGroupedNVPair> findCloudServiceFactories() throws GwtKuraException {
-        List<GwtGroupedNVPair> pairs = new ArrayList<GwtGroupedNVPair>();
-        Collection<ServiceReference<CloudServiceFactory>> cloudServiceFactoryReferences = ServiceLocator.getInstance()
-                .getServiceReferences(CloudServiceFactory.class, null);
+        Set<GwtGroupedNVPair> pairs = new HashSet<>();
 
-        for (ServiceReference<CloudServiceFactory> cloudServiceFactoryReference : cloudServiceFactoryReferences) {
-            CloudServiceFactory cloudServiceFactory = ServiceLocator.getInstance()
-                    .getService(cloudServiceFactoryReference);
+        applyToAllServices(o -> {
+            final CloudConnectionServiceFactory service = wrap(o);
 
-            try {
-                if (cloudServiceFactory.getFactoryPid() == null) {
-                    continue;
-                }
-                pairs.add(new GwtGroupedNVPair("cloudFactories", "factoryPid", cloudServiceFactory.getFactoryPid()));
-            } finally {
-                ServiceLocator.getInstance().ungetService(cloudServiceFactoryReference);
+            if (service.getFactoryPid() == null) {
+                return;
             }
-        }
+            pairs.add(new GwtGroupedNVPair("cloudFactories", "factoryPid", service.getFactoryPid()));
+        }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
 
-        // provide a stable order
-
-        Collections.sort(pairs, GROUPED_PAIR_NAME_COMPARATOR);
-
-        return pairs;
+        return pairs.stream().sorted(GROUPED_PAIR_NAME_COMPARATOR).collect(Collectors.toList());
     }
 
     @Override
@@ -166,23 +163,21 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
         // prepare result
 
-        final List<String> result = new ArrayList<String>();
+        final Set<String> result = new HashSet<>();
 
         // iterate over all candidates
 
-        applyToAllServices(CloudServiceFactory.class, new ServiceConsumer<CloudServiceFactory>() {
+        applyToAllServices(o -> {
+            final CloudConnectionServiceFactory factory = wrap(o);
 
-            @Override
-            public void consume(final CloudServiceFactory factory) throws Exception {
-                if (factoryPid.equals(factory.getFactoryPid())) {
-                    result.addAll(factory.getStackComponentsPids(cloudServicePid));
-                }
+            if (factoryPid.equals(factory.getFactoryPid())) {
+                result.addAll(factory.getStackComponentsPids(cloudServicePid));
             }
-        });
+        }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
 
         // return result
 
-        return result;
+        return new ArrayList<>(result);
     }
 
     @Override
@@ -194,23 +189,25 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_NULL_ARGUMENT);
         }
 
-        Collection<ServiceReference<CloudServiceFactory>> cloudServiceFactoryReferences = ServiceLocator.getInstance()
-                .getServiceReferences(CloudServiceFactory.class, null);
+        final AtomicReference<CloudConnectionServiceFactory> ref = new AtomicReference<>();
 
-        for (ServiceReference<CloudServiceFactory> cloudServiceFactoryReference : cloudServiceFactoryReferences) {
-            CloudServiceFactory cloudServiceFactory = ServiceLocator.getInstance()
-                    .getService(cloudServiceFactoryReference);
-            try {
-                if (!cloudServiceFactory.getFactoryPid().equals(factoryPid)) {
-                    continue;
-                }
-                cloudServiceFactory.createConfiguration(cloudServicePid);
-            } catch (KuraException e) {
-                throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e);
-            } finally {
-                ServiceLocator.getInstance().ungetService(cloudServiceFactoryReference);
+        applyToAllServices(o -> {
+            final CloudConnectionServiceFactory service = wrap(o);
+
+            if (!service.getFactoryPid().equals(factoryPid) || ref.get() != null) {
+                return;
             }
+
+            ref.set(service);
+
+        }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
+
+        try {
+            ref.get().createConfiguration(cloudServicePid);
+        } catch (KuraException e) {
+            throw new GwtKuraException("Failed to create cloud stack");
         }
+
     }
 
     @Override
@@ -221,27 +218,45 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_NULL_ARGUMENT);
         }
 
-        Collection<ServiceReference<CloudServiceFactory>> cloudServiceFactoryReferences = ServiceLocator.getInstance()
-                .getServiceReferences(CloudServiceFactory.class, null);
+        final AtomicReference<CloudConnectionServiceFactory> ref = new AtomicReference<>();
 
-        for (ServiceReference<CloudServiceFactory> cloudServiceFactoryReference : cloudServiceFactoryReferences) {
-            CloudServiceFactory cloudServiceFactory = ServiceLocator.getInstance()
-                    .getService(cloudServiceFactoryReference);
-            try {
-                if (!cloudServiceFactory.getFactoryPid().equals(factoryPid)) {
-                    continue;
-                }
-                cloudServiceFactory.deleteConfiguration(cloudServicePid);
-            } catch (KuraException e) {
-                throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e);
-            } finally {
-                ServiceLocator.getInstance().ungetService(cloudServiceFactoryReference);
+        applyToAllServices(o -> {
+            final CloudConnectionServiceFactory service = wrap(o);
+
+            if (!service.getFactoryPid().equals(factoryPid) || ref.get() != null) {
+                return;
             }
+
+            ref.set(service);
+
+        }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
+
+        try {
+            ref.get().deleteConfiguration(cloudServicePid);
+        } catch (KuraException e) {
+            throw new GwtKuraException("Failed to create cloud stack");
         }
+
     }
 
     @Override
     public String findSuggestedCloudServicePid(String factoryPid) throws GwtKuraException {
+        Collection<ServiceReference<CloudConnectionServiceFactory>> cloudConnectionServiceFactoryReferences = ServiceLocator
+                .getInstance().getServiceReferences(CloudConnectionServiceFactory.class, null);
+
+        for (ServiceReference<CloudConnectionServiceFactory> cloudServiceFactoryReference : cloudConnectionServiceFactoryReferences) {
+            CloudConnectionServiceFactory cloudServiceFactory = ServiceLocator.getInstance()
+                    .getService(cloudServiceFactoryReference);
+            if (!cloudServiceFactory.getFactoryPid().equals(factoryPid)) {
+                continue;
+            }
+            Object propertyObject = cloudServiceFactoryReference.getProperty(KURA_UI_CSF_PID_DEFAULT);
+            ServiceLocator.getInstance().ungetService(cloudServiceFactoryReference);
+            if (propertyObject != null) {
+                return (String) propertyObject;
+            }
+        }
+
         Collection<ServiceReference<CloudServiceFactory>> cloudServiceFactoryReferences = ServiceLocator.getInstance()
                 .getServiceReferences(CloudServiceFactory.class, null);
 
@@ -262,6 +277,22 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
     @Override
     public String findCloudServicePidRegex(String factoryPid) throws GwtKuraException {
+        Collection<ServiceReference<CloudConnectionServiceFactory>> cloudConnectionServiceFactoryReferences = ServiceLocator
+                .getInstance().getServiceReferences(CloudConnectionServiceFactory.class, null);
+
+        for (ServiceReference<CloudConnectionServiceFactory> cloudServiceFactoryReference : cloudConnectionServiceFactoryReferences) {
+            CloudConnectionServiceFactory cloudServiceFactory = ServiceLocator.getInstance()
+                    .getService(cloudServiceFactoryReference);
+            if (!cloudServiceFactory.getFactoryPid().equals(factoryPid)) {
+                continue;
+            }
+            Object propertyObject = cloudServiceFactoryReference.getProperty(KURA_UI_CSF_PID_REGEX);
+            ServiceLocator.getInstance().ungetService(cloudServiceFactoryReference);
+            if (propertyObject != null) {
+                return (String) propertyObject;
+            }
+        }
+
         Collection<ServiceReference<CloudServiceFactory>> cloudServiceFactoryReferences = ServiceLocator.getInstance()
                 .getServiceReferences(CloudServiceFactory.class, null);
 
@@ -276,6 +307,44 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
             if (propertyObject != null) {
                 return (String) propertyObject;
             }
+        }
+
+        return null;
+    }
+
+    public CloudConnectionServiceFactory wrap(final Object o) {
+        if (o instanceof CloudConnectionServiceFactory) {
+            return (CloudConnectionServiceFactory) o;
+        } else if (o instanceof CloudServiceFactory) {
+            final CloudServiceFactory f = (CloudServiceFactory) o;
+
+            return new CloudConnectionServiceFactory() {
+
+                @Override
+                public List<String> getStackComponentsPids(String pid) throws KuraException {
+                    return f.getStackComponentsPids(pid);
+                }
+
+                @Override
+                public Set<String> getManagedCloudServicePids() throws KuraException {
+                    return f.getManagedCloudServicePids();
+                }
+
+                @Override
+                public String getFactoryPid() {
+                    return f.getFactoryPid();
+                }
+
+                @Override
+                public void deleteConfiguration(String pid) throws KuraException {
+                    f.deleteConfiguration(pid);
+                }
+
+                @Override
+                public void createConfiguration(String pid) throws KuraException {
+                    f.createConfiguration(pid);
+                }
+            };
         }
         return null;
     }

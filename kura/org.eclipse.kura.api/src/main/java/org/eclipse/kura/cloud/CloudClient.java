@@ -14,6 +14,8 @@ package org.eclipse.kura.cloud;
 import java.util.List;
 
 import org.eclipse.kura.KuraException;
+import org.eclipse.kura.cloud.publisher.CloudPublisher;
+import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ProviderType;
@@ -77,8 +79,10 @@ import org.osgi.annotation.versioning.ProviderType;
  * to specific applications running on specific devices.
  * 
  * @noimplement This interface is not intended to be implemented by clients.
+ * @deprecated Please consider using {@link CloudPublisher} and {@link CloudSubscriber}
  */
 @ProviderType
+@Deprecated
 public interface CloudClient {
 
     /**

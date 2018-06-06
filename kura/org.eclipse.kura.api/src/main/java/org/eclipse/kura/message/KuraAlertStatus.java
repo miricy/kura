@@ -10,7 +10,7 @@
 package org.eclipse.kura.message;
 
 /**
- * @since 1.5
+ * @since 2.0
  */
 public enum KuraAlertStatus {
     ACTIVE,

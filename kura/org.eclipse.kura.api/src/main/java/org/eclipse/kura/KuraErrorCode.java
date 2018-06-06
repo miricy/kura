@@ -107,11 +107,11 @@ public enum KuraErrorCode {
      */
     BLE_DISCOVERY_ERROR,
     /**
-     * @since 1.5
+     * @since 2.0
      */
     BAD_REQUEST,
     /**
-     * @since 1.5
+     * @since 2.0
      */
     NOT_FOUND;
 }

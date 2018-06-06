@@ -60,7 +60,7 @@ public interface PasswordCommandService {
      * @return KuraResponsePayload containing the result of the command execution and details on the result
      * @throws KuraException
      *             raised if the command execution fails
-     * @since 1.5
+     * @since 2.0
      */
     public KuraPayload execute(KuraPayload commandReq) throws KuraException;
 }

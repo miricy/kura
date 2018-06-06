@@ -16,7 +16,7 @@ import java.util.Date;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
- * @since 1.5
+ * @since 2.0
  * @noextend This class is not intended to be subclassed by clients.
  */
 @ProviderType

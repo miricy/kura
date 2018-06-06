@@ -9,29 +9,27 @@
  * Contributors:
  *     Eurotech
  *******************************************************************************/
-package org.eclipse.kura.cloud;
+package org.eclipse.kura.cloud.connection;
 
-import static java.util.Objects.requireNonNull;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.List;
-
-import org.osgi.annotation.versioning.ProviderType;
+import org.eclipse.kura.KuraException;
 
 /**
- * @noextend This class is not intended to be subclassed by clients.
  * @since 2.0
  */
-@ProviderType
-public class CloudletResources {
+public interface CloudConnectionService extends CloudConnectionListenerTracker {
 
-    private final List<String> resources;
+    public void connect() throws KuraException;
 
-    public CloudletResources(List<String> resources) {
-        this.resources = requireNonNull(resources);
+    public void disconnect() throws KuraException;
+
+    public default boolean isConnected() {
+        return false;
     }
 
-    public List<String> getResources() {
-        return this.resources;
+    public default Map<String, String> getConnectionInfo() {
+        return new HashMap<>();
     }
-
 }

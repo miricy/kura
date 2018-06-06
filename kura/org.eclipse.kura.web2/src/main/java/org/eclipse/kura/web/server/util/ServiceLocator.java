@@ -136,6 +136,25 @@ public class ServiceLocator {
         withAllServices(serviceClass, null, consumer);
     }
 
+    
+    @SuppressWarnings("unchecked")
+    public static void applyToAllServices(final ServiceConsumer<Object> consumer, final Class<?>... classes)
+            throws GwtKuraException {
+
+        for (Class<?> c: classes) {
+            withAllServices((Class<Object>) c, null, consumer);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static void withAllServices(String filter,
+            final ServiceConsumer<Object> consumer, final Class<?>... classes) throws GwtKuraException {
+        
+        for (Class<?> c: classes) {
+            withAllServices((Class<Object>) c, filter, consumer);
+        }
+    }
+    
     /**
      * Lookup services with a filter and iterate over their instances
      *

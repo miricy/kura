@@ -10,15 +10,16 @@
 package org.eclipse.kura.cloud.publisher;
 
 import org.eclipse.kura.KuraException;
+import org.eclipse.kura.cloud.connection.CloudConnectionListenerTracker;
 import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
- * @since 1.5
+ * @since 2.0
  * @noimplement This interface is not intended to be implemented by clients.
  */
 @ProviderType
-public interface CloudPublisher {
+public interface CloudPublisher extends CloudConnectionListenerTracker{
 
     /**
      * Publishes the received {@link KuraPayload} message using the associated Cloud Stack.

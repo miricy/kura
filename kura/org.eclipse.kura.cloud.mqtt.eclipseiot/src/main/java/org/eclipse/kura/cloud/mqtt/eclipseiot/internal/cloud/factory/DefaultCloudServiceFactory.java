@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.factory.CloudServiceFactory;
+import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
 import org.eclipse.kura.configuration.ComponentConfiguration;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataService;
@@ -154,7 +154,7 @@ import org.osgi.service.component.ComponentConstants;
  *
  * <br>
  */
-public class DefaultCloudServiceFactory implements CloudServiceFactory {
+public class DefaultCloudServiceFactory implements CloudConnectionServiceFactory {
 
     private static final String FACTORY_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.factory.DefaultCloudServiceFactory";
 
@@ -212,7 +212,7 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory {
             Map<String, Object> cloudServiceProperties = new HashMap<>();
             String name = DATA_SERVICE_REFERENCE_NAME + ComponentConstants.REFERENCE_TARGET_SUFFIX;
             cloudServiceProperties.put(name, String.format(REFERENCE_TARGET_VALUE_FORMAT, dataServicePid));
-            cloudServiceProperties.put(KURA_CLOUD_SERVICE_FACTORY_PID, FACTORY_PID);
+            cloudServiceProperties.put(KURA_CLOUD_CONNECTION_SERVICE_FACTORY_PID, FACTORY_PID);
 
             this.configurationService.createFactoryConfiguration(CLOUD_SERVICE_FACTORY_PID, pid, cloudServiceProperties,
                     false);
@@ -294,7 +294,8 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory {
             final String factoryPid = cc.getDefinition().getId();
 
             if (CLOUD_SERVICE_FACTORY_PID.equals(factoryPid) && MANAGED_CLOUD_SERVICE_PID_PATTERN.matcher(pid).matches()
-                    && FACTORY_PID.equals(cc.getConfigurationProperties().get(KURA_CLOUD_SERVICE_FACTORY_PID))) {
+                    && FACTORY_PID
+                            .equals(cc.getConfigurationProperties().get(KURA_CLOUD_CONNECTION_SERVICE_FACTORY_PID))) {
                 cloudServicePids.add(pid);
             }
         }

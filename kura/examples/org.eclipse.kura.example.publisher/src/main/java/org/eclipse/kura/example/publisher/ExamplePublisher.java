@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloud.publisher.CloudPublisher;
 import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
 import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
@@ -41,7 +42,7 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExamplePublisher implements ConfigurableComponent, SubscriberListener {
+public class ExamplePublisher implements ConfigurableComponent, SubscriberListener, CloudConnectionListener {
 
     /**
      * Inner class defined to track the CloudServices as they get added, modified or removed.
@@ -54,6 +55,7 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
         @Override
         public CloudPublisher addingService(final ServiceReference<CloudPublisher> reference) {
             ExamplePublisher.this.cloudPublisher = ExamplePublisher.this.bundleContext.getService(reference);
+            ExamplePublisher.this.cloudPublisher.register(ExamplePublisher.this);
 
             return ExamplePublisher.this.cloudPublisher;
         }
@@ -65,6 +67,7 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
 
         @Override
         public void removedService(final ServiceReference<CloudPublisher> reference, final CloudPublisher service) {
+            ExamplePublisher.this.cloudPublisher.unregister(ExamplePublisher.this);
             ExamplePublisher.this.cloudPublisher = null;
         }
     }
@@ -75,7 +78,8 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
         @Override
         public CloudSubscriber addingService(final ServiceReference<CloudSubscriber> reference) {
             ExamplePublisher.this.cloudSubscriber = ExamplePublisher.this.bundleContext.getService(reference);
-            ExamplePublisher.this.cloudSubscriber.register(ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.register((SubscriberListener) ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.register((CloudConnectionListener) ExamplePublisher.this);
 
             return ExamplePublisher.this.cloudSubscriber;
         }
@@ -87,7 +91,8 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
 
         @Override
         public void removedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
-            ExamplePublisher.this.cloudSubscriber.unregister(ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.unregister((SubscriberListener) ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.unregister((CloudConnectionListener) ExamplePublisher.this);
             ExamplePublisher.this.cloudSubscriber = null;
         }
     }
@@ -333,7 +338,7 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
             }
         }
     }
-    
+
     @Override
     public void onConnectionEstablished() {
         logger.info("Connection established");
@@ -347,5 +352,10 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
     @Override
     public void onMessageArrived(Map<String, Object> properties, KuraPayload payload) {
         logReceivedMessage(payload);
+    }
+
+    @Override
+    public void onDisconnected() {
+        logger.warn("On disconnected");
     }
 }

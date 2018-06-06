@@ -14,7 +14,7 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.message.KuraPayload;
 
 /**
- * @since 1.5
+ * @since 2.0
  */
 public interface CloudletInterface {
 

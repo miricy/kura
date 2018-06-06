@@ -14,9 +14,9 @@ package org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud;
 import java.util.List;
 
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.message.KuraBirthPayload;
+import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.message.KuraBirthPayload.KuraBirthPayloadBuilder;
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.message.KuraDeviceProfile;
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.message.KuraDisconnectPayload;
-import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.message.KuraBirthPayload.KuraBirthPayloadBuilder;
 import org.eclipse.kura.core.util.NetUtil;
 import org.eclipse.kura.message.KuraPosition;
 import org.eclipse.kura.net.NetInterface;
@@ -50,9 +50,6 @@ public class LifeCyclePayloadBuilder {
         // build device profile
         KuraDeviceProfile deviceProfile = buildDeviceProfile();
 
-        // build application IDs
-        String appIds = buildApplicationIDs();
-
         // build accept encoding
         String acceptEncoding = buildAcceptEncoding();
 
@@ -76,7 +73,7 @@ public class LifeCyclePayloadBuilder {
                 .withJvmProfile(deviceProfile.getJvmProfile()).withKuraVersion(deviceProfile.getKuraVersion())
                 .withConnectionInterface(deviceProfile.getConnectionInterface())
                 .withConnectionIp(deviceProfile.getConnectionIp()).withAcceptEncoding(acceptEncoding)
-                .withApplicationIdentifiers(appIds).withAvailableProcessors(deviceProfile.getAvailableProcessors())
+                .withAvailableProcessors(deviceProfile.getAvailableProcessors())
                 .withTotalMemory(deviceProfile.getTotalMemory()).withOsArch(deviceProfile.getOsArch())
                 .withOsgiFramework(deviceProfile.getOsgiFramework())
                 .withOsgiFrameworkVersion(deviceProfile.getOsgiFrameworkVersion()).withPayloadEncoding(payloadEncoding);
@@ -202,18 +199,6 @@ public class LifeCyclePayloadBuilder {
         sb.append(ni.getName()).append(" (").append(NetUtil.hardwareAddressToString(ni.getHardwareAddress()))
                 .append(")");
         return sb.toString();
-    }
-
-    private String buildApplicationIDs() {
-        String[] appIdArray = this.cloudServiceImpl.getCloudApplicationIdentifiers();
-        StringBuilder sbAppIDs = new StringBuilder();
-        for (int i = 0; i < appIdArray.length; i++) {
-            if (i != 0) {
-                sbAppIDs.append(",");
-            }
-            sbAppIDs.append(appIdArray[i]);
-        }
-        return sbAppIDs.toString();
     }
 
     private String buildAcceptEncoding() {

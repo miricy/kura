@@ -7,18 +7,20 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud.subscriber.listener;
+package org.eclipse.kura.cloud.connection.listener;
 
-import java.util.Map;
-
-import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ConsumerType;
 
 /**
  * @since 2.0
  */
 @ConsumerType
-public interface SubscriberListener {
+public interface CloudConnectionListener {
 
-    public void onMessageArrived(Map<String, Object> properties, KuraPayload payload);
+    public void onDisconnected();
+
+    public void onConnectionLost();
+
+    public void onConnectionEstablished();
+
 }

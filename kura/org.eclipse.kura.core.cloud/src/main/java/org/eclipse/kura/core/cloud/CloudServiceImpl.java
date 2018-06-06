@@ -23,7 +23,9 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,9 +43,12 @@ import org.eclipse.kura.cloud.CloudPayloadProtoBufEncoder;
 import org.eclipse.kura.cloud.CloudService;
 import org.eclipse.kura.cloud.CloudletInterface;
 import org.eclipse.kura.cloud.CloudletService;
+import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.core.cloud.subscriber.CloudSubscriberImpl;
+import org.eclipse.kura.core.data.DataServiceImpl;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.listener.DataServiceListener;
 import org.eclipse.kura.message.KuraPayload;
@@ -65,7 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CloudServiceImpl implements CloudService, DataServiceListener, ConfigurableComponent, EventHandler,
-        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudletService {
+        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudletService, CloudConnectionService {
 
     private static final Logger logger = LoggerFactory.getLogger(CloudServiceImpl.class);
 
@@ -92,6 +97,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     // use a synchronized implementation for the list
     private final List<CloudClientImpl> cloudClients;
+    private final Set<CloudConnectionListener> registeredCloudConnectionListeners;
 
     // package visibility for LyfeCyclePayloadBuilder
     String imei;
@@ -115,6 +121,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         this.messageId = new AtomicInteger();
         this.registeredCloudlets = new HashMap<>();
         this.registeredSubscribers = new ArrayList<>();
+        this.registeredCloudConnectionListeners = new CopyOnWriteArraySet<>();
     }
 
     // ----------------------------------------------------------------
@@ -409,8 +416,8 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         postConnectionStateChangeEvent(true);
 
         this.cloudClients.forEach(CloudClientImpl::onConnectionEstablished);
-        
-        this.registeredSubscribers.forEach(CloudSubscriberImpl::onConnectionEstablished);
+
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onConnectionEstablished);
     }
 
     private void setupDeviceSubscriptions(boolean subscribe) throws KuraException {
@@ -444,6 +451,8 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     public void onDisconnected() {
         // raise event
         postConnectionStateChangeEvent(false);
+
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onDisconnected);
     }
 
     @Override
@@ -453,7 +462,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
         this.cloudClients.forEach(CloudClientImpl::onConnectionLost);
 
-        this.registeredSubscribers.forEach(CloudSubscriberImpl::onConnectionLost);
+        this.registeredCloudConnectionListeners.forEach(CloudConnectionListener::onConnectionLost);
     }
 
     @Override
@@ -621,9 +630,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
         try {
             kuraPayload = encoder.buildFromByteArray();
             return kuraPayload;
-        } catch (KuraInvalidMessageException e) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR, e);
-        } catch (IOException e) {
+        } catch (KuraInvalidMessageException | IOException e) {
             throw new KuraException(KuraErrorCode.DECODER_ERROR, e);
         }
     }
@@ -813,5 +820,35 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     public void unregisterSubscriber(CloudSubscriberImpl cloudSubscriber) {
         this.registeredSubscribers.remove(cloudSubscriber);
+    }
+
+    @Override
+    public void connect() throws KuraException {
+        if (this.dataService != null) {
+            this.dataService.connect();
+        }
+    }
+
+    @Override
+    public void disconnect() throws KuraException {
+        if (this.dataService != null) {
+            this.dataService.disconnect(10);
+        }
+    }
+
+    @Override
+    public void register(CloudConnectionListener cloudConnectionListener) {
+        this.registeredCloudConnectionListeners.add(cloudConnectionListener);
+    }
+
+    @Override
+    public void unregister(CloudConnectionListener cloudConnectionListener) {
+        this.registeredCloudConnectionListeners.remove(cloudConnectionListener);
+    }
+
+    @Override
+    public Map<String, String> getConnectionInfo() {
+        DataServiceImpl dataServiceImpl = (DataServiceImpl) this.dataService;
+        return dataServiceImpl.getConnectionInfo();
     }
 }

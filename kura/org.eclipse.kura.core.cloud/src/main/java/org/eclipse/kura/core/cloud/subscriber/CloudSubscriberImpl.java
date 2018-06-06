@@ -11,19 +11,19 @@ package org.eclipse.kura.core.cloud.subscriber;
 
 import static java.util.Objects.nonNull;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.CloudClientListener;
-import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
 import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.core.cloud.CloudServiceImpl;
 import org.eclipse.kura.core.cloud.CloudServiceOptions;
-import org.eclipse.kura.core.cloud.publisher.CloudPublisherImpl;
 import org.eclipse.kura.core.cloud.publisher.MessageType;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.message.KuraPayload;
@@ -38,17 +38,23 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableComponent, CloudClientListener {
+public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableComponent, CloudConnectionListener {
 
-    private final class CloudServiceTrackerCustomizer implements ServiceTrackerCustomizer<CloudService, CloudService> {
+    private static final String APP_TOPIC_KEY = "appTopic";
+
+    private static final String DEVICE_ID_KEY = "deviceId";
+
+    private final class CloudServiceTrackerCustomizer
+            implements ServiceTrackerCustomizer<CloudConnectionService, CloudConnectionService> {
 
         @Override
-        public CloudService addingService(final ServiceReference<CloudService> reference) {
-            CloudService tempCloudService = CloudSubscriberImpl.this.bundleContext.getService(reference);
+        public CloudConnectionService addingService(final ServiceReference<CloudConnectionService> reference) {
+            CloudConnectionService tempCloudService = CloudSubscriberImpl.this.bundleContext.getService(reference);
 
             if (tempCloudService instanceof CloudServiceImpl) {
                 CloudSubscriberImpl.this.cloudService = (CloudServiceImpl) tempCloudService;
                 CloudSubscriberImpl.this.cloudService.registerSubscriber(CloudSubscriberImpl.this);
+                CloudSubscriberImpl.this.cloudService.register((CloudConnectionListener) CloudSubscriberImpl.this);
                 subscribe();
                 return tempCloudService;
             } else {
@@ -59,28 +65,32 @@ public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableCompone
         }
 
         @Override
-        public void removedService(final ServiceReference<CloudService> reference, final CloudService service) {
+        public void removedService(final ServiceReference<CloudConnectionService> reference,
+                final CloudConnectionService service) {
             unsubscribe();
             CloudSubscriberImpl.this.cloudService.unregisterSubscriber(CloudSubscriberImpl.this);
+            CloudSubscriberImpl.this.cloudService.unregister((CloudConnectionListener) CloudSubscriberImpl.this);
             CloudSubscriberImpl.this.cloudService = null;
         }
 
         @Override
-        public void modifiedService(ServiceReference<CloudService> reference, CloudService service) {
+        public void modifiedService(ServiceReference<CloudConnectionService> reference,
+                CloudConnectionService service) {
             // Not needed
         }
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(CloudPublisherImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(CloudSubscriberImpl.class);
 
-    private ServiceTrackerCustomizer<CloudService, CloudService> cloudServiceTrackerCustomizer;
-    private ServiceTracker<CloudService, CloudService> cloudServiceTracker;
+    private ServiceTrackerCustomizer<CloudConnectionService, CloudConnectionService> cloudServiceTrackerCustomizer;
+    private ServiceTracker<CloudConnectionService, CloudConnectionService> cloudServiceTracker;
 
     private CloudSubscriberOptions cloudSubscriberOptions;
     private CloudServiceImpl cloudService;
     private BundleContext bundleContext;
 
     private final Set<SubscriberListener> subscribers = new CopyOnWriteArraySet<>();
+    private final Set<CloudConnectionListener> cloudConnectionListeners = new CopyOnWriteArraySet<>();
 
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         logger.debug("Activating Cloud Publisher...");
@@ -124,7 +134,7 @@ public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableCompone
     private void initCloudServiceTracking() {
         String selectedCloudServicePid = this.cloudSubscriberOptions.getCloudServicePid();
         String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                CloudService.class.getName(), selectedCloudServicePid);
+                CloudConnectionService.class.getName(), selectedCloudServicePid);
         Filter filter = null;
         try {
             filter = this.bundleContext.createFilter(filterString);
@@ -205,35 +215,46 @@ public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableCompone
     @Override
     public void onConnectionEstablished() {
         subscribe();
-        this.subscribers.stream().forEach(SubscriberListener::onConnectionEstablished);
-    }
-
-    @Override
-    public void onMessagePublished(int messageId, String topic) {
-        // Not needed
-    }
-
-    @Override
-    public void onMessageConfirmed(int messageId, String topic) {
-        // Not needed
+        this.cloudConnectionListeners.forEach(CloudConnectionListener::onConnectionEstablished);
     }
 
     public String getAppId() {
         return this.cloudSubscriberOptions.getAppId();
     }
 
-    @Override
     public void onControlMessageArrived(String deviceId, String appTopic, KuraPayload msg, int qos, boolean retain) {
-        this.subscribers.stream().forEach(subscriber -> subscriber.onMessageArrived(null, msg)); //TODO
+        notifyMessageArrived(deviceId, appTopic, msg);
     }
 
-    @Override
     public void onMessageArrived(String deviceId, String appTopic, KuraPayload msg, int qos, boolean retain) {
-        this.subscribers.stream().forEach(subscriber -> subscriber.onMessageArrived(null, msg)); //TODO
+        notifyMessageArrived(deviceId, appTopic, msg);
+    }
+
+    private void notifyMessageArrived(String deviceId, String appTopic, KuraPayload msg) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(DEVICE_ID_KEY, deviceId);
+        properties.put(APP_TOPIC_KEY, appTopic);
+
+        this.subscribers.stream().forEach(subscriber -> subscriber.onMessageArrived(properties, msg));
     }
 
     @Override
     public void onConnectionLost() {
-        this.subscribers.stream().forEach(SubscriberListener::onConnectionLost);
+        this.cloudConnectionListeners.forEach(CloudConnectionListener::onConnectionLost);
+    }
+
+    @Override
+    public void onDisconnected() {
+        this.cloudConnectionListeners.forEach(CloudConnectionListener::onDisconnected);
+    }
+
+    @Override
+    public void register(CloudConnectionListener cloudConnectionListener) {
+        this.cloudConnectionListeners.add(cloudConnectionListener);
+    }
+
+    @Override
+    public void unregister(CloudConnectionListener cloudConnectionListener) {
+        this.cloudConnectionListeners.remove(cloudConnectionListener);
     }
 }

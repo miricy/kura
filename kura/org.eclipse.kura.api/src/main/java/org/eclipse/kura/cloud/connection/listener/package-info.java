@@ -7,18 +7,8 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud.subscriber.listener;
-
-import java.util.Map;
-
-import org.eclipse.kura.message.KuraPayload;
-import org.osgi.annotation.versioning.ConsumerType;
-
 /**
- * @since 2.0
+ * Provides apis that allow to listen to connection events.
+ *
  */
-@ConsumerType
-public interface SubscriberListener {
-
-    public void onMessageArrived(Map<String, Object> properties, KuraPayload payload);
-}
+package org.eclipse.kura.cloud.connection.listener;

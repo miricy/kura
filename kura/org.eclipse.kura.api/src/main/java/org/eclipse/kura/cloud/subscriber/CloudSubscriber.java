@@ -9,14 +9,15 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud.subscriber;
 
+import org.eclipse.kura.cloud.connection.CloudConnectionListenerTracker;
 import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
- * @since 1.5
+ * @since 2.0
  */
 @ProviderType
-public interface CloudSubscriber {
+public interface CloudSubscriber extends CloudConnectionListenerTracker{
 
     public void register(SubscriberListener listener);
 
