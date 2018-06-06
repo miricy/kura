@@ -20,11 +20,8 @@ import static java.util.Comparator.nullsFirst;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.kura.KuraConnectException;
 import org.eclipse.kura.KuraException;
@@ -38,6 +35,7 @@ import org.eclipse.kura.web.server.util.ServiceLocator;
 import org.eclipse.kura.web.server.util.ServiceLocator.ServiceFunction;
 import org.eclipse.kura.web.shared.GwtKuraErrorCode;
 import org.eclipse.kura.web.shared.GwtKuraException;
+import org.eclipse.kura.web.shared.model.GwtCloudConnectionInfo;
 import org.eclipse.kura.web.shared.model.GwtGroupedNVPair;
 import org.eclipse.kura.web.shared.model.GwtModemInterfaceConfig;
 import org.eclipse.kura.web.shared.model.GwtNetIfConfigMode;
@@ -122,14 +120,15 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
             }
             ServiceLocator.getInstance().ungetService(cloudServiceReference);
         }
-        
-        Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator.getInstance()
-                .getServiceReferences(CloudConnectionService.class, null);
+
+        Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator
+                .getInstance().getServiceReferences(CloudConnectionService.class, null);
 
         for (ServiceReference<CloudConnectionService> cloudConnectionServiceReference : cloudConnectionServiceReferences) {
             String cloudConnectionServicePid = (String) cloudConnectionServiceReference.getProperty(KURA_SERVICE_PID);
             if (cloudConnectionServicePid.endsWith(connectionId)) {
-                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance().getService(cloudConnectionServiceReference);
+                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance()
+                        .getService(cloudConnectionServiceReference);
                 try {
                     cloudConnectionService.connect();
                 } catch (KuraException e) {
@@ -140,7 +139,7 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
             }
             ServiceLocator.getInstance().ungetService(cloudConnectionServiceReference);
         }
-        
+
     }
 
     @Override
@@ -168,14 +167,15 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
             }
             ServiceLocator.getInstance().ungetService(cloudServiceReference);
         }
-        
-        Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator.getInstance()
-                .getServiceReferences(CloudConnectionService.class, null);
+
+        Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator
+                .getInstance().getServiceReferences(CloudConnectionService.class, null);
 
         for (ServiceReference<CloudConnectionService> cloudConnectionServiceReference : cloudConnectionServiceReferences) {
             String cloudConnectionServicePid = (String) cloudConnectionServiceReference.getProperty(KURA_SERVICE_PID);
             if (cloudConnectionServicePid.endsWith(connectionId)) {
-                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance().getService(cloudConnectionServiceReference);
+                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance()
+                        .getService(cloudConnectionServiceReference);
                 try {
                     cloudConnectionService.disconnect();
                 } catch (KuraException e) {
@@ -186,29 +186,37 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
             }
             ServiceLocator.getInstance().ungetService(cloudConnectionServiceReference);
         }
-        
+
     }
 
     private List<GwtGroupedNVPair> getCloudStatus() throws GwtKuraException {
         final List<GwtGroupedNVPair> pairs = new ArrayList<>();
-        
-        final Set<String> cloudServicePids = new HashSet<>();
-        
+
+        final List<GwtCloudConnectionInfo> connectionInfos = new ArrayList<>();
+
         try {
-            final Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator.getInstance()
-                    .getServiceReferences(CloudConnectionService.class, null);
-            cloudConnectionServiceReferences.forEach(reference -> cloudServicePids.add((String) reference.getProperty(KURA_SERVICE_PID)));
-            
+            final Collection<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferences = ServiceLocator
+                    .getInstance().getServiceReferences(CloudConnectionService.class, null);
+
             List<ServiceReference<CloudConnectionService>> cloudConnectionServiceReferencesList = new ArrayList<>(
                     cloudConnectionServiceReferences);
-            //sortCloudServiceServiceReferences(cloudConnectionServiceReferencesList);
-            
-            
+
             for (ServiceReference<CloudConnectionService> cloudConnectionServiceReference : cloudConnectionServiceReferencesList) {
+                GwtCloudConnectionInfo cloudConnectionInfo = new GwtCloudConnectionInfo();
+
                 String cloudServicePid = (String) cloudConnectionServiceReference.getProperty(KURA_SERVICE_PID);
-                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance().getService(cloudConnectionServiceReference);
-                
-                fillCloudConnectionInfo(pairs, cloudServicePid, cloudConnectionService);
+                cloudConnectionInfo.setCloudServicePid(cloudServicePid);
+
+                CloudConnectionService cloudConnectionService = ServiceLocator.getInstance()
+                        .getService(cloudConnectionServiceReference);
+
+                cloudConnectionInfo.addConnectionProperty("Service Status",
+                        cloudConnectionService.isConnected() ? "CONNECTED" : "DISCONNECTED");
+
+                Map<String, String> connectionProps = cloudConnectionService.getConnectionInfo();
+                connectionProps.forEach((key, value) -> cloudConnectionInfo.addConnectionProperty(key, value));
+
+                connectionInfos.add(cloudConnectionInfo);
             }
         } catch (GwtKuraException e) {
             s_logger.warn("Get cloud status failed", e);
@@ -217,54 +225,61 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
         try {
             final Collection<ServiceReference<CloudService>> cloudServiceReferences = ServiceLocator.getInstance()
                     .getServiceReferences(CloudService.class, null);
-            cloudServiceReferences.forEach(reference -> cloudServicePids.add((String) reference.getProperty(KURA_SERVICE_PID)));
-            
-            List<ServiceReference<CloudService>> cloudServiceReferencesList = new ArrayList<>(
-                    cloudServiceReferences);
-            sortCloudServiceServiceReferences(cloudServiceReferencesList);
+
+            List<ServiceReference<CloudService>> cloudServiceReferencesList = new ArrayList<>(cloudServiceReferences);
+
             for (ServiceReference<CloudService> cloudServiceReference : cloudServiceReferencesList) {
                 String cloudServicePid = (String) cloudServiceReference.getProperty(KURA_SERVICE_PID);
-                if (cloudServicePid != null) {
-                    fillFromCloudService(pairs, cloudServiceReference, cloudServicePid);
+
+                if (connectionInfos.stream()
+                        .noneMatch(connectionInfo -> connectionInfo.getCloudServicePid().equals(cloudServicePid))) {
+                    GwtCloudConnectionInfo cloudConnectionInfo = fillFromCloudService(cloudServiceReference,
+                            cloudServicePid);
+                    connectionInfos.add(cloudConnectionInfo);
                 }
             }
         } catch (GwtKuraException e) {
             s_logger.warn("Get cloud status failed", e);
         }
 
+        connectionInfos.sort((c1, c2) -> c1.getCloudServicePid().compareTo(c2.getCloudServicePid()));
+
+        fillCloudConnectionInfo(pairs, connectionInfos);
         return pairs;
     }
 
-    private void fillCloudConnectionInfo(List<GwtGroupedNVPair> pairs, String cloudServicePid,
-            CloudConnectionService cloudConnectionService) {
-        pairs.add(new GwtGroupedNVPair("cloudStatus", "Connection Name", cloudServicePid));
-        pairs.add(new GwtGroupedNVPair("cloudStatus", "Service Status",
-                cloudConnectionService.isConnected() ? "CONNECTED" : "DISCONNECTED"));
-        
-        Map<String, String> connectionProps = cloudConnectionService.getConnectionInfo();
-        connectionProps.forEach((key, value) -> pairs.add(new GwtGroupedNVPair("cloudStatus", key, value))); 
+    private void fillCloudConnectionInfo(List<GwtGroupedNVPair> pairs, List<GwtCloudConnectionInfo> connectionInfos) {
+        connectionInfos.forEach(connectionInfo -> {
+            pairs.add(new GwtGroupedNVPair("cloudStatus", "Connection Name", connectionInfo.getCloudServicePid()));
+
+            Map<String, Object> connectionProperties = connectionInfo.getConnectionProperties();
+            connectionProperties
+                    .forEach((key, value) -> pairs.add(new GwtGroupedNVPair("cloudStatus", key, (String) value)));
+        });
     }
 
-    private void fillFromCloudService(List<GwtGroupedNVPair> pairs,
-            ServiceReference<CloudService> cloudServiceReference, String cloudServicePid) throws GwtKuraException {
-        pairs.add(new GwtGroupedNVPair("cloudStatus", "Connection Name", cloudServicePid));
+    private GwtCloudConnectionInfo fillFromCloudService(ServiceReference<CloudService> cloudServiceReference,
+            String cloudServicePid) throws GwtKuraException {
+
+        GwtCloudConnectionInfo result = new GwtCloudConnectionInfo();
+        result.setCloudServicePid(cloudServicePid);
 
         final CloudService cloudService = ServiceLocator.getInstance().getService(cloudServiceReference);
         try {
-            pairs.add(new GwtGroupedNVPair("cloudStatus", "Service Status",
-                    cloudService.isConnected() ? "CONNECTED" : "DISCONNECTED"));
+            result.addConnectionProperty("Service Status", cloudService.isConnected() ? "CONNECTED" : "DISCONNECTED");
 
             final String dataServiceRef = (String) cloudServiceReference
                     .getProperty(DATA_SERVICE_REFERENCE_NAME + ComponentConstants.REFERENCE_TARGET_SUFFIX);
             if (dataServiceRef != null) {
-                fillFromDataService(pairs, dataServiceRef);
+                fillFromDataService(result, dataServiceRef);
             }
         } finally {
             ServiceLocator.getInstance().ungetService(cloudServiceReference);
         }
+        return result;
     }
 
-    private void fillFromDataService(List<GwtGroupedNVPair> pairs, final String dataServiceRef)
+    private void fillFromDataService(GwtCloudConnectionInfo cloudConnectionInfo, final String dataServiceRef)
             throws GwtKuraException {
         final Collection<ServiceReference<DataService>> dataServiceReferences = ServiceLocator.getInstance()
                 .getServiceReferences(DataService.class, dataServiceRef);
@@ -273,10 +288,10 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
             final DataService dataService = ServiceLocator.getInstance().getService(dataServiceReference);
             try {
                 if (dataService != null) {
-                    pairs.add(new GwtGroupedNVPair("cloudStatus", "Auto-connect",
+                    cloudConnectionInfo.addConnectionProperty("Auto-connect",
                             dataService.isAutoConnectEnabled()
                                     ? "ON (Retry Interval is " + Integer.toString(dataService.getRetryInterval()) + "s)"
-                                    : "OFF"));
+                                    : "OFF");
                 }
 
                 final String dataTransportRef = (String) dataServiceReference.getProperty(
@@ -284,10 +299,10 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
                 final List<DataTransportService> dataTransportServices = ServiceLocator.getInstance()
                         .getServices(DataTransportService.class, dataTransportRef);
                 for (DataTransportService dataTransportService : dataTransportServices) {
-                    pairs.add(new GwtGroupedNVPair("cloudStatus", "Broker URL", dataTransportService.getBrokerUrl()));
-                    pairs.add(new GwtGroupedNVPair("cloudStatus", "Account", dataTransportService.getAccountName()));
-                    pairs.add(new GwtGroupedNVPair("cloudStatus", "Username", dataTransportService.getUsername()));
-                    pairs.add(new GwtGroupedNVPair("cloudStatus", "Client ID", dataTransportService.getClientId()));
+                    cloudConnectionInfo.addConnectionProperty("Broker URL", dataTransportService.getBrokerUrl());
+                    cloudConnectionInfo.addConnectionProperty("Account", dataTransportService.getAccountName());
+                    cloudConnectionInfo.addConnectionProperty("Username", dataTransportService.getUsername());
+                    cloudConnectionInfo.addConnectionProperty("Client ID", dataTransportService.getClientId());
                 }
             } finally {
                 ServiceLocator.getInstance().ungetService(dataServiceReference);
@@ -417,22 +432,5 @@ public class GwtStatusServiceImpl extends OsgiRemoteServiceServlet implements Gw
         });
 
         return pairs;
-    }
-
-    private void sortCloudServiceServiceReferences(List<ServiceReference<?>> configs) {
-        Collections.sort(configs, new Comparator<ServiceReference<?>>() {
-
-            @Override
-            public int compare(ServiceReference<?> arg0, ServiceReference<?> arg1) {
-                Object object0 = arg0.getProperty(KURA_SERVICE_PID);
-                Object object1 = arg1.getProperty(KURA_SERVICE_PID);
-                if (object0 != null && object1 != null) {
-                    String name0 = (String) object0;
-                    String name1 = (String) object1;
-                    return name0.compareTo(name1);
-                }
-                return 0;
-            }
-        });
     }
 }

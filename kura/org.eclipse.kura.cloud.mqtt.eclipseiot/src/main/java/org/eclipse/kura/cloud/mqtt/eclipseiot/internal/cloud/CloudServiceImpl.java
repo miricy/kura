@@ -35,6 +35,7 @@ import org.eclipse.kura.cloud.connection.CloudConnectionService;
 import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
+import org.eclipse.kura.core.data.DataServiceImpl;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.listener.DataServiceListener;
 import org.eclipse.kura.message.KuraPayload;
@@ -570,5 +571,11 @@ public class CloudServiceImpl implements DataServiceListener, ConfigurableCompon
     @Override
     public void unregister(CloudConnectionListener cloudConnectionListener) {
         this.registeredCloudConnectionListeners.remove(cloudConnectionListener);
+    }
+
+    @Override
+    public Map<String, String> getConnectionInfo() {
+        DataServiceImpl dataServiceImpl = (DataServiceImpl) this.dataService;
+        return dataServiceImpl.getConnectionInfo();
     }
 }

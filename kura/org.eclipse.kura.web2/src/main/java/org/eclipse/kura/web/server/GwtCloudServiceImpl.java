@@ -47,6 +47,8 @@ import org.osgi.framework.ServiceReference;
 
 public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements GwtCloudService {
 
+    private static final String FACTORY_PID_KEY = "factoryPid";
+
     private static final long serialVersionUID = 2595835826149606703L;
 
     private static final String KURA_UI_CSF_PID_DEFAULT = "kura.ui.csf.pid.default";
@@ -105,7 +107,9 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
                 fillState(cloudConnectionEntry);
 
-                pairs.add(cloudConnectionEntry);
+                if (pairs.stream().noneMatch(pairEntry -> pairEntry.getCloudFactoryPid().equals(factoryPid))) {
+                    pairs.add(cloudConnectionEntry);
+                }
             }
 
         }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
@@ -143,15 +147,15 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
     @Override
     public List<GwtGroupedNVPair> findCloudServiceFactories() throws GwtKuraException {
-        Set<GwtGroupedNVPair> pairs = new HashSet<>();
+        final Set<GwtGroupedNVPair> pairs = new HashSet<>();
 
         applyToAllServices(o -> {
             final CloudConnectionServiceFactory service = wrap(o);
 
-            if (service.getFactoryPid() == null) {
-                return;
+            if (service.getFactoryPid() != null
+                    && pairs.stream().noneMatch(nvPair -> service.getFactoryPid().equals(nvPair.getValue()))) {
+                pairs.add(new GwtGroupedNVPair("cloudFactories", FACTORY_PID_KEY, service.getFactoryPid()));
             }
-            pairs.add(new GwtGroupedNVPair("cloudFactories", "factoryPid", service.getFactoryPid()));
         }, CloudConnectionServiceFactory.class, CloudServiceFactory.class);
 
         return pairs.stream().sorted(GROUPED_PAIR_NAME_COMPARATOR).collect(Collectors.toList());
