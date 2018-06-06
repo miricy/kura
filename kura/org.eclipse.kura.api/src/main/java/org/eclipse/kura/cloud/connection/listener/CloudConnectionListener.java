@@ -9,18 +9,42 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud.connection.listener;
 
+import org.eclipse.kura.cloud.connection.CloudConnectionListenerTracker;
 import org.osgi.annotation.versioning.ConsumerType;
 
 /**
+ * {@link CloudConnectionListener} interface is implemented by applications that want to be notified on connection
+ * status changes.
+ * To be notified, the implementor need to register itself to a specific {@link CloudConnectionListenerTracker}.
+ *
  * @since 2.0
  */
 @ConsumerType
 public interface CloudConnectionListener {
 
+    /**
+     * Notifies that the cloud stack has cleanly disconnected.
+     */
     public void onDisconnected();
 
+    /**
+     * Called when the client has lost its connection with the broker. This is only a notification, the callback handler
+     * should
+     * not attempt to handle the reconnect.
+     *
+     * If the bundle using the client relies on subscriptions beyond the default ones,
+     * it is responsibility of the application to implement the {@link CloudConnectionListener#onConnectionEstablished}
+     * callback method to restore the subscriptions it needs after a connection loss.
+     */
     public void onConnectionLost();
 
+    /**
+     * Called when the cloud stack has successfully connected to the broker.
+     * <br>
+     * If the bundle using the client relies on subscriptions beyond the default ones,
+     * it is responsibility of the application to implement the {@link CloudConnectionListener#onConnectionEstablished}
+     * callback method to restore the subscriptions it needs after a connection loss.
+     */
     public void onConnectionEstablished();
 
 }
