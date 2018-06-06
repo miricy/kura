@@ -20,7 +20,7 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.connection.CloudConnectionService;
 import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
-import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
+import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.core.cloud.CloudServiceImpl;
 import org.eclipse.kura.core.cloud.CloudServiceOptions;
@@ -89,7 +89,7 @@ public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableCompone
     private CloudServiceImpl cloudService;
     private BundleContext bundleContext;
 
-    private final Set<SubscriberListener> subscribers = new CopyOnWriteArraySet<>();
+    private final Set<CloudSubscriberListener> subscribers = new CopyOnWriteArraySet<>();
     private final Set<CloudConnectionListener> cloudConnectionListeners = new CopyOnWriteArraySet<>();
 
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
@@ -203,12 +203,12 @@ public class CloudSubscriberImpl implements CloudSubscriber, ConfigurableCompone
     }
 
     @Override
-    public void register(SubscriberListener listener) {
+    public void register(CloudSubscriberListener listener) {
         this.subscribers.add(listener);
     }
 
     @Override
-    public void unregister(SubscriberListener listener) {
+    public void unregister(CloudSubscriberListener listener) {
         this.subscribers.remove(listener);
     }
 

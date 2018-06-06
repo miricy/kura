@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloud.publisher.CloudPublisher;
 import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
-import org.eclipse.kura.cloud.subscriber.listener.SubscriberListener;
+import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;
@@ -42,7 +42,7 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExamplePublisher implements ConfigurableComponent, SubscriberListener, CloudConnectionListener {
+public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberListener, CloudConnectionListener {
 
     /**
      * Inner class defined to track the CloudServices as they get added, modified or removed.
@@ -78,7 +78,7 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
         @Override
         public CloudSubscriber addingService(final ServiceReference<CloudSubscriber> reference) {
             ExamplePublisher.this.cloudSubscriber = ExamplePublisher.this.bundleContext.getService(reference);
-            ExamplePublisher.this.cloudSubscriber.register((SubscriberListener) ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.register((CloudSubscriberListener) ExamplePublisher.this);
             ExamplePublisher.this.cloudSubscriber.register((CloudConnectionListener) ExamplePublisher.this);
 
             return ExamplePublisher.this.cloudSubscriber;
@@ -91,7 +91,7 @@ public class ExamplePublisher implements ConfigurableComponent, SubscriberListen
 
         @Override
         public void removedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
-            ExamplePublisher.this.cloudSubscriber.unregister((SubscriberListener) ExamplePublisher.this);
+            ExamplePublisher.this.cloudSubscriber.unregister((CloudSubscriberListener) ExamplePublisher.this);
             ExamplePublisher.this.cloudSubscriber.unregister((CloudConnectionListener) ExamplePublisher.this);
             ExamplePublisher.this.cloudSubscriber = null;
         }

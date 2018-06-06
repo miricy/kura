@@ -18,6 +18,8 @@ import java.util.List;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
+ * Resources associated to the received request.
+ * 
  * @noextend This class is not intended to be subclassed by clients.
  * @since 2.0
  */

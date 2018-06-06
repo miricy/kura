@@ -10,10 +10,15 @@
 package org.eclipse.kura.cloud;
 
 import org.eclipse.kura.KuraException;
+import org.osgi.annotation.versioning.ProviderType;
 
 /**
+ * Interface used to register or unregister {@link CloudletInterface}s identified by a specific id
+ * 
+ * @noextend This class is not intended to be subclassed by clients.
  * @since 2.0
  */
+@ProviderType
 public interface CloudletService {
 
     public void register(String id, CloudletInterface cloudlet) throws KuraException;
