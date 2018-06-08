@@ -2784,6 +2784,10 @@
                                         <copy
                                             file="${project.build.directory}/plugins/org.eclipse.kura.xml.marshaller.unmarshaller.provider_${org.eclipse.kura.xml.marshaller.unmarshaller.provider.version}.jar"
                                             todir="${project.build.directory}/staging/target-definition/equinox_3.12.50/repository/plugins" />
+                                            
+                                        <copy
+                                            file="${project.build.directory}/plugins/org.eclipse.kura.cloud.mqtt.eclipseiot_${org.eclipse.kura.cloud.mqtt.eclipseiot.version}.jar"
+                                            todir="${project.build.directory}/staging/target-definition/equinox_3.12.50/repository/plugins" />
                                     </target>
                                 </configuration>
                             </execution>
