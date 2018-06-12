@@ -11,11 +11,15 @@ package org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.publisher;
 
 import java.util.Map;
 
+import org.eclipse.kura.cloud.connection.Constants;
+
 public class CloudPublisherOptions {
 
-    private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
+    private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>(
+            Constants.CLOUD_CONNECTION_SERVICE_PID_PROP_NAME.value(),
             "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService");
-    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic", "W1/A1/$assetName");
+    private static final Property<String> PROPERTY_SEMANTIC_TOPIC = new Property<>("semantic.topic",
+            "W1/A1/$assetName");
     private static final Property<Integer> PROPERTY_QOS = new Property<>("qos", 0);
     private static final Property<String> PROPERTY_MESSAGE_TYPE = new Property<>("message.type", "telemetryQos0");
 

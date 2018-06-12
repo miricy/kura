@@ -67,6 +67,7 @@ import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.osgi.service.component.runtime.ServiceComponentRuntime;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -238,6 +239,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         // are only shown in Kura Wires UI
         List<String> allWireComponents = findWireComponents();
 
+        // find components that declare the
+        // kura.ui.factory.hide component property
+        List<String> hiddenFactories = findFactoryHideComponents();
+
         // finding services with kura.service.ui.hide property
         fillServicesToHideList(servicesToBeHidden);
 
@@ -248,6 +253,7 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         // are shown in different UI
         result.removeAll(allWireComponents);
         result.removeAll(servicesToBeHidden);
+        result.removeAll(hiddenFactories);
         return result;
     }
 
@@ -310,6 +316,14 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         return ServiceLocator.applyToServiceOptionally(WireComponentDefinitionService.class,
                 wireComponentDefinitionService -> wireComponentDefinitionService.getComponentDefinitions().stream()
                         .map(WireComponentDefinition::getFactoryPid).collect(Collectors.toList()));
+    }
+
+    private List<String> findFactoryHideComponents() throws GwtKuraException {
+        return ServiceLocator.applyToServiceOptionally(ServiceComponentRuntime.class,
+                scr -> scr.getComponentDescriptionDTOs().stream()
+                        .filter(dto -> dto.properties.containsKey("kura.ui.factory.hide")
+                                && dto.properties.get("service.pid") instanceof String)
+                        .map(dto -> (String) dto.properties.get("service.pid")).collect(Collectors.toList()));
     }
 
     private List<ComponentConfiguration> sortConfigurationsByName(List<ComponentConfiguration> configs) {

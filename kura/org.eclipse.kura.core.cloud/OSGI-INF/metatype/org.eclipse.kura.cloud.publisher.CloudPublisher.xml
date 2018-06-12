@@ -16,16 +16,7 @@
     <OCD id="org.eclipse.kura.cloud.publisher.CloudPublisher" 
          name="CloudPublisher" 
          description="The CloudPublisher allows to define publishing parameters and provide a simple endpoint where the applications can attach to publish their messages.">
-        
-        <AD id="cloud.service.pid"
-            name="cloud.service.pid"
-            type="String"
-            cardinality="0"
-            required="true"
-            default="org.eclipse.kura.cloud.CloudService"
-            description="The Kura Service PID of the Cloud Service to use to publish messages.">
-        </AD>
-        
+
         <AD id="appId"
             name="appId"
             type="String"

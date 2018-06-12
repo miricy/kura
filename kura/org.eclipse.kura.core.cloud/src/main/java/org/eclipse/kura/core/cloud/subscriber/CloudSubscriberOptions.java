@@ -11,12 +11,13 @@ package org.eclipse.kura.core.cloud.subscriber;
 
 import java.util.Map;
 
+import org.eclipse.kura.cloud.connection.Constants;
 import org.eclipse.kura.core.cloud.publisher.MessageType;
 
 public class CloudSubscriberOptions {
 
-    private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>("cloud.service.pid",
-            "org.eclipse.kura.cloud.CloudService");
+    private static final Property<String> PROPERTY_CLOUD_SERVICE_PID = new Property<>(
+            Constants.CLOUD_CONNECTION_SERVICE_PID_PROP_NAME.value(), "org.eclipse.kura.cloud.CloudService");
     private static final Property<String> PROPERTY_APP_ID = new Property<>("appId", "appId");
     private static final Property<String> PROPERTY_APP_TOPIC = new Property<>("app.topic", "#");
     private static final Property<Integer> PROPERTY_QOS = new Property<>("qos", 0);

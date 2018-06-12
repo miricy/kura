@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Eurotech and/or its affiliates and others
+ * Copyright (c) 2016, 2018 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,9 +17,9 @@ import java.util.List;
 import org.eclipse.kura.cloud.CloudService;
 import org.eclipse.kura.cloud.factory.CloudServiceFactory;
 import org.eclipse.kura.web.shared.GwtKuraException;
-import org.eclipse.kura.web.shared.model.GwtAllTypesReference;
+import org.eclipse.kura.web.shared.model.GwtCloudComponentFactories;
 import org.eclipse.kura.web.shared.model.GwtCloudConnectionEntry;
-import org.eclipse.kura.web.shared.model.GwtGroupedNVPair;
+import org.eclipse.kura.web.shared.model.GwtCloudEntry;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 
 import com.google.gwt.user.client.rpc.RemoteService;
@@ -54,18 +54,7 @@ public interface GwtCloudService extends RemoteService {
      * @throws GwtKuraException
      *             when service referencing fails
      */
-    public List<GwtCloudConnectionEntry> findCloudServices() throws GwtKuraException;
-
-    /**
-     * Returns the list of all the {@link org.eclipse.kura.cloud.factory.CloudServiceFactory} instances registered in
-     * the framework.
-     *
-     * @return a list of {@link GwtGroupedNVPair} with the factory PID returned by the
-     *         {@link org.eclipse.kura.cloud.factory.CloudServiceFactory} instances
-     * @throws GwtKuraException
-     *             when service referencing fails
-     */
-    public List<GwtGroupedNVPair> findCloudServiceFactories() throws GwtKuraException;
+    public List<GwtCloudEntry> findCloudEntries() throws GwtKuraException;
 
     /**
      * Returns a list of PIDs that compose the cloud stack referenced by the specified factory and cloud service.
@@ -141,9 +130,12 @@ public interface GwtCloudService extends RemoteService {
      */
     public void deleteCloudServiceFromFactory(GwtXSRFToken xsrfToken, String factoryPid, String cloudServicePid)
             throws GwtKuraException;
-    
-    /**
-     * Reference all necessary types for GWT
-     */
-    public GwtAllTypesReference referenceTypesEnums ();
+
+    public GwtCloudComponentFactories getCloudComponentFactories() throws GwtKuraException;
+
+    public void createPubSubInstance(GwtXSRFToken xsrfToken, String pid, String factoryPid, String cloudConnectionPid)
+            throws GwtKuraException;
+
+    public void deletePubSubInstance(GwtXSRFToken xsrfToken, String pid) throws GwtKuraException;
+
 }

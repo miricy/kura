@@ -19,4 +19,7 @@
       <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>
    </service>
    <property name="service.pid" type="String" value="org.eclipse.kura.cloud.publisher.CloudPublisher"/>
+   <property name="cloud.connection.service.factory.pid" type="String" value="org.eclipse.kura.cloud.CloudService"/>
+   <property name="kura.ui.service.hide" type="Boolean" value="true"/>
+   <property name="kura.ui.factory.hide" type="String" value="true"/>
 </scr:component>

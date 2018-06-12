@@ -14,21 +14,23 @@ package org.eclipse.kura.core.cloud.factory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloud.connection.CloudConnectionService;
 import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
 import org.eclipse.kura.cloud.factory.CloudServiceFactory;
-import org.eclipse.kura.configuration.ComponentConfiguration;
 import org.eclipse.kura.configuration.ConfigurationService;
-import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.DataTransportService;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.component.ComponentConstants;
 
 /**
@@ -286,22 +288,23 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory, CloudCon
 
     @Override
     public Set<String> getManagedCloudServicePids() throws KuraException {
-        final Set<String> cloudServicePids = new HashSet<>();
 
-        for (ComponentConfiguration cc : this.configurationService.getComponentConfigurations()) {
-            if (cc.getDefinition() == null) {
-                continue;
-            }
+        final BundleContext context = FrameworkUtil.getBundle(DefaultCloudServiceFactory.class).getBundleContext();
 
-            final String pid = cc.getPid();
-            final String factoryPid = cc.getDefinition().getId();
+        try {
+            return context.getServiceReferences(CloudConnectionService.class, null).stream().filter(ref -> {
+                final Object kuraServicePid = ref.getProperty(ConfigurationService.KURA_SERVICE_PID);
 
-            if (CLOUD_SERVICE_FACTORY_PID.equals(factoryPid) && MANAGED_CLOUD_SERVICE_PID_PATTERN.matcher(pid).matches()
-                    && (FACTORY_PID.equals(cc.getConfigurationProperties().get(KURA_CLOUD_SERVICE_FACTORY_PID)) || FACTORY_PID.equals(cc.getConfigurationProperties().get(KURA_CLOUD_CONNECTION_SERVICE_FACTORY_PID)))) {
-                cloudServicePids.add(pid);
-            }
+                if (!(kuraServicePid instanceof String)) {
+                    return false;
+                }
+
+                return MANAGED_CLOUD_SERVICE_PID_PATTERN.matcher((String) kuraServicePid).matches()
+                        && (FACTORY_PID.equals(ref.getProperty(KURA_CLOUD_SERVICE_FACTORY_PID))
+                                || FACTORY_PID.equals(ref.getProperty(KURA_CLOUD_CONNECTION_SERVICE_FACTORY_PID)));
+            }).map(ref -> (String) ref.getProperty(ConfigurationService.KURA_SERVICE_PID)).collect(Collectors.toSet());
+        } catch (InvalidSyntaxException e) {
+            throw new KuraException(KuraErrorCode.CONFIGURATION_ATTRIBUTE_INVALID, e);
         }
-
-        return cloudServicePids;
     }
 }

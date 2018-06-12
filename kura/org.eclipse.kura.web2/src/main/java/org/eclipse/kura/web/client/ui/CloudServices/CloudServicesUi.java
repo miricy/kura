@@ -11,19 +11,15 @@
  *******************************************************************************/
 package org.eclipse.kura.web.client.ui.CloudServices;
 
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.kura.web.client.messages.Messages;
 import org.eclipse.kura.web.client.util.EventService;
-import org.eclipse.kura.web.client.util.request.Request;
-import org.eclipse.kura.web.client.util.request.RequestContext;
 import org.eclipse.kura.web.client.util.request.RequestQueue;
-import org.eclipse.kura.web.client.util.request.SuccessCallback;
 import org.eclipse.kura.web.shared.ForwardedEventTopic;
-import org.eclipse.kura.web.shared.model.GwtCloudConnectionEntry;
-import org.eclipse.kura.web.shared.model.GwtCloudConnectionState;
+import org.eclipse.kura.web.shared.model.GwtCloudConnectionEntry.GwtCloudConnectionState;
+import org.eclipse.kura.web.shared.model.GwtCloudEntry;
 import org.eclipse.kura.web.shared.model.GwtEventInfo;
 import org.eclipse.kura.web.shared.service.GwtCloudService;
 import org.eclipse.kura.web.shared.service.GwtCloudServiceAsync;
@@ -58,7 +54,7 @@ public class CloudServicesUi extends Composite {
     private CloudInstancesUi cloudInstancesBinder;
     private CloudServiceConfigurationsUi cloudServiceConfigurationsBinder;
 
-    private GwtCloudConnectionEntry currentlySelectedEntry;
+    private GwtCloudEntry currentlySelectedEntry;
     private TabListItem currentlySelectedTab;
 
     private static final String CONNECTION_EVENT_PID_PROPERTY_KEY = "cloud.service.pid";
@@ -87,40 +83,24 @@ public class CloudServicesUi extends Composite {
         cloudServiceConfigurationsBinder = new CloudServiceConfigurationsUi(this);
         this.cloudConfigurationsPanel.add(cloudServiceConfigurationsBinder);
 
-        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_ESTABLISHED, new EventService.Handler() {
-
-            @Override
-            public void handleEvent(GwtEventInfo eventInfo) {
-                handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.CONNECTED);
-            }
+        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_ESTABLISHED, eventInfo -> {
+            handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.CONNECTED);
         });
-        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_LOST, new EventService.Handler() {
 
-            @Override
-            public void handleEvent(GwtEventInfo eventInfo) {
-                handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.DISCONNECTED);
-            }
+        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_LOST, eventInfo -> {
+            handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.DISCONNECTED);
         });
     }
 
     public void refresh() {
-        RequestQueue.submit(new Request() {
+        RequestQueue.submit(context -> gwtCloudService.findCloudEntries(context.callback(data -> {
+            cloudInstancesBinder.setData(data);
+            currentlySelectedEntry = cloudInstancesBinder.getSelectedObject();
+            currentlySelectedTab = cloudServiceConfigurationsBinder.getSelectedTab();
+            setVisibility();
 
-            @Override
-            public void run(final RequestContext context) {
-                gwtCloudService
-                        .findCloudServices(context.callback(new SuccessCallback<List<GwtCloudConnectionEntry>>() {
-
-                            @Override
-                            public void onSuccess(final List<GwtCloudConnectionEntry> data) {
-                                cloudInstancesBinder.setData(data);
-                                currentlySelectedEntry = cloudInstancesBinder.getSelectedObject();
-                                currentlySelectedTab = cloudServiceConfigurationsBinder.getSelectedTab();
-                                setVisibility();
-                            }
-                        }));
-            }
-        });
+            gwtCloudService.getCloudComponentFactories(context.callback(cloudInstancesBinder::setFactoryInfo));
+        })));
     }
 
     public void setDirty(boolean dirty) {
@@ -150,12 +130,12 @@ public class CloudServicesUi extends Composite {
     }
 
     protected void onSelectionChange() {
-        GwtCloudConnectionEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
+        GwtCloudEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
 
         if (!isDirty()) {
             if (selectedInstanceEntry != null) {
                 this.currentlySelectedEntry = selectedInstanceEntry;
-                cloudServiceConfigurationsBinder.selectConnection(selectedInstanceEntry);
+                cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
             }
         } else {
             if (selectedInstanceEntry != this.currentlySelectedEntry) {
@@ -202,10 +182,10 @@ public class CloudServicesUi extends Composite {
             @Override
             public void onClick(ClickEvent event) {
                 modal.hide();
-                GwtCloudConnectionEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
+                GwtCloudEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
                 if (selectedInstanceEntry != null) {
                     CloudServicesUi.this.currentlySelectedEntry = selectedInstanceEntry;
-                    cloudServiceConfigurationsBinder.selectConnection(selectedInstanceEntry);
+                    cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
                 }
 
                 CloudServiceConfigurationUi dirtyConfig = cloudServiceConfigurationsBinder.getDirtyCloudConfiguration();

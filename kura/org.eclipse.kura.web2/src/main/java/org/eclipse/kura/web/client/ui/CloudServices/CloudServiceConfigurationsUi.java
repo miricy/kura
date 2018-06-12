@@ -12,15 +12,10 @@
  *******************************************************************************/
 package org.eclipse.kura.web.client.ui.CloudServices;
 
-import java.util.List;
-
-import org.eclipse.kura.web.client.util.request.Request;
-import org.eclipse.kura.web.client.util.request.RequestContext;
 import org.eclipse.kura.web.client.util.request.RequestQueue;
-import org.eclipse.kura.web.client.util.request.SuccessCallback;
 import org.eclipse.kura.web.shared.model.GwtCloudConnectionEntry;
+import org.eclipse.kura.web.shared.model.GwtCloudEntry;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
-import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 import org.eclipse.kura.web.shared.service.GwtCloudService;
 import org.eclipse.kura.web.shared.service.GwtCloudServiceAsync;
 import org.eclipse.kura.web.shared.service.GwtComponentService;
@@ -34,8 +29,6 @@ import org.gwtbootstrap3.client.ui.TabListItem;
 import org.gwtbootstrap3.client.ui.TabPane;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
@@ -110,11 +103,16 @@ public class CloudServiceConfigurationsUi extends Composite {
         this.connectionTabContent.setVisible(isVisible);
     }
 
-    public void selectConnection(GwtCloudConnectionEntry selection) {
+    public void selectEntry(GwtCloudEntry selection) {
         this.connectionNavtabs.clear();
         this.connectionTabContent.clear();
 
-        getCloudStackConfigurations(selection.getCloudFactoryPid(), selection.getCloudServicePid());
+        if (selection instanceof GwtCloudConnectionEntry) {
+            getCloudStackConfigurations(((GwtCloudConnectionEntry) selection).getCloudConnectionFactoryPid(),
+                    selection.getPid());
+        } else {
+            getPubSubConfiguration(selection.getPid());
+        }
     }
 
     public TabListItem getSelectedTab() {
@@ -125,61 +123,39 @@ public class CloudServiceConfigurationsUi extends Composite {
         this.currentlySelectedTab = tabListItem;
     }
 
+    private void getPubSubConfiguration(final String pid) {
+        RequestQueue.submit(context -> gwtXSRFService.generateSecurityToken(context.callback(
+                token -> gwtComponentService.findFilteredComponentConfiguration(token, pid, context.callback(confs -> {
+                    connectionNavtabs.clear();
+                    renderTabs(confs.get(0), true);
+                })))));
+    }
+
     private void getCloudStackConfigurations(final String factoryPid, final String cloudServicePid) {
 
-        RequestQueue.submit(new Request() {
+        RequestQueue.submit(context -> gwtCloudService.findStackPidsByFactory(factoryPid, cloudServicePid,
+                context.callback(
+                        pidsResult -> gwtXSRFService.generateSecurityToken(context.callback(token -> gwtComponentService
+                                .findFilteredComponentConfigurations(token, context.callback(result -> {
+                                    boolean isFirstEntry = true;
+                                    connectionNavtabs.clear();
+                                    for (GwtConfigComponent pair : result) {
+                                        if (pidsResult.contains(pair.getComponentId())) {
+                                            renderTabs(pair, isFirstEntry);
+                                            isFirstEntry = false;
+                                        }
+                                    }
+                                })))))));
 
-            @Override
-            public void run(final RequestContext context) {
-                gwtCloudService.findStackPidsByFactory(factoryPid, cloudServicePid,
-                        context.callback(new SuccessCallback<List<String>>() {
-
-                            @Override
-                            public void onSuccess(final List<String> pidsResult) {
-
-                                CloudServiceConfigurationsUi.this.gwtXSRFService
-                                        .generateSecurityToken(context.callback(new SuccessCallback<GwtXSRFToken>() {
-
-                                            @Override
-                                            public void onSuccess(final GwtXSRFToken token) {
-                                                CloudServiceConfigurationsUi.this.gwtComponentService
-                                                        .findFilteredComponentConfigurations(token, context.callback(
-                                                                new SuccessCallback<List<GwtConfigComponent>>() {
-
-                                                                    @Override
-                                                                    public void onSuccess(
-                                                                            List<GwtConfigComponent> result) {
-                                                                        boolean isFirstEntry = true;
-                                                                        connectionNavtabs.clear();
-                                                                        for (GwtConfigComponent pair : result) {
-                                                                            if (pidsResult
-                                                                                    .contains(pair.getComponentId())) {
-                                                                                renderTabs(pair, isFirstEntry);
-                                                                                isFirstEntry = false;
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }));
-                                            }
-                                        }));
-                            }
-                        }));
-            }
-        });
     }
 
     private void renderTabs(GwtConfigComponent config, boolean isFirstEntry) {
         final String simplifiedComponentName = getSimplifiedComponentName(config);
         TabListItem item = new TabListItem(simplifiedComponentName);
         item.setDataTarget("#" + simplifiedComponentName);
-        item.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                Anchor anchor = (Anchor) event.getSource();
-                CloudServiceConfigurationsUi.this.cloudServicesUi
-                        .onTabSelectionChange((TabListItem) anchor.getParent());
-            }
+        item.addClickHandler(event -> {
+            Anchor anchor = (Anchor) event.getSource();
+            CloudServiceConfigurationsUi.this.cloudServicesUi.onTabSelectionChange((TabListItem) anchor.getParent());
         });
         this.connectionNavtabs.add(item);
 
