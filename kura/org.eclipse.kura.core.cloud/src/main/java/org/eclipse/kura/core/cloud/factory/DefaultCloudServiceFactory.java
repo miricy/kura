@@ -29,9 +29,9 @@ import org.eclipse.kura.cloud.factory.CloudServiceFactory;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataTransportService;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.component.ComponentConstants;
+import org.osgi.service.component.ComponentContext;
 
 /**
  * The Kura default {@link CloudServiceFactory} implements a three layer stack architecture.
@@ -180,6 +180,7 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory, CloudCon
             .compile("^org\\.eclipse\\.kura\\.cloud\\.CloudService(-[a-zA-Z0-9]+)?$");
 
     private ConfigurationService configurationService;
+    private BundleContext bundleContext;
 
     protected void setConfigurationService(ConfigurationService configurationService) {
         this.configurationService = configurationService;
@@ -189,6 +190,10 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory, CloudCon
         if (configurationService == this.configurationService) {
             this.configurationService = null;
         }
+    }
+
+    public void activate(final ComponentContext context) {
+        this.bundleContext = context.getBundleContext();
     }
 
     @Override
@@ -289,10 +294,8 @@ public class DefaultCloudServiceFactory implements CloudServiceFactory, CloudCon
     @Override
     public Set<String> getManagedCloudServicePids() throws KuraException {
 
-        final BundleContext context = FrameworkUtil.getBundle(DefaultCloudServiceFactory.class).getBundleContext();
-
         try {
-            return context.getServiceReferences(CloudConnectionService.class, null).stream().filter(ref -> {
+            return this.bundleContext.getServiceReferences(CloudConnectionService.class, null).stream().filter(ref -> {
                 final Object kuraServicePid = ref.getProperty(ConfigurationService.KURA_SERVICE_PID);
 
                 if (!(kuraServicePid instanceof String)) {
