@@ -17,13 +17,13 @@
          name="CloudSubscriber" 
          description="The CloudSubscriber allows to define the subscribe topic and notify the associated applications when a subscription event happens.">
         
-        <AD id="cloud.service.pid"
-            name="cloud.service.pid"
+        <AD id="cloud.connection.pid"
+            name="cloud.connection.pid"
             type="String"
             cardinality="0"
             required="true"
             default="org.eclipse.kura.cloud.CloudService"
-            description="The Kura Service PID of the Cloud Service to use to receive messages.">
+            description="The Kura Service PID of the Cloud Connection to use to receive messages.">
         </AD>
         
         <AD id="appId"
