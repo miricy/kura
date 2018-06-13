@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Eurotech and/or its affiliates and others
+ * Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
  *
  *   All rights reserved. This program and the accompanying materials
  *   are made available under the terms of the Eclipse Public License v1.0
@@ -19,13 +19,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.CloudClient;
-import org.eclipse.kura.core.testutil.TestUtil;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.type.DataType;
 import org.eclipse.kura.type.TypedValue;
@@ -81,11 +80,6 @@ public class CloudSubscriberTest {
 
         CloudSubscriber cs = new CloudSubscriber();
 
-        String deviceId = "DevId";
-        String appTopic = "topic";
-        int qos = 0;
-        boolean retain = false;
-
         byte[] bytea = new byte[] { 0x01, 0x03 };
         String strval = "strval";
 
@@ -140,18 +134,15 @@ public class CloudSubscriberTest {
         when(ctxMock.getBundleContext()).thenReturn(bundleCtxMock);
 
         Map<String, Object> properties = new HashMap<>();
-        properties.put("cloud.service.pid", "cspid");
-        properties.put("subscribe.qos", qos);
-        properties.put("subscribe.deviceId", deviceId);
-        properties.put("subscribe.appTopic", "$topic");
+        properties.put("subscriber.pid", "cspid");
 
         cs.activate(ctxMock, properties);
 
         verify(ctxMock, times(1)).getBundleContext();
-        verify(bundleCtxMock, times(1))
-                .createFilter("(&(objectClass=org.eclipse.kura.cloud.CloudService)(kura.service.pid=cspid))");
+        verify(bundleCtxMock, times(1)).createFilter(
+                "(&(objectClass=org.eclipse.kura.cloud.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
 
-        cs.onMessageArrived(deviceId, appTopic, msg, qos, retain);
+        cs.onMessageArrived(Collections.emptyMap(), msg);
 
         verify(wsMock, times(1)).emit(anyObject());
     }
@@ -161,13 +152,6 @@ public class CloudSubscriberTest {
         // test activation and deactivation in a sequence
 
         CloudSubscriber cs = new CloudSubscriber();
-
-        CloudClient ccMock = mock(CloudClient.class);
-        TestUtil.setFieldValue(cs, "cloudClient", ccMock);
-
-        String deviceId = "DevId";
-        String appTopic = "topic";
-        int qos = 0;
 
         WireHelperService wireHelperServiceMock = mock(WireHelperService.class);
         cs.bindWireHelperService(wireHelperServiceMock);
@@ -183,20 +167,14 @@ public class CloudSubscriberTest {
         when(ctxMock.getBundleContext()).thenReturn(bundleCtxMock);
 
         Map<String, Object> properties = new HashMap<>();
-        properties.put("cloud.service.pid", "cspid");
-        properties.put("subscribe.qos", qos);
-        properties.put("subscribe.deviceId", deviceId);
-        properties.put("subscribe.appTopic", appTopic);
+        properties.put("subscriber.pid", "cspid");
 
         cs.activate(ctxMock, properties);
 
         verify(ctxMock, times(1)).getBundleContext();
-        verify(bundleCtxMock, times(1))
-                .createFilter("(&(objectClass=org.eclipse.kura.cloud.CloudService)(kura.service.pid=cspid))");
+        verify(bundleCtxMock, times(1)).createFilter(
+                "(&(objectClass=org.eclipse.kura.cloud.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
 
         cs.deactivate(ctxMock);
-
-        verify(ccMock, times(1)).release();
-        verify(ccMock, times(1)).unsubscribe(deviceId, appTopic);
     }
 }
