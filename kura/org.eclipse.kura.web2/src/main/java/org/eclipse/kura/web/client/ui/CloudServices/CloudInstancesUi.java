@@ -174,7 +174,7 @@ public class CloudInstancesUi extends Composite {
 
         cloudConnections.sort(CLOUD_ENTRY_COMPARTOR);
 
-        final List<GwtCloudEntry> providerList = cloudServicesDataProvider.getList();
+        final List<GwtCloudEntry> providerList = this.cloudServicesDataProvider.getList();
 
         providerList.clear();
         for (final GwtCloudEntry entry : cloudConnections) {
@@ -204,7 +204,7 @@ public class CloudInstancesUi extends Composite {
     }
 
     public boolean setStatus(final String pid, final GwtCloudConnectionEntry.GwtCloudConnectionState state) {
-        final List<GwtCloudEntry> entries = cloudServicesDataProvider.getList();
+        final List<GwtCloudEntry> entries = this.cloudServicesDataProvider.getList();
 
         for (final GwtCloudEntry entry : entries) {
             if (pid.equals(entry.getPid()) && entry instanceof GwtCloudConnectionEntry) {
@@ -212,7 +212,7 @@ public class CloudInstancesUi extends Composite {
                 final GwtCloudConnectionEntry connEntry = (GwtCloudConnectionEntry) entry;
 
                 connEntry.setState(state);
-                connectionsGrid.redraw();
+                this.connectionsGrid.redraw();
                 return true;
             }
         }
@@ -255,7 +255,7 @@ public class CloudInstancesUi extends Composite {
     }
 
     private void initConnectionButtons() {
-        this.connectionRefresh.addClickHandler(event -> cloudServicesUi.refresh());
+        this.connectionRefresh.addClickHandler(event -> this.cloudServicesUi.refresh());
 
         this.newConnection.addClickHandler(event -> showNewConnectionModal());
 
@@ -273,7 +273,7 @@ public class CloudInstancesUi extends Composite {
 
             if (getSelectedObject() instanceof GwtCloudConnectionEntry
                     && getObjectAfterSelection() instanceof GwtCloudPubSubEntry) {
-                alertDialog.show(MSGS.cannotDeleteConnection(), AlertDialog.Severity.ALERT, null);
+                this.alertDialog.show(MSGS.cannotDeleteConnection(), AlertDialog.Severity.ALERT, null);
                 return;
             }
 
@@ -283,13 +283,13 @@ public class CloudInstancesUi extends Composite {
         });
 
         this.statusConnect.addClickHandler(event -> {
-            GwtCloudEntry selection = selectionModel.getSelectedObject();
+            GwtCloudEntry selection = this.selectionModel.getSelectedObject();
             final String selectedCloudServicePid = selection.getPid();
             connectDataService(selectedCloudServicePid);
         });
 
         this.statusDisconnect.addClickHandler(event -> {
-            GwtCloudEntry selection = selectionModel.getSelectedObject();
+            GwtCloudEntry selection = this.selectionModel.getSelectedObject();
             final String selectedCloudServicePid = selection.getPid();
             disconnectDataService(selectedCloudServicePid);
         });
@@ -420,13 +420,13 @@ public class CloudInstancesUi extends Composite {
     }
 
     private void createPubSub() {
-        final String kuraServicePid = pubSubPid.getPid();
+        final String kuraServicePid = this.pubSubPid.getPid();
 
         if (kuraServicePid == null) {
             return;
         }
 
-        newPubSubModal.hide();
+        this.newPubSubModal.hide();
 
         final GwtCloudEntry entry = getSelectedObject();
 
@@ -435,17 +435,18 @@ public class CloudInstancesUi extends Composite {
         }
 
         final String cloudConnectionPid = entry.getPid();
-        final String factoryPid = pubSubFactoriesPids.getSelectedValue();
+        final String factoryPid = this.pubSubFactoriesPids.getSelectedValue();
 
-        RequestQueue.submit(context -> gwtXSRFService.generateSecurityToken(
-                context.callback(token -> gwtCloudService.createPubSubInstance(token, kuraServicePid, factoryPid,
-                        cloudConnectionPid, context.callback(v -> cloudServicesUi.refresh())))));
+        RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
+                context.callback(token -> this.gwtCloudService.createPubSubInstance(token, kuraServicePid, factoryPid,
+                        cloudConnectionPid, context.callback(v -> this.cloudServicesUi.refresh())))));
     }
 
     private void deletePubSub(final String pid) {
 
-        RequestQueue.submit(context -> gwtXSRFService.generateSecurityToken(context.callback(token -> gwtCloudService
-                .deletePubSubInstance(token, pid, context.callback(v -> cloudServicesUi.refresh())))));
+        RequestQueue.submit(
+                context -> this.gwtXSRFService.generateSecurityToken(context.callback(token -> this.gwtCloudService
+                        .deletePubSubInstance(token, pid, context.callback(v -> this.cloudServicesUi.refresh())))));
     }
 
     private void createCloudConnectionServiceFactory() {
@@ -456,9 +457,9 @@ public class CloudInstancesUi extends Composite {
             return;
         }
 
-        RequestQueue.submit(context -> gwtXSRFService
-                .generateSecurityToken(context.callback(token -> gwtCloudService.createCloudServiceFromFactory(token,
-                        factoryPid, newCloudServicePid, context.callback(new AsyncCallback<Void>() {
+        RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
+                context.callback(token -> this.gwtCloudService.createCloudServiceFromFactory(token, factoryPid,
+                        newCloudServicePid, context.callback(new AsyncCallback<Void>() {
 
                             @Override
                             public void onFailure(Throwable caught) {
@@ -469,8 +470,8 @@ public class CloudInstancesUi extends Composite {
 
                             @Override
                             public void onSuccess(Void result) {
-                                CloudInstancesUi.this.newConnectionModal.hide();
                                 CloudInstancesUi.this.cloudServicesUi.refresh();
+                                CloudInstancesUi.this.newConnectionModal.hide();
                             }
                         })))));
     }
@@ -494,39 +495,39 @@ public class CloudInstancesUi extends Composite {
         final List<GwtCloudEntry> entries = this.pubSubFactoryEntries.get(connectionFactoryPid);
 
         if (entries == null || entries.isEmpty()) {
-            alertDialog.show(MSGS.noPubSubFactoriesFound(), AlertDialog.Severity.ALERT, null);
+            this.alertDialog.show(MSGS.noPubSubFactoriesFound(), AlertDialog.Severity.ALERT, null);
             return;
         }
 
         for (final GwtCloudEntry entry : entries) {
-            pubSubFactoriesPids.addItem(entry.getPid());
+            this.pubSubFactoriesPids.addItem(entry.getPid());
         }
 
-        newPubSubModal.show();
+        this.newPubSubModal.show();
     }
 
     private void showNewConnectionModal() {
         this.cloudServicePid.clear();
         this.cloudFactoriesPids.clear();
 
-        for (final String cloudConnectionFactoryPid : cloudConnectionFactoryPids) {
-            cloudFactoriesPids.addItem(cloudConnectionFactoryPid);
+        for (final String cloudConnectionFactoryPid : this.cloudConnectionFactoryPids) {
+            this.cloudFactoriesPids.addItem(cloudConnectionFactoryPid);
         }
         String selectedFactoryPid = CloudInstancesUi.this.cloudFactoriesPids.getSelectedValue();
         getSuggestedCloudServicePid(selectedFactoryPid);
-        newConnectionModal.show();
+        this.newConnectionModal.show();
     }
 
     private void connectDataService(final String connectionId) {
 
-        RequestQueue.submit(context -> gwtXSRFService
+        RequestQueue.submit(context -> this.gwtXSRFService
                 .generateSecurityToken(context.callback(token -> CloudInstancesUi.this.gwtStatusService
                         .connectDataService(token, connectionId, context.<Void> callback()))));
     }
 
     private void disconnectDataService(final String connectionId) {
 
-        RequestQueue.submit(context -> gwtXSRFService
+        RequestQueue.submit(context -> this.gwtXSRFService
                 .generateSecurityToken(context.callback(token -> CloudInstancesUi.this.gwtStatusService
                         .disconnectDataService(token, connectionId, context.<Void> callback()))));
 
@@ -534,7 +535,7 @@ public class CloudInstancesUi extends Composite {
 
     private void deleteConnection(final String factoryPid, final String cloudServicePid) {
 
-        RequestQueue.submit(context -> gwtXSRFService.generateSecurityToken(
+        RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
                 context.callback(token -> CloudInstancesUi.this.gwtCloudService.deleteCloudServiceFromFactory(token,
                         factoryPid, cloudServicePid,
                         context.callback(result -> CloudInstancesUi.this.cloudServicesUi.refresh())))));
@@ -579,10 +580,10 @@ public class CloudInstancesUi extends Composite {
 
     private void getSuggestedCloudServicePid(final String factoryPid) {
         RequestQueue.submit(context -> {
-            cloudServicePid.clear();
-            cloudServicePid.setEnabled(false);
-            cloudServicePidSpinner.setVisible(true);
-            gwtCloudService.findSuggestedCloudServicePid(factoryPid,
+            this.cloudServicePid.clear();
+            this.cloudServicePid.setEnabled(false);
+            this.cloudServicePidSpinner.setVisible(true);
+            this.gwtCloudService.findSuggestedCloudServicePid(factoryPid,
                     context.callback(result -> getCloudServicePidRegex(context, factoryPid, result)));
         }, false);
     }
@@ -608,7 +609,7 @@ public class CloudInstancesUi extends Composite {
             }
             pidTextBox.setPlaceholder(placeholder);
             pidTextBox.setEnabled(true);
-            cloudServicePidSpinner.setVisible(false);
+            this.cloudServicePidSpinner.setVisible(false);
         }));
     }
 }

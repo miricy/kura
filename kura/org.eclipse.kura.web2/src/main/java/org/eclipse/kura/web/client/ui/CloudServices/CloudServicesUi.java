@@ -51,8 +51,8 @@ public class CloudServicesUi extends Composite {
     private final GwtCloudServiceAsync gwtCloudService = GWT.create(GwtCloudService.class);
 
     private static CloudServicesUiUiBinder uiBinder = GWT.create(CloudServicesUiUiBinder.class);
-    private CloudInstancesUi cloudInstancesBinder;
-    private CloudServiceConfigurationsUi cloudServiceConfigurationsBinder;
+    private final CloudInstancesUi cloudInstancesBinder;
+    private final CloudServiceConfigurationsUi cloudServiceConfigurationsBinder;
 
     private GwtCloudEntry currentlySelectedEntry;
     private TabListItem currentlySelectedTab;
@@ -77,65 +77,64 @@ public class CloudServicesUi extends Composite {
 
         this.cloudServicesIntro.add(new Span("<p>" + MSGS.cloudServicesTabIntro() + "</p>"));
 
-        cloudInstancesBinder = new CloudInstancesUi(this);
-        this.cloudInstancesPanel.add(cloudInstancesBinder);
+        this.cloudInstancesBinder = new CloudInstancesUi(this);
+        this.cloudInstancesPanel.add(this.cloudInstancesBinder);
 
-        cloudServiceConfigurationsBinder = new CloudServiceConfigurationsUi(this);
-        this.cloudConfigurationsPanel.add(cloudServiceConfigurationsBinder);
+        this.cloudServiceConfigurationsBinder = new CloudServiceConfigurationsUi(this);
+        this.cloudConfigurationsPanel.add(this.cloudServiceConfigurationsBinder);
 
-        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_ESTABLISHED, eventInfo -> {
-            handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.CONNECTED);
-        });
+        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_ESTABLISHED,
+                eventInfo -> handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.CONNECTED));
 
-        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_LOST, eventInfo -> {
-            handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.DISCONNECTED);
-        });
+        EventService.subscribe(ForwardedEventTopic.CLOUD_CONNECTION_STATUS_LOST,
+                eventInfo -> handleConnectionStatusEvent(eventInfo, GwtCloudConnectionState.DISCONNECTED));
     }
 
     public void refresh() {
-        RequestQueue.submit(context -> gwtCloudService.findCloudEntries(context.callback(data -> {
-            cloudInstancesBinder.setData(data);
-            currentlySelectedEntry = cloudInstancesBinder.getSelectedObject();
-            currentlySelectedTab = cloudServiceConfigurationsBinder.getSelectedTab();
+        RequestQueue.submit(context -> this.gwtCloudService.findCloudEntries(context.callback(data -> {
+            this.cloudInstancesBinder.setData(data);
+            this.currentlySelectedEntry = this.cloudInstancesBinder.getSelectedObject();
+            this.currentlySelectedTab = this.cloudServiceConfigurationsBinder.getSelectedTab();
             setVisibility();
 
-            gwtCloudService.getCloudComponentFactories(context.callback(cloudInstancesBinder::setFactoryInfo));
+            this.gwtCloudService
+                    .getCloudComponentFactories(context.callback(this.cloudInstancesBinder::setFactoryInfo));
         })));
     }
 
     public void setDirty(boolean dirty) {
-        cloudServiceConfigurationsBinder.setDirty(dirty);
+        this.cloudServiceConfigurationsBinder.setDirty(dirty);
     }
 
     public boolean isDirty() {
-        return cloudServiceConfigurationsBinder.isDirty();
+        return this.cloudServiceConfigurationsBinder.isDirty();
     }
 
     //
     // Private methods
     //
     private void setVisibility() {
-        if (cloudInstancesBinder.getTableSize() == 0) {
-            cloudInstancesBinder.setVisibility(false);
-            cloudServiceConfigurationsBinder.setVisibility(false);
+        if (this.cloudInstancesBinder.getTableSize() == 0) {
+            this.cloudInstancesBinder.setVisibility(false);
+            this.cloudServiceConfigurationsBinder.setVisibility(false);
             this.cloudConfigurationsPanel.setVisible(false);
             this.notification.setVisible(true);
             this.notification.setText(MSGS.noConnectionsAvailable());
         } else {
-            cloudInstancesBinder.setVisibility(true);
-            cloudServiceConfigurationsBinder.setVisibility(true);
+            this.cloudInstancesBinder.setVisibility(true);
+            this.cloudServiceConfigurationsBinder.setVisibility(true);
             this.cloudConfigurationsPanel.setVisible(true);
             this.notification.setVisible(false);
         }
     }
 
     protected void onSelectionChange() {
-        GwtCloudEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
+        GwtCloudEntry selectedInstanceEntry = this.cloudInstancesBinder.getSelectedObject();
 
         if (!isDirty()) {
             if (selectedInstanceEntry != null) {
                 this.currentlySelectedEntry = selectedInstanceEntry;
-                cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
+                this.cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
             }
         } else {
             if (selectedInstanceEntry != this.currentlySelectedEntry) {
@@ -145,19 +144,19 @@ public class CloudServicesUi extends Composite {
     }
 
     protected void onTabSelectionChange(TabListItem newTab) {
-        this.currentlySelectedTab = cloudServiceConfigurationsBinder.getSelectedTab();
+        this.currentlySelectedTab = this.cloudServiceConfigurationsBinder.getSelectedTab();
         if (isDirty() && newTab != this.currentlySelectedTab) {
             showDirtyModal();
         } else {
             this.currentlySelectedTab = newTab;
-            cloudServiceConfigurationsBinder.setSelectedTab(this.currentlySelectedTab);
+            this.cloudServiceConfigurationsBinder.setSelectedTab(this.currentlySelectedTab);
         }
     }
 
     private void handleConnectionStatusEvent(final GwtEventInfo info, final GwtCloudConnectionState state) {
         final String cloudServicePid = (String) info.get(CONNECTION_EVENT_PID_PROPERTY_KEY);
 
-        if (cloudServicePid == null || !cloudInstancesBinder.setStatus(cloudServicePid, state)) {
+        if (cloudServicePid == null || !this.cloudInstancesBinder.setStatus(cloudServicePid, state)) {
             CloudServicesUi.this.refresh();
         }
     }
@@ -182,13 +181,14 @@ public class CloudServicesUi extends Composite {
             @Override
             public void onClick(ClickEvent event) {
                 modal.hide();
-                GwtCloudEntry selectedInstanceEntry = cloudInstancesBinder.getSelectedObject();
+                GwtCloudEntry selectedInstanceEntry = CloudServicesUi.this.cloudInstancesBinder.getSelectedObject();
                 if (selectedInstanceEntry != null) {
                     CloudServicesUi.this.currentlySelectedEntry = selectedInstanceEntry;
-                    cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
+                    CloudServicesUi.this.cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
                 }
 
-                CloudServiceConfigurationUi dirtyConfig = cloudServiceConfigurationsBinder.getDirtyCloudConfiguration();
+                CloudServiceConfigurationUi dirtyConfig = CloudServicesUi.this.cloudServiceConfigurationsBinder
+                        .getDirtyCloudConfiguration();
                 if (dirtyConfig != null) {
                     dirtyConfig.resetVisualization();
                 }
@@ -202,7 +202,7 @@ public class CloudServicesUi extends Composite {
 
             @Override
             public void onClick(ClickEvent event) {
-                cloudInstancesBinder.setSelected(CloudServicesUi.this.currentlySelectedEntry);
+                CloudServicesUi.this.cloudInstancesBinder.setSelected(CloudServicesUi.this.currentlySelectedEntry);
                 CloudServicesUi.this.currentlySelectedTab.showTab();
                 modal.hide();
             }
