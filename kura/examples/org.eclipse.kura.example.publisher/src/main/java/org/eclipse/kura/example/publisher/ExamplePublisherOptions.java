@@ -33,8 +33,8 @@ final class ExamplePublisherOptions {
     private static final String[] METRIC_PROP_NAMES = { "metric.string", "metric.string.oneof", "metric.long",
             "metric.integer", "metric.integer.fixed", "metric.short", "metric.double", "metric.float", "metric.char",
             "metric.byte", "metric.boolean", "metric.password" };
-    private static final String CLOUD_PUBLISHER_PROP_NAME = "cloud.publisher.pid";
-    private static final String CLOUD_SUBSCRIBER_PROP_NAME = "cloud.subscriber.pid";
+    private static final String CLOUD_PUBLISHER_PROP_NAME = "CloudPublisher.target";
+    private static final String CLOUD_SUBSCRIBER_PROP_NAME = "CloudSubscriber.target";
 
     private final Map<String, Object> properties;
 

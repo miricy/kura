@@ -68,6 +68,7 @@ import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.runtime.ServiceComponentRuntime;
+import org.osgi.service.component.runtime.dto.ReferenceDTO;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -716,4 +717,53 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         }
         return driverFactoriesPids;
     }
+
+    @Override
+    public List<String> getPidsFromTarget(GwtXSRFToken xsrfToken, String pid, String targetRef)
+            throws GwtKuraException {
+        this.checkXSRFToken(xsrfToken);
+
+        List<String> result = new ArrayList<>();
+
+        final BundleContext context = FrameworkUtil.getBundle(GwtWireService.class).getBundleContext();
+        ServiceReference<ServiceComponentRuntime> scrServiceRef = context
+                .getServiceReference(ServiceComponentRuntime.class);
+        try {
+            final ServiceComponentRuntime scrService = context.getService(scrServiceRef);
+
+            final List<String> referenceInterfaces = scrService.getComponentDescriptionDTOs().stream()
+                    .map(component -> {
+                        ReferenceDTO[] references = component.references;
+                        for (ReferenceDTO reference : references) {
+                            if (targetRef.equals(reference.name)) {
+                                return reference.interfaceName;
+                            }
+                        }
+                        return null;
+                    }).filter(Objects::nonNull).collect(Collectors.toList());
+
+            referenceInterfaces.forEach(reference -> {
+                try {
+                    Class<?> t = Class.forName(reference);
+                    Collection<?> cloudServiceReferences = ServiceLocator.getInstance().getServiceReferences(t, null);
+
+                    for (Object cloudServiceReferenceObject : cloudServiceReferences) {
+                        if (cloudServiceReferenceObject instanceof ServiceReference) {
+                            ServiceReference<?> cloudServiceReference = (ServiceReference<?>) cloudServiceReferenceObject;
+                            String cloudServicePid = (String) cloudServiceReference.getProperty(KURA_SERVICE_PID);
+                            result.add(cloudServicePid);
+                            ServiceLocator.getInstance().ungetService(cloudServiceReference);
+                        }
+                    }
+                } catch (ClassNotFoundException | GwtKuraException e) {
+
+                }
+            });
+
+        } finally {
+            context.ungetService(scrServiceRef);
+        }
+        return result;
+    }
+
 }

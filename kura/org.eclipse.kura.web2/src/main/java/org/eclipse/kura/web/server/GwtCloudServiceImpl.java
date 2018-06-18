@@ -101,7 +101,8 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
         });
 
-        result.addAll(getPubSubInstances());
+        result.addAll(getPublisherInstances());
+        result.addAll(getSubscriberInstances());
 
         return result;
     }
@@ -342,17 +343,28 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
         return result;
     }
 
-    private static Set<GwtCloudPubSubEntry> getPubSubInstances() throws GwtKuraException {
+    private static Set<GwtCloudPubSubEntry> getPublisherInstances() throws GwtKuraException {
         final BundleContext context = FrameworkUtil.getBundle(GwtCloudServiceImpl.class).getBundleContext();
 
         final Set<GwtCloudPubSubEntry> result = new HashSet<>();
 
         try {
-
             context.getServiceReferences(CloudPublisher.class, null).stream()
                     .map(ref -> toGwt(ref, GwtCloudPubSubEntry.Type.PUBLISHER)).filter(Objects::nonNull)
                     .forEach(result::add);
 
+            return result;
+        } catch (InvalidSyntaxException e) {
+            throw new GwtKuraException("Unexpected error");
+        }
+    }
+
+    private static Set<GwtCloudPubSubEntry> getSubscriberInstances() throws GwtKuraException {
+        final BundleContext context = FrameworkUtil.getBundle(GwtCloudServiceImpl.class).getBundleContext();
+
+        final Set<GwtCloudPubSubEntry> result = new HashSet<>();
+
+        try {
             context.getServiceReferences(CloudSubscriber.class, null).stream()
                     .map(ref -> toGwt(ref, GwtCloudPubSubEntry.Type.SUBSCRIBER)).filter(Objects::nonNull)
                     .forEach(result::add);

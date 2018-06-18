@@ -31,80 +31,16 @@ import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.Constants;
-import org.osgi.framework.Filter;
-import org.osgi.framework.InvalidSyntaxException;
-import org.osgi.framework.ServiceReference;
 import org.osgi.service.component.ComponentContext;
-import org.osgi.util.tracker.ServiceTracker;
-import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberListener, CloudConnectionListener {
 
-    /**
-     * Inner class defined to track the CloudServices as they get added, modified or removed.
-     * Specific methods can refresh the cloudService definition and setup again the Cloud Client.
-     *
-     */
-    private final class CloudPublisherServiceTrackerCustomizer
-            implements ServiceTrackerCustomizer<CloudPublisher, CloudPublisher> {
-
-        @Override
-        public CloudPublisher addingService(final ServiceReference<CloudPublisher> reference) {
-            ExamplePublisher.this.cloudPublisher = ExamplePublisher.this.bundleContext.getService(reference);
-            ExamplePublisher.this.cloudPublisher.register(ExamplePublisher.this);
-
-            return ExamplePublisher.this.cloudPublisher;
-        }
-
-        @Override
-        public void modifiedService(final ServiceReference<CloudPublisher> reference, final CloudPublisher service) {
-            // Not needed
-        }
-
-        @Override
-        public void removedService(final ServiceReference<CloudPublisher> reference, final CloudPublisher service) {
-            ExamplePublisher.this.cloudPublisher.unregister(ExamplePublisher.this);
-            ExamplePublisher.this.cloudPublisher = null;
-        }
-    }
-
-    private final class CloudSubscriberServiceTrackerCustomizer
-            implements ServiceTrackerCustomizer<CloudSubscriber, CloudSubscriber> {
-
-        @Override
-        public CloudSubscriber addingService(final ServiceReference<CloudSubscriber> reference) {
-            ExamplePublisher.this.cloudSubscriber = ExamplePublisher.this.bundleContext.getService(reference);
-            ExamplePublisher.this.cloudSubscriber.register((CloudSubscriberListener) ExamplePublisher.this);
-            ExamplePublisher.this.cloudSubscriber.register((CloudConnectionListener) ExamplePublisher.this);
-
-            return ExamplePublisher.this.cloudSubscriber;
-        }
-
-        @Override
-        public void modifiedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
-            // Not needed
-        }
-
-        @Override
-        public void removedService(final ServiceReference<CloudSubscriber> reference, final CloudSubscriber service) {
-            ExamplePublisher.this.cloudSubscriber.unregister((CloudSubscriberListener) ExamplePublisher.this);
-            ExamplePublisher.this.cloudSubscriber.unregister((CloudConnectionListener) ExamplePublisher.this);
-            ExamplePublisher.this.cloudSubscriber = null;
-        }
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(ExamplePublisher.class);
 
-    private ServiceTrackerCustomizer<CloudPublisher, CloudPublisher> cloudServiceTrackerCustomizer;
-    private ServiceTracker<CloudPublisher, CloudPublisher> cloudPublisherTracker;
     private CloudPublisher cloudPublisher;
 
-    private ServiceTrackerCustomizer<CloudSubscriber, CloudSubscriber> cloudSubscriberServiceTrackerCustomizer;
-    private ServiceTracker<CloudSubscriber, CloudSubscriber> cloudSubscriberTracker;
     private CloudSubscriber cloudSubscriber;
 
     private ScheduledExecutorService worker;
@@ -113,9 +49,29 @@ public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberL
     private float temperature;
     private Map<String, Object> properties;
 
-    private BundleContext bundleContext;
-
     private ExamplePublisherOptions examplePublisherOptions;
+
+    public void setCloudPublisher(CloudPublisher cloudPublisher) {
+        this.cloudPublisher = cloudPublisher;
+        this.cloudPublisher.register(ExamplePublisher.this);
+    }
+
+    public void unsetCloudPublisher(CloudPublisher cloudPublisher) {
+        this.cloudPublisher.unregister(ExamplePublisher.this);
+        this.cloudPublisher = null;
+    }
+
+    public void setCloudSubscriber(CloudSubscriber cloudSubscriber) {
+        this.cloudSubscriber = cloudSubscriber;
+        this.cloudSubscriber.register((CloudSubscriberListener) ExamplePublisher.this);
+        this.cloudSubscriber.register((CloudConnectionListener) ExamplePublisher.this);
+    }
+
+    public void unsetCloudSubscriber(CloudSubscriber cloudSubscriber) {
+        this.cloudSubscriber.unregister((CloudSubscriberListener) ExamplePublisher.this);
+        this.cloudSubscriber.unregister((CloudConnectionListener) ExamplePublisher.this);
+        this.cloudSubscriber = null;
+    }
 
     // ----------------------------------------------------------------
     //
@@ -132,15 +88,7 @@ public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberL
         this.properties = properties;
         dumpProperties("Activate", properties);
 
-        this.bundleContext = componentContext.getBundleContext();
-
         this.examplePublisherOptions = new ExamplePublisherOptions(properties);
-
-        this.cloudServiceTrackerCustomizer = new CloudPublisherServiceTrackerCustomizer();
-        initCloudPublisherTracking();
-
-        this.cloudSubscriberServiceTrackerCustomizer = new CloudSubscriberServiceTrackerCustomizer();
-        initCloudSubscriberTracking();
 
         doUpdate();
 
@@ -152,15 +100,6 @@ public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberL
 
         // shutting down the worker and cleaning up the properties
         this.worker.shutdown();
-        // close the client
-
-        if (nonNull(this.cloudPublisherTracker)) {
-            this.cloudPublisherTracker.close();
-        }
-
-        if (nonNull(this.cloudSubscriberTracker)) {
-            this.cloudSubscriberTracker.close();
-        }
 
         logger.info("Deactivating ExamplePublisher... Done.");
     }
@@ -173,16 +112,6 @@ public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberL
         dumpProperties("Update", properties);
 
         this.examplePublisherOptions = new ExamplePublisherOptions(properties);
-
-        if (nonNull(this.cloudPublisherTracker)) {
-            this.cloudPublisherTracker.close();
-        }
-        initCloudPublisherTracking();
-
-        if (nonNull(this.cloudSubscriberTracker)) {
-            this.cloudSubscriberTracker.close();
-        }
-        initCloudSubscriberTracking();
 
         // try to kick off a new job
         doUpdate();
@@ -276,36 +205,6 @@ public class ExamplePublisher implements ConfigurableComponent, CloudSubscriberL
         } catch (Exception e) {
             logger.error("Cannot publish: ", e);
         }
-    }
-
-    private void initCloudPublisherTracking() {
-        String selectedCloudPublisherPid = this.examplePublisherOptions.getCloudPublisherPid();
-        String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                CloudPublisher.class.getName(), selectedCloudPublisherPid);
-        Filter filter = null;
-        try {
-            filter = this.bundleContext.createFilter(filterString);
-        } catch (InvalidSyntaxException e) {
-            logger.error("Filter setup exception ", e);
-        }
-        this.cloudPublisherTracker = new ServiceTracker<>(this.bundleContext, filter,
-                this.cloudServiceTrackerCustomizer);
-        this.cloudPublisherTracker.open();
-    }
-
-    private void initCloudSubscriberTracking() {
-        String selectedCloudSubscriberPid = this.examplePublisherOptions.getCloudSubscriberPid();
-        String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                CloudSubscriber.class.getName(), selectedCloudSubscriberPid);
-        Filter filter = null;
-        try {
-            filter = this.bundleContext.createFilter(filterString);
-        } catch (InvalidSyntaxException e) {
-            logger.error("Filter setup exception ", e);
-        }
-        this.cloudSubscriberTracker = new ServiceTracker<>(this.bundleContext, filter,
-                this.cloudSubscriberServiceTrackerCustomizer);
-        this.cloudSubscriberTracker.open();
     }
 
     private void logReceivedMessage(KuraPayload msg) {

@@ -19,17 +19,17 @@
         
         <Icon resource="http://s3.amazonaws.com/kura-resources/application/icon/applications-other.png" size="32"/>
         
-        <AD id="cloud.publisher.pid"
-            name="cloud.publisher.pid"
+        <AD id="CloudPublisher.target"
+            name="CloudPublisher.target"
             type="String"
             cardinality="0"
             required="true"
-            default=""
+            default="(kura.service.pid=changeme)"
             description="Specify the pid of the Cloud publisher that has to used to publish messages to the cloud platform.">
         </AD>
         
-        <AD id="cloud.subscriber.pid"
-            name="cloud.subscriber.pid"
+        <AD id="CloudSubscriber.target"
+            name="CloudSubscriber.target"
             type="String"
             cardinality="0"
             required="false"
