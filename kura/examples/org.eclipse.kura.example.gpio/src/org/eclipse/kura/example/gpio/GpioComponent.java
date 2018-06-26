@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.gpio.GPIOService;
 import org.eclipse.kura.gpio.KuraClosedDeviceException;
+import org.eclipse.kura.gpio.KuraGPIODeviceException;
 import org.eclipse.kura.gpio.KuraGPIODirection;
 import org.eclipse.kura.gpio.KuraGPIOMode;
 import org.eclipse.kura.gpio.KuraGPIOPin;
@@ -180,7 +181,49 @@ public class GpioComponent implements ConfigurableComponent {
                 logger.info("#{} - [{}]", e.getKey(), e.getValue());
             }
             logger.info("______________________________");
+            KuraGPIOPin kuraPin = this.gpioService.getPinByName("GPIO05");
+            KuraGPIOPin kuraPin06 = this.gpioService.getPinByName("GPIO06");
+            logger.info("______________________________123:"+(kuraPin!=null));
+            try {
+				if(kuraPin!=null) {
+					if(kuraPin.isOpen()) {
+					kuraPin.setValue(false);
+					}else {
+					  kuraPin.open();
+					  kuraPin.setValue(true);
+					}
+						
+					logger.info("______________________________"+kuraPin.getValue()+
+							" getDirection:"+kuraPin.getDirection().name()+" getMode:" + kuraPin.getMode().name());
+				}
+				
+				if(kuraPin06!=null) {
+					if(kuraPin06.isOpen()) {
+						kuraPin06.setValue(false);
+					}else {
+						kuraPin06.open();
+						kuraPin06.setValue(true);
+					}
+						
+					logger.info("______________________________"+kuraPin06.getValue()+
+							" getDirection:"+kuraPin06.getDirection().name()+" getMode:" + kuraPin06.getMode().name());
+				}
+				
+			} catch (KuraUnavailableDeviceException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (KuraClosedDeviceException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (KuraGPIODeviceException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
             getPins();
+           
         }
     }
 

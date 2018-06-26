@@ -1,0 +1,20 @@
+#Deployment Plugin Project File
+#Thu Jun 14 19:30:41 CST 2018
+build.ant.name=<.>/src/main/resource/dp/gpio_build.xml
+build.dp.file=<.>/src/main/resource/dp/gpio.dp
+build.location=
+bundles.0.bundle_path=/work/dev/kura/kura/examples/org.eclipse.kura.example.gpio/target/org.eclipse.kura.example.gpio-1.0.300-SNAPSHOT.jar
+bundles.0.customizer=false
+bundles.0.headers.count=0
+bundles.0.missing=false
+bundles.0.name=bundles/org.eclipse.kura.example.gpio-1.0.300-SNAPSHOT.jar
+bundles.0.symbolic_name=org.eclipse.kura.example.gpio;singleton\:\=true
+bundles.0.version=1.0.300.201806040828
+bundles.count=1
+certificates.count=0
+general.signbundles=false
+headers.other.headers=
+headers.symbolic.name=gpio
+headers.version=1.0.0
+resources.count=0
+
