@@ -436,6 +436,7 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
         payload.addMetric("temperatureInternal", this.m_temperature);
         payload.addMetric("temperatureExternal", 5.0F);
         payload.addMetric("temperatureExhaust", 30.0F);
+        payload.addMetric("status", "ON");
 
         int code = this.m_random.nextInt();
         if (this.m_random.nextInt() % 5 == 0) {
