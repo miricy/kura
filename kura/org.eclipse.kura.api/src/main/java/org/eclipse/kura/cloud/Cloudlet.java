@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.eclipse.kura.KuraException;
+import org.eclipse.kura.cloudconnection.request.RequestHandler;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraRequestPayload;
 import org.eclipse.kura.message.KuraResponsePayload;
@@ -42,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * <li>{@link Cloudlet#doExec} is used to perform applicatioon operation not necessary tied to a given resource.
  * </ul>
  *
- * @deprecated Please consider using {@link CloudletInterface}
+ * @deprecated Please consider using {@link RequestHandler}
  */
 @ConsumerType
 @Deprecated

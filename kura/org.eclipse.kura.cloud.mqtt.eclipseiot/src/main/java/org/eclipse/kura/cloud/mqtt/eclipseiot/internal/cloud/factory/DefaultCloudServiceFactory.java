@@ -22,9 +22,8 @@ import java.util.stream.Collectors;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
-import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
-import org.eclipse.kura.cloud.factory.CloudServiceFactory;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.factory.CloudConnectionServiceFactory;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.DataTransportService;
@@ -34,7 +33,7 @@ import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.component.ComponentConstants;
 
 /**
- * The Kura default {@link CloudServiceFactory} implements a three layer stack architecture.
+ * The Kura default {@link CloudConnectionServiceFactory} implements a three layer stack architecture.
  * Each layer is an OSGi Declarative Services Factory Component and provides a service as follows:
  *
  * <table>
@@ -152,9 +151,6 @@ import org.osgi.service.component.ComponentConstants;
  * <pre>
  * (kura.service.pid = org.eclipse.kura.core.data.transport.mqtt.MqttDataTransport - 2)
  * </pre>
- *
- * Since {@link org.eclipse.kura.cloud.factory} 1.1.0, the CloudService instance contains a property that maps the
- * instance with the {@link org.eclipse.kura.cloud.factory.CloudServiceFactory} implementation that generated it.
  *
  * <br>
  */

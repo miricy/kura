@@ -7,11 +7,11 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud.publisher;
+package org.eclipse.kura.cloudconnection.publisher;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionListenerTracker;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.CloudConnectionListenerRegistry;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
 import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ProviderType;
 
@@ -27,7 +27,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 @ProviderType
-public interface CloudPublisher extends CloudConnectionListenerTracker {
+public interface CloudPublisher extends CloudConnectionListenerRegistry {
 
     /**
      * Publishes the received {@link KuraPayload} message using the associated Cloud Stack.

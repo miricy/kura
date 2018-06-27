@@ -64,25 +64,25 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
      *
      */
     private final class CloudPublisherServiceTrackerCustomizer implements
-            ServiceTrackerCustomizer<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> {
+            ServiceTrackerCustomizer<org.eclipse.kura.cloudconnection.publisher.CloudPublisher, org.eclipse.kura.cloudconnection.publisher.CloudPublisher> {
 
         @Override
-        public org.eclipse.kura.cloud.publisher.CloudPublisher addingService(
-                final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference) {
+        public org.eclipse.kura.cloudconnection.publisher.CloudPublisher addingService(
+                final ServiceReference<org.eclipse.kura.cloudconnection.publisher.CloudPublisher> reference) {
             CloudPublisher.this.cloudPublisher = CloudPublisher.this.bundleContext.getService(reference);
 
             return CloudPublisher.this.cloudPublisher;
         }
 
         @Override
-        public void modifiedService(final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference,
-                final org.eclipse.kura.cloud.publisher.CloudPublisher service) {
+        public void modifiedService(final ServiceReference<org.eclipse.kura.cloudconnection.publisher.CloudPublisher> reference,
+                final org.eclipse.kura.cloudconnection.publisher.CloudPublisher service) {
             CloudPublisher.this.cloudPublisher = CloudPublisher.this.bundleContext.getService(reference);
         }
 
         @Override
-        public void removedService(final ServiceReference<org.eclipse.kura.cloud.publisher.CloudPublisher> reference,
-                final org.eclipse.kura.cloud.publisher.CloudPublisher service) {
+        public void removedService(final ServiceReference<org.eclipse.kura.cloudconnection.publisher.CloudPublisher> reference,
+                final org.eclipse.kura.cloudconnection.publisher.CloudPublisher service) {
             CloudPublisher.this.cloudPublisher = null;
         }
     }
@@ -91,11 +91,11 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
 
     private BundleContext bundleContext;
 
-    private ServiceTrackerCustomizer<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> cloudPublisherTrackerCustomizer;
+    private ServiceTrackerCustomizer<org.eclipse.kura.cloudconnection.publisher.CloudPublisher, org.eclipse.kura.cloudconnection.publisher.CloudPublisher> cloudPublisherTrackerCustomizer;
 
-    private ServiceTracker<org.eclipse.kura.cloud.publisher.CloudPublisher, org.eclipse.kura.cloud.publisher.CloudPublisher> cloudPublisherTracker;
+    private ServiceTracker<org.eclipse.kura.cloudconnection.publisher.CloudPublisher, org.eclipse.kura.cloudconnection.publisher.CloudPublisher> cloudPublisherTracker;
 
-    private volatile org.eclipse.kura.cloud.publisher.CloudPublisher cloudPublisher;
+    private volatile org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisher;
 
     private CloudPublisherOptions cloudPublisherOptions;
 
@@ -277,7 +277,7 @@ public final class CloudPublisher implements WireReceiver, CloudClientListener, 
     private void initCloudPublisherTracking() {
         String selectedCloudPublisherPid = this.cloudPublisherOptions.getCloudPublisherPid();
         String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                org.eclipse.kura.cloud.publisher.CloudPublisher.class.getName(), selectedCloudPublisherPid);
+                org.eclipse.kura.cloudconnection.publisher.CloudPublisher.class.getName(), selectedCloudPublisherPid);
         Filter filter = null;
         try {
             filter = this.bundleContext.createFilter(filterString);

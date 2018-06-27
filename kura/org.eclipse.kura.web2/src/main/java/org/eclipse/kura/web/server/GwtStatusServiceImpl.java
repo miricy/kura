@@ -26,7 +26,7 @@ import java.util.Map;
 import org.eclipse.kura.KuraConnectException;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudService;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.DataTransportService;

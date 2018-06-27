@@ -11,11 +11,12 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud;
 
+import org.eclipse.kura.cloudconnection.request.RequestHandlerResources;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
  * @noextend This class is not intended to be subclassed by clients.
- * @deprecated Please consider using {@link CloudletResources}
+ * @deprecated Please consider using {@link RequestHandlerResources}
  */
 @ProviderType
 @Deprecated

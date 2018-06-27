@@ -11,8 +11,8 @@
  *******************************************************************************/
 package org.eclipse.kura.cloud;
 
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
-import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.DataTransportService;
 import org.eclipse.kura.message.KuraPayload;

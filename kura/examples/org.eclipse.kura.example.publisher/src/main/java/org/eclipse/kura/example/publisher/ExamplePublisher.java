@@ -24,10 +24,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
-import org.eclipse.kura.cloud.publisher.CloudPublisher;
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
-import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;

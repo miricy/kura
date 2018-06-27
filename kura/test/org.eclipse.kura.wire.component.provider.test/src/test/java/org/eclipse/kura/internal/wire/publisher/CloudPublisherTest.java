@@ -72,7 +72,7 @@ public class CloudPublisherTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.publisher.CloudPublisher)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.publisher.CloudPublisher)(kura.service.pid=cspid))");
     }
 
     @Test
@@ -107,10 +107,10 @@ public class CloudPublisherTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.publisher.CloudPublisher)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.publisher.CloudPublisher)(kura.service.pid=cspid))");
 
-        org.eclipse.kura.cloud.publisher.CloudPublisher cloudPublisherMock = mock(
-                org.eclipse.kura.cloud.publisher.CloudPublisher.class);
+        org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisherMock = mock(
+                org.eclipse.kura.cloudconnection.publisher.CloudPublisher.class);
 
         when(cloudPublisherMock.publish((KuraPayload) anyObject())).thenAnswer(invocation -> {
             KuraPayload payload = invocation.getArgumentAt(1, KuraPayload.class);
@@ -179,10 +179,10 @@ public class CloudPublisherTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.publisher.CloudPublisher)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.publisher.CloudPublisher)(kura.service.pid=cspid))");
 
-        org.eclipse.kura.cloud.publisher.CloudPublisher cloudPublisherMock = mock(
-                org.eclipse.kura.cloud.publisher.CloudPublisher.class);
+        org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisherMock = mock(
+                org.eclipse.kura.cloudconnection.publisher.CloudPublisher.class);
 
         PositionService positionServiceMock = mock(PositionService.class);
 
@@ -260,10 +260,10 @@ public class CloudPublisherTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.publisher.CloudPublisher)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.publisher.CloudPublisher)(kura.service.pid=cspid))");
 
-        org.eclipse.kura.cloud.publisher.CloudPublisher cloudPublisherMock = mock(
-                org.eclipse.kura.cloud.publisher.CloudPublisher.class);
+        org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisherMock = mock(
+                org.eclipse.kura.cloudconnection.publisher.CloudPublisher.class);
 
         PositionService positionServiceMock = mock(PositionService.class);
 

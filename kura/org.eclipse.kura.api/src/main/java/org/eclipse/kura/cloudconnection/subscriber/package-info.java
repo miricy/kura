@@ -8,7 +8,7 @@
  *
  *******************************************************************************/
 /**
- * Provides apis that allow to listen to connection events.
+ * Provides services for subscribing to remote servers and allows to invoke local applications.
  *
  */
-package org.eclipse.kura.cloud.connection.listener;
+package org.eclipse.kura.cloudconnection.subscriber;

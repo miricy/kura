@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.CloudletInterface;
-import org.eclipse.kura.cloud.CloudletResources;
+import org.eclipse.kura.cloudconnection.request.RequestHandler;
+import org.eclipse.kura.cloudconnection.request.RequestHandlerResources;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.message.KuraPayload;
 import org.slf4j.Logger;
@@ -50,13 +50,13 @@ public class MessageHandlerCallable implements Callable<Void> {
     protected static final boolean DFLT_RETAIN = false;
     protected static final int DFLT_PRIORITY = 1;
 
-    private final CloudletInterface cloudApp;
+    private final RequestHandler cloudApp;
     private final String appId;
     private final String appTopic;
     private final KuraPayload kuraMessage;
     private final CloudServiceImpl cloudService;
 
-    public MessageHandlerCallable(CloudletInterface cloudApp, String appId, String appTopic, KuraPayload msg,
+    public MessageHandlerCallable(RequestHandler cloudApp, String appId, String appTopic, KuraPayload msg,
             CloudServiceImpl cloudService) {
         super();
         this.cloudApp = cloudApp;
@@ -89,7 +89,7 @@ public class MessageHandlerCallable implements Callable<Void> {
 
             String method = resources.next();
 
-            CloudletResources reqResources = getMessageResources(resources);
+            RequestHandlerResources reqResources = getMessageResources(resources);
 
             switch (method) {
             case "GET":
@@ -163,12 +163,12 @@ public class MessageHandlerCallable implements Callable<Void> {
         setException(response, e);
     }
 
-    private CloudletResources getMessageResources(Iterator<String> iter) {
+    private RequestHandlerResources getMessageResources(Iterator<String> iter) {
         List<String> resourcesList = new ArrayList<>();
         while (iter.hasNext()) {
             resourcesList.add(iter.next());
         }
-        return new CloudletResources(resourcesList);
+        return new RequestHandlerResources(resourcesList);
     }
 
     public void setResponseCode(KuraPayload payload, int responseCode) {

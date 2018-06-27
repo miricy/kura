@@ -12,4 +12,4 @@
 /**
  * Contains interfaces to manage the construction of Cloud Connection Services.
  */
-package org.eclipse.kura.cloud.connection.factory;
+package org.eclipse.kura.cloudconnection.factory;

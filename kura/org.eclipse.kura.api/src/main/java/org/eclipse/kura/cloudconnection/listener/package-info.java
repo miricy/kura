@@ -8,7 +8,7 @@
  *
  *******************************************************************************/
 /**
- * Provides apis that allow to register subscriber applications.
+ * Provides apis that allow to listen to connection events.
  *
  */
-package org.eclipse.kura.cloud.subscriber.listener;
+package org.eclipse.kura.cloudconnection.listener;

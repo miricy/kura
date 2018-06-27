@@ -7,15 +7,15 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud.connection.listener;
+package org.eclipse.kura.cloudconnection.listener;
 
-import org.eclipse.kura.cloud.connection.CloudConnectionListenerTracker;
+import org.eclipse.kura.cloudconnection.CloudConnectionListenerRegistry;
 import org.osgi.annotation.versioning.ConsumerType;
 
 /**
  * {@link CloudConnectionListener} interface is implemented by applications that want to be notified on connection
  * status changes.
- * To be notified, the implementor need to register itself to a specific {@link CloudConnectionListenerTracker}.
+ * To be notified, the implementor need to register itself to a specific {@link CloudConnectionListenerRegistry}.
  *
  * @since 2.0
  */

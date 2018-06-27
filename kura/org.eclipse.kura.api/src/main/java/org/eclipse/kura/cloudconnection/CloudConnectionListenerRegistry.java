@@ -1,6 +1,6 @@
-package org.eclipse.kura.cloud.connection;
+package org.eclipse.kura.cloudconnection;
 
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
 
 /**
  * Interface used to track {@link CloudConnectionListener}s.
@@ -9,7 +9,7 @@ import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
  *
  * @since 2.0
  */
-public interface CloudConnectionListenerTracker {
+public interface CloudConnectionListenerRegistry {
 
     public void register(CloudConnectionListener cloudConnectionListener);
 

@@ -9,13 +9,13 @@
  * Contributors:
  *     Eurotech
  *******************************************************************************/
-package org.eclipse.kura.cloud.connection.factory;
+package org.eclipse.kura.cloudconnection.factory;
 
 import java.util.List;
 import java.util.Set;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**

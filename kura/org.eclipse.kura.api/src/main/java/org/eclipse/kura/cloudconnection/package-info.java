@@ -1,14 +1,19 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2018 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
  *
+ * Contributors:
+ * Eurotech
  *******************************************************************************/
 /**
- * Provides services for managing communications between local applications and remote servers.
  *
  */
-package org.eclipse.kura.cloud.publisher;
+/**
+ * Provides services for managing connections between the IoT framework and the remote servers. 
+ *
+ */
+package org.eclipse.kura.cloudconnection;

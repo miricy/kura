@@ -17,10 +17,10 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
-import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.core.cloud.CloudServiceImpl;
 import org.eclipse.kura.core.cloud.CloudServiceOptions;

@@ -7,11 +7,11 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud.subscriber.listener;
+package org.eclipse.kura.cloudconnection.subscriber.listener;
 
 import java.util.Map;
 
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
 import org.eclipse.kura.message.KuraPayload;
 import org.osgi.annotation.versioning.ConsumerType;
 

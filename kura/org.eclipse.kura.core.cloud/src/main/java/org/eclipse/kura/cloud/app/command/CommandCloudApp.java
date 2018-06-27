@@ -19,9 +19,9 @@ import java.util.Map;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.CloudletInterface;
-import org.eclipse.kura.cloud.CloudletResources;
-import org.eclipse.kura.cloud.CloudletService;
+import org.eclipse.kura.cloudconnection.request.RequestHandler;
+import org.eclipse.kura.cloudconnection.request.RequestHandlerRegistry;
+import org.eclipse.kura.cloudconnection.request.RequestHandlerResources;
 import org.eclipse.kura.command.PasswordCommandService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.Password;
@@ -32,7 +32,7 @@ import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CommandCloudApp implements ConfigurableComponent, PasswordCommandService, CloudletInterface {
+public class CommandCloudApp implements ConfigurableComponent, PasswordCommandService, RequestHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(CommandCloudApp.class);
     private static final String EDC_PASSWORD_METRIC_NAME = "command.password";
@@ -70,19 +70,19 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
         this.cryptoService = null;
     }
 
-    public void setCloudletService(CloudletService cloudletService) {
+    public void setRequestHandlerRegistry(RequestHandlerRegistry requestHandlerRegistry) {
         try {
-            cloudletService.register(APP_ID, this);
+            requestHandlerRegistry.register(APP_ID, this);
         } catch (KuraException e) {
-            logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
+            logger.info("Unable to register cloudlet {} in {}", APP_ID, requestHandlerRegistry.getClass().getName());
         }
     }
 
-    public void unsetCloudletService(CloudletService cloudletService) {
+    public void unsetRequestHandlerRegistry(RequestHandlerRegistry requestHandlerRegistry) {
         try {
-            cloudletService.unregister(APP_ID);
+            requestHandlerRegistry.unregister(APP_ID);
         } catch (KuraException e) {
-            logger.info("Unable to register cloudlet {} in {}", APP_ID, cloudletService.getClass().getName());
+            logger.info("Unable to register cloudlet {} in {}", APP_ID, requestHandlerRegistry.getClass().getName());
         }
     }
 
@@ -130,7 +130,7 @@ public class CommandCloudApp implements ConfigurableComponent, PasswordCommandSe
     }
 
     @Override
-    public KuraPayload doExec(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public KuraPayload doExec(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
 
         if (!this.currentStatus) {
             throw new KuraException(KuraErrorCode.NOT_FOUND);

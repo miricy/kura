@@ -32,7 +32,7 @@ import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudClient;
 import org.eclipse.kura.cloud.CloudService;
-import org.eclipse.kura.cloud.CloudletResources;
+import org.eclipse.kura.cloudconnection.request.RequestHandlerResources;
 import org.eclipse.kura.configuration.Password;
 import org.eclipse.kura.core.testutil.TestUtil;
 import org.eclipse.kura.crypto.CryptoService;
@@ -438,7 +438,7 @@ public class CommandCloudAppTest {
         CommandCloudApp cca = new CommandCloudApp();
         TestUtil.setFieldValue(cca, "currentStatus", true);
 
-        CloudletResources reqResources = new CloudletResources(Collections.emptyList());
+        RequestHandlerResources reqResources = new RequestHandlerResources(Collections.emptyList());
         KuraRequestPayload reqPayload = null;
 
         cca.doExec(reqResources, reqPayload);
@@ -453,7 +453,7 @@ public class CommandCloudAppTest {
         List<String> resources = new ArrayList<>();
         resources.add("command");
         resources.add("test");
-        CloudletResources reqResources = new CloudletResources(resources);
+        RequestHandlerResources reqResources = new RequestHandlerResources(resources);
         KuraRequestPayload reqPayload = null;
 
         cca.doExec(reqResources, reqPayload);
@@ -465,7 +465,7 @@ public class CommandCloudAppTest {
 
         List<String> resources = new ArrayList<>();
         resources.add("cmd");
-        CloudletResources reqResources = new CloudletResources(resources);
+        RequestHandlerResources reqResources = new RequestHandlerResources(resources);
         KuraRequestPayload reqPayload = null;
 
         cca.doExec(reqResources, reqPayload);
@@ -489,7 +489,7 @@ public class CommandCloudAppTest {
 
         List<String> resources = new ArrayList<>();
         resources.add("command");
-        CloudletResources reqResources = new CloudletResources(resources);
+        RequestHandlerResources reqResources = new RequestHandlerResources(resources);
         KuraRequestPayload reqPayload = null;
 
         KuraPayload response = cca.doExec(reqResources, reqPayload);

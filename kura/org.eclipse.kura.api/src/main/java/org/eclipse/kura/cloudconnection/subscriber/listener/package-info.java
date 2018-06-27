@@ -8,7 +8,7 @@
  *
  *******************************************************************************/
 /**
- * Provides services for subscribing to remote servers and allows to invoke local applications.
+ * Provides apis that allow to register subscriber applications.
  *
  */
-package org.eclipse.kura.cloud.subscriber;
+package org.eclipse.kura.cloudconnection.subscriber.listener;

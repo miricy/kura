@@ -32,7 +32,7 @@ import java.util.Set;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
 import org.eclipse.kura.cloud.factory.CloudServiceFactory;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.junit.Test;

@@ -31,12 +31,12 @@ import java.util.stream.Collectors;
 
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudService;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
-import org.eclipse.kura.cloud.connection.Constants;
-import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
 import org.eclipse.kura.cloud.factory.CloudServiceFactory;
-import org.eclipse.kura.cloud.publisher.CloudPublisher;
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.Constants;
+import org.eclipse.kura.cloudconnection.factory.CloudConnectionServiceFactory;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.web.server.util.ServiceLocator;
 import org.eclipse.kura.web.server.util.ServiceLocator.ServiceConsumer;

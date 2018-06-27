@@ -9,14 +9,14 @@
  * Contributors:
  *     Eurotech
  *******************************************************************************/
-package org.eclipse.kura.cloud.connection;
+package org.eclipse.kura.cloudconnection;
 
 import java.util.Collections;
 import java.util.Map;
 
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.publisher.CloudPublisher;
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
@@ -36,7 +36,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * @since 2.0
  */
 @ProviderType
-public interface CloudConnectionService extends CloudConnectionListenerTracker {
+public interface CloudConnectionService extends CloudConnectionListenerRegistry {
 
     /**
      * Connects the framework to the remote cloud server.

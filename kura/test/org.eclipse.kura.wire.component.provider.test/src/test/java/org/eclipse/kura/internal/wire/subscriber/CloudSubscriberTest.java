@@ -140,7 +140,7 @@ public class CloudSubscriberTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
 
         cs.onMessageArrived(Collections.emptyMap(), msg);
 
@@ -173,7 +173,7 @@ public class CloudSubscriberTest {
 
         verify(ctxMock, times(1)).getBundleContext();
         verify(bundleCtxMock, times(1)).createFilter(
-                "(&(objectClass=org.eclipse.kura.cloud.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
+                "(&(objectClass=org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber)(kura.service.pid=cspid))");
 
         cs.deactivate(ctxMock);
     }

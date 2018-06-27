@@ -11,7 +11,7 @@ package org.eclipse.kura.core.cloud.subscriber;
 
 import java.util.Map;
 
-import org.eclipse.kura.cloud.connection.Constants;
+import org.eclipse.kura.cloudconnection.Constants;
 import org.eclipse.kura.core.cloud.publisher.MessageType;
 
 public class CloudSubscriberOptions {

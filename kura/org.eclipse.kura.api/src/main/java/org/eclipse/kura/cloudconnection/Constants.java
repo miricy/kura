@@ -1,6 +1,6 @@
-package org.eclipse.kura.cloud.connection;
+package org.eclipse.kura.cloudconnection;
 
-import org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory;
+import org.eclipse.kura.cloudconnection.factory.CloudConnectionServiceFactory;
 
 /**
  * @since 2.0

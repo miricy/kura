@@ -17,8 +17,8 @@ import java.util.Set;
 
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloud.CloudService;
-import org.eclipse.kura.cloud.publisher.CloudPublisher;
-import org.eclipse.kura.cloud.subscriber.CloudSubscriber;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
+import org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.data.DataTransportService;
 import org.osgi.annotation.versioning.ProviderType;

@@ -11,7 +11,7 @@ package org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.publisher;
 
 import java.util.Map;
 
-import org.eclipse.kura.cloud.connection.Constants;
+import org.eclipse.kura.cloudconnection.Constants;
 
 public class CloudPublisherOptions {
 

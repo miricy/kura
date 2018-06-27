@@ -19,11 +19,11 @@ import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.CloudServiceImpl;
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.CloudServiceOptions;
-import org.eclipse.kura.cloud.publisher.CloudPublisher;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.message.KuraPayload;

@@ -7,7 +7,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  *******************************************************************************/
-package org.eclipse.kura.cloud;
+package org.eclipse.kura.cloudconnection.request;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
@@ -18,21 +18,21 @@ import org.osgi.annotation.versioning.ConsumerType;
  * Implemented by services that want to implement remote resource management.
  *
  * <ul>
- * <li>{@link CloudletInterface#doGet} is used to implement a READ request for a resource identified by the supplied
+ * <li>{@link RequestHandler#doGet} is used to implement a READ request for a resource identified by the supplied
  * {@link CloudletResources)}
- * <li>{@link CloudletInterface#doPut} is used to implement a CREATE or UPDATE request for a resource identified by the
- * supplied {@link CloudletResources}
- * <li>{@link CloudletInterface#doDel} is used to implement a DELETE request for a resource identified by the supplied
- * {@link CloudletResources}
- * <li>{@link CloudletInterface#doPost} is used to implement other operations on a resource identified by the supplied
- * {@link CloudletResources}
- * <li>{@link CloudletInterface#doExec} is used to perform application operation not necessary tied to a given resource.
+ * <li>{@link RequestHandler#doPut} is used to implement a CREATE or UPDATE request for a resource identified by the
+ * supplied {@link RequestHandlerResources}
+ * <li>{@link RequestHandler#doDel} is used to implement a DELETE request for a resource identified by the supplied
+ * {@link RequestHandlerResources}
+ * <li>{@link RequestHandler#doPost} is used to implement other operations on a resource identified by the supplied
+ * {@link RequestHandlerResources}
+ * <li>{@link RequestHandler#doExec} is used to perform application operation not necessary tied to a given resource.
  * </ul>
  * 
  * @since 2.0
  */
 @ConsumerType
-public interface CloudletInterface {
+public interface RequestHandler {
 
     /**
      * Used to implement a READ request for a resource identified by the supplied {@link CloudletResources)}
@@ -46,7 +46,7 @@ public interface CloudletInterface {
      *             An exception is thrown in every condition where the request cannot be full fitted due to wrong
      *             request parameters or exceptions during processing
      */
-    public default KuraPayload doGet(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public default KuraPayload doGet(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
         throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
@@ -62,7 +62,7 @@ public interface CloudletInterface {
      *             An exception is thrown in every condition where the request cannot be full fitted due to wrong
      *             request parameters or exceptions during processing
      */
-    public default KuraPayload doPut(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public default KuraPayload doPut(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
         throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
@@ -78,7 +78,7 @@ public interface CloudletInterface {
      *             An exception is thrown in every condition where the request cannot be full fitted due to wrong
      *             request parameters or exceptions during processing
      */
-    public default KuraPayload doPost(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public default KuraPayload doPost(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
         throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
@@ -94,7 +94,7 @@ public interface CloudletInterface {
      *             An exception is thrown in every condition where the request cannot be full fitted due to wrong
      *             request parameters or exceptions during processing
      */
-    public default KuraPayload doDel(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public default KuraPayload doDel(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
         throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 
@@ -110,7 +110,7 @@ public interface CloudletInterface {
      *             An exception is thrown in every condition where the request cannot be full fitted due to wrong
      *             request parameters or exceptions during processing
      */
-    public default KuraPayload doExec(CloudletResources reqResources, KuraPayload reqPayload) throws KuraException {
+    public default KuraPayload doExec(RequestHandlerResources reqResources, KuraPayload reqPayload) throws KuraException {
         throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 

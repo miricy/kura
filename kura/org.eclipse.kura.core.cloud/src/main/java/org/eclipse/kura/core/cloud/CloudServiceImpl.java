@@ -41,10 +41,10 @@ import org.eclipse.kura.cloud.CloudPayloadEncoding;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufDecoder;
 import org.eclipse.kura.cloud.CloudPayloadProtoBufEncoder;
 import org.eclipse.kura.cloud.CloudService;
-import org.eclipse.kura.cloud.CloudletInterface;
-import org.eclipse.kura.cloud.CloudletService;
-import org.eclipse.kura.cloud.connection.CloudConnectionService;
-import org.eclipse.kura.cloud.connection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.CloudConnectionService;
+import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
+import org.eclipse.kura.cloudconnection.request.RequestHandler;
+import org.eclipse.kura.cloudconnection.request.RequestHandlerRegistry;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
 import org.eclipse.kura.core.cloud.subscriber.CloudSubscriberImpl;
@@ -70,7 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CloudServiceImpl implements CloudService, DataServiceListener, ConfigurableComponent, EventHandler,
-        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudletService, CloudConnectionService {
+        CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, RequestHandlerRegistry, CloudConnectionService {
 
     private static final Logger logger = LoggerFactory.getLogger(CloudServiceImpl.class);
 
@@ -112,7 +112,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
 
     private ServiceRegistration<?> cloudServiceRegistration;
 
-    private final Map<String, CloudletInterface> registeredCloudlets;
+    private final Map<String, RequestHandler> registeredCloudlets;
 
     private final List<CloudSubscriberImpl> registeredSubscribers;
 
@@ -350,7 +350,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
             appIds.add(cloudClient.getApplicationId());
         }
 
-        for (Entry<String, CloudletInterface> entry : this.registeredCloudlets.entrySet()) {
+        for (Entry<String, RequestHandler> entry : this.registeredCloudlets.entrySet()) {
             appIds.add(entry.getKey());
         }
         return appIds.toArray(new String[0]);
@@ -504,7 +504,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     private void dispatchControlMessage(int qos, boolean retained, KuraTopic kuraTopic, KuraPayload kuraPayload) {
         String applicationId = kuraTopic.getApplicationId();
 
-        CloudletInterface cloudlet = this.registeredCloudlets.get(applicationId);
+        RequestHandler cloudlet = this.registeredCloudlets.get(applicationId);
         if (cloudlet != null) {
             StringBuilder sb = new StringBuilder(applicationId).append("/").append("REPLY");
 
@@ -805,7 +805,7 @@ public class CloudServiceImpl implements CloudService, DataServiceListener, Conf
     }
 
     @Override
-    public void register(String appId, CloudletInterface cloudlet) {
+    public void register(String appId, RequestHandler cloudlet) {
         this.registeredCloudlets.put(appId, cloudlet);
     }
 

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.eclipse.kura.cloud.subscriber.listener.CloudSubscriberListener;
+import org.eclipse.kura.cloudconnection.subscriber.listener.CloudSubscriberListener;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.type.TypedValue;
@@ -65,26 +65,26 @@ public final class CloudSubscriber implements WireEmitter, ConfigurableComponent
      *
      */
     private final class CloudSubscriberServiceTrackerCustomizer implements
-            ServiceTrackerCustomizer<org.eclipse.kura.cloud.subscriber.CloudSubscriber, org.eclipse.kura.cloud.subscriber.CloudSubscriber> {
+            ServiceTrackerCustomizer<org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber, org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber> {
 
         @Override
-        public org.eclipse.kura.cloud.subscriber.CloudSubscriber addingService(
-                final ServiceReference<org.eclipse.kura.cloud.subscriber.CloudSubscriber> reference) {
-            final org.eclipse.kura.cloud.subscriber.CloudSubscriber cloudSubscriber = CloudSubscriber.this.bundleContext
+        public org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber addingService(
+                final ServiceReference<org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber> reference) {
+            final org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber cloudSubscriber = CloudSubscriber.this.bundleContext
                     .getService(reference);
             cloudSubscriber.register(CloudSubscriber.this);
             return cloudSubscriber;
         }
 
         @Override
-        public void modifiedService(final ServiceReference<org.eclipse.kura.cloud.subscriber.CloudSubscriber> reference,
-                final org.eclipse.kura.cloud.subscriber.CloudSubscriber service) {
+        public void modifiedService(final ServiceReference<org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber> reference,
+                final org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber service) {
             // no need
         }
 
         @Override
-        public void removedService(final ServiceReference<org.eclipse.kura.cloud.subscriber.CloudSubscriber> reference,
-                final org.eclipse.kura.cloud.subscriber.CloudSubscriber service) {
+        public void removedService(final ServiceReference<org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber> reference,
+                final org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber service) {
             service.unregister(CloudSubscriber.this);
         }
     }
@@ -93,7 +93,7 @@ public final class CloudSubscriber implements WireEmitter, ConfigurableComponent
 
     private BundleContext bundleContext;
 
-    private ServiceTracker<org.eclipse.kura.cloud.subscriber.CloudSubscriber, org.eclipse.kura.cloud.subscriber.CloudSubscriber> cloudSubscriberTracker;
+    private ServiceTracker<org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber, org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber> cloudSubscriberTracker;
 
     private CloudSubscriberOptions cloudSubscriberOptions;
 
@@ -214,7 +214,7 @@ public final class CloudSubscriber implements WireEmitter, ConfigurableComponent
      */
     private void initCloudServiceTracking() {
         String filterString = String.format("(&(%s=%s)(kura.service.pid=%s))", Constants.OBJECTCLASS,
-                org.eclipse.kura.cloud.subscriber.CloudSubscriber.class.getName(),
+                org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber.class.getName(),
                 this.cloudSubscriberOptions.getCloudSubscriberPid());
         Filter filter = null;
         try {
