@@ -34,11 +34,11 @@
            bind="setCloudPublisher"
            unbind="unsetCloudPublisher"
            cardinality="0..1"
-           interface="org.eclipse.kura.cloud.publisher.CloudPublisher"/>
+           interface="org.eclipse.kura.cloudconnection.publisher.CloudPublisher"/>
    <reference name="CloudSubscriber"
            policy="static"
            bind="setCloudSubscriber"
            unbind="unsetCloudSubscriber"
            cardinality="0..1"
-           interface="org.eclipse.kura.cloud.subscriber.CloudSubscriber"/>
+           interface="org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber"/>
 </scr:component>

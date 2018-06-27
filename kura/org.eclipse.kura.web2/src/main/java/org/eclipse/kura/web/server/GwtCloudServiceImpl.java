@@ -63,7 +63,7 @@ public class GwtCloudServiceImpl extends OsgiRemoteServiceServlet implements Gwt
 
     private static final long serialVersionUID = 2595835826149606703L;
 
-    private static final String CLOUD_CONNECTION_SERVICE_FACTORY_FILTER = "(|(objectClass=org.eclipse.kura.cloud.connection.factory.CloudConnectionServiceFactory)(objectClass=org.eclipse.kura.cloud.factory.CloudServiceFactory))";
+    private static final String CLOUD_CONNECTION_SERVICE_FACTORY_FILTER = "(|(objectClass=org.eclipse.kura.cloudconnection.factory.CloudConnectionServiceFactory)(objectClass=org.eclipse.kura.cloud.factory.CloudServiceFactory))";
 
     private static final String KURA_UI_CSF_PID_DEFAULT = "kura.ui.csf.pid.default";
     private static final String KURA_UI_CSF_PID_REGEX = "kura.ui.csf.pid.regex";

@@ -18,7 +18,7 @@
       <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>
       <provide interface="org.eclipse.kura.cloud.CloudPayloadProtoBufEncoder"/>
       <provide interface="org.eclipse.kura.cloud.CloudPayloadProtoBufDecoder"/>
-      <provide interface="org.eclipse.kura.cloud.connection.CloudConnectionService"/>
+      <provide interface="org.eclipse.kura.cloudconnection.CloudConnectionService"/>
    </service>
    <reference name="DataService" 
               interface="org.eclipse.kura.data.DataService" 

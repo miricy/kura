@@ -15,7 +15,7 @@
 <scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" activate="activate" configuration-policy="require" deactivate="deactivate" enabled="true" immediate="true" modified="updated" name="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher">
    <implementation class="org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.publisher.CloudPublisherImpl"/>
    <service>
-      <provide interface="org.eclipse.kura.cloud.publisher.CloudPublisher"/>
+      <provide interface="org.eclipse.kura.cloudconnection.publisher.CloudPublisher"/>
       <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>
    </service>
    <property name="service.pid" type="String" value="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudPublisher"/>

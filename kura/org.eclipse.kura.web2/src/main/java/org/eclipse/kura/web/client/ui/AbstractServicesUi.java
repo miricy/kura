@@ -36,6 +36,7 @@ import org.eclipse.kura.web.shared.service.GwtSecurityTokenServiceAsync;
 import org.gwtbootstrap3.client.ui.Anchor;
 import org.gwtbootstrap3.client.ui.AnchorListItem;
 import org.gwtbootstrap3.client.ui.DropDown;
+import org.gwtbootstrap3.client.ui.DropDownHeader;
 import org.gwtbootstrap3.client.ui.DropDownMenu;
 import org.gwtbootstrap3.client.ui.FormGroup;
 import org.gwtbootstrap3.client.ui.FormLabel;
@@ -70,6 +71,7 @@ import com.google.gwt.user.client.ui.Widget;
 
 public abstract class AbstractServicesUi extends Composite {
 
+    private static final String TARGET_SUFFIX = ".target";
     private static final String CONFIG_MAX_VALUE = "configMaxValue";
     private static final String CONFIG_MIN_VALUE = "configMinValue";
     private static final String INVALID_VALUE = "invalidValue";
@@ -247,8 +249,8 @@ public abstract class AbstractServicesUi extends Composite {
             }
         });
 
-        if (param.getId().endsWith(".target")) {
-            String targetedService = param.getId().split(".target")[0];
+        if (param.getId().endsWith(TARGET_SUFFIX)) {
+            String targetedService = param.getId().split(TARGET_SUFFIX)[0];
 
             DropDown dropDown = new DropDown();
             Anchor dropDownAnchor = new Anchor();
@@ -260,15 +262,26 @@ public abstract class AbstractServicesUi extends Composite {
             final DropDownMenu dropDownMenu = new DropDownMenu();
             dropDownMenu.addStyleName("drop-down");
 
+            DropDownHeader dropDownHeader = new DropDownHeader();
+            dropDownHeader.setVisible(false);
+            dropDownMenu.add(dropDownHeader);
+
             dropDown.add(dropDownMenu);
 
             RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
                     context.callback(token -> AbstractServicesUi.this.gwtComponentService.getPidsFromTarget(token,
-                            this.configurableComponent.getComponentId(), targetedService,
-                            context.callback(data -> data.forEach(targetEntry -> {
-                                AnchorListItem listItem = createListItem(textBox, targetEntry);
-                                dropDownMenu.add(listItem);
-                            }))))));
+                            this.configurableComponent.getComponentId(), targetedService, context.callback(data -> {
+                                if (data.isEmpty()) {
+                                    dropDownHeader.setText(MSGS.noTargetsAvailable());
+                                } else {
+                                    dropDownHeader.setText(MSGS.targetsAvailable());
+                                    data.forEach(targetEntry -> {
+                                        AnchorListItem listItem = createListItem(textBox, targetEntry);
+                                        dropDownMenu.add(listItem);
+                                    });
+                                }
+                                dropDownHeader.setVisible(true);
+                            })))));
 
             formGroup.add(dropDown);
         }
