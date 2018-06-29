@@ -40,9 +40,9 @@ public class LifeCyclePayloadBuilder {
 
     private static final String UNKNOWN = "UNKNOWN";
 
-    private final CloudServiceImpl cloudServiceImpl;
+    private final CloudConnectionServiceImpl cloudServiceImpl;
 
-    LifeCyclePayloadBuilder(CloudServiceImpl cloudServiceImpl) {
+    LifeCyclePayloadBuilder(CloudConnectionServiceImpl cloudServiceImpl) {
         this.cloudServiceImpl = cloudServiceImpl;
     }
 

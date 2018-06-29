@@ -159,11 +159,11 @@ public class DefaultCloudServiceFactory implements CloudConnectionServiceFactory
     private static final String FACTORY_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.factory.DefaultCloudServiceFactory";
 
     // The following constants must match the factory component definitions
-    private static final String CLOUD_SERVICE_FACTORY_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService";
+    private static final String CLOUD_SERVICE_FACTORY_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService";
     private static final String DATA_SERVICE_FACTORY_PID = "org.eclipse.kura.data.DataService";
     private static final String DATA_TRANSPORT_SERVICE_FACTORY_PID = "org.eclipse.kura.core.data.transport.mqtt.MqttDataTransport";
 
-    private static final String CLOUD_SERVICE_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService";
+    private static final String CLOUD_SERVICE_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService";
     private static final String DATA_SERVICE_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.DataService";
     private static final String DATA_TRANSPORT_SERVICE_PID = "org.eclipse.kura.cloud.mqtt.eclipseiot.MqttDataTransport";
 
@@ -173,7 +173,7 @@ public class DefaultCloudServiceFactory implements CloudConnectionServiceFactory
     private static final String REFERENCE_TARGET_VALUE_FORMAT = "(" + ConfigurationService.KURA_SERVICE_PID + "=%s)";
 
     private static final Pattern MANAGED_CLOUD_SERVICE_PID_PATTERN = Pattern
-            .compile("^org\\.eclipse\\.kura\\.cloud\\.mqtt\\.eclipseiot\\.CloudService(-[a-zA-Z0-9]+)?$");
+            .compile("^org\\.eclipse\\.kura\\.cloud\\.mqtt\\.eclipseiot\\.CloudConnectionService(-[a-zA-Z0-9]+)?$");
 
     private ConfigurationService configurationService;
 

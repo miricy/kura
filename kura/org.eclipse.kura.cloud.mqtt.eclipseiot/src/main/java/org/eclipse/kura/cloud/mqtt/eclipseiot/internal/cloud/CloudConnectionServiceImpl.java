@@ -54,12 +54,12 @@ import org.osgi.service.event.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CloudServiceImpl implements DataServiceListener, ConfigurableComponent, EventHandler,
+public class CloudConnectionServiceImpl implements DataServiceListener, ConfigurableComponent, EventHandler,
         CloudPayloadProtoBufEncoder, CloudPayloadProtoBufDecoder, CloudConnectionService {
 
     private static final String ERROR = "ERROR";
 
-    private static final Logger logger = LoggerFactory.getLogger(CloudServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(CloudConnectionServiceImpl.class);
 
     private static final String CONNECTION_EVENT_PID_PROPERTY_KEY = "cloud.service.pid";
 
@@ -88,7 +88,7 @@ public class CloudServiceImpl implements DataServiceListener, ConfigurableCompon
 
     private final Set<CloudConnectionListener> registeredCloudConnectionListeners;
 
-    public CloudServiceImpl() {
+    public CloudConnectionServiceImpl() {
         this.messageId = new AtomicInteger();
         this.registeredCloudConnectionListeners = new CopyOnWriteArraySet<>();
     }

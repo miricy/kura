@@ -14,9 +14,9 @@
 
 -->
 <MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.2.0" localization="en_us">
-    <OCD id="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService" 
-         name="CloudService" 
-         description="The CloudService allows for setting a user friendly name for the current device. It also provides the option to compress message payloads to reduce network traffic.">
+    <OCD id="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService" 
+         name="Eclipse CloudConnectionService" 
+         description="The Eclipse IoT CloudConnectionService allows for setting a user friendly name for the current device. It also provides the option to compress message payloads to reduce network traffic.">
 
         <Icon resource="CloudService" size="32"/>
         
@@ -92,7 +92,7 @@
         </AD>
     </OCD>
     
-    <Designate pid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService" factoryPid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService">
-        <Object ocdref="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService"/>
+    <Designate pid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService" factoryPid="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService">
+        <Object ocdref="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService"/>
     </Designate>
 </MetaData>

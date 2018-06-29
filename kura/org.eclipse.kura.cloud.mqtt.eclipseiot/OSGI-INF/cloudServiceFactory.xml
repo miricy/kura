@@ -9,7 +9,7 @@
    <property name="osgi.command.function" type="String">
       createConfiguration
    </property>
-   <property name="kura.ui.csf.pid.default" type="String" value="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService-2"/>
-   <property name="kura.ui.csf.pid.regex" type="String" value="^org.eclipse.kura.cloud.mqtt.eclipseiot.CloudService(\-[a-zA-Z0-9]+)?$"/>
+   <property name="kura.ui.csf.pid.default" type="String" value="org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService"/>
+   <property name="kura.ui.csf.pid.regex" type="String" value="^org.eclipse.kura.cloud.mqtt.eclipseiot.CloudConnectionService(\-[a-zA-Z0-9]+)?$"/>
    <property name="service.pid" type="String" value="org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.factory.DefaultCloudServiceFactory"/>
 </scr:component>

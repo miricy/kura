@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.CloudServiceImpl;
+import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.CloudConnectionServiceImpl;
 import org.eclipse.kura.cloud.mqtt.eclipseiot.internal.cloud.CloudServiceOptions;
 import org.eclipse.kura.cloudconnection.CloudConnectionService;
 import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
@@ -47,8 +47,8 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
         public CloudConnectionService addingService(final ServiceReference<CloudConnectionService> reference) {
             CloudConnectionService tempCloudService = CloudPublisherImpl.this.bundleContext.getService(reference);
 
-            if (tempCloudService instanceof CloudServiceImpl) {
-                CloudPublisherImpl.this.cloudServiceImpl = (CloudServiceImpl) tempCloudService;
+            if (tempCloudService instanceof CloudConnectionServiceImpl) {
+                CloudPublisherImpl.this.cloudServiceImpl = (CloudConnectionServiceImpl) tempCloudService;
                 CloudPublisherImpl.this.cloudServiceImpl.register(CloudPublisherImpl.this);
                 return tempCloudService;
             } else {
@@ -81,7 +81,7 @@ public class CloudPublisherImpl implements CloudPublisher, ConfigurableComponent
     private ServiceTracker<CloudConnectionService, CloudConnectionService> cloudConnectionServiceTracker;
 
     private CloudPublisherOptions cloudPublisherOptions;
-    private CloudServiceImpl cloudServiceImpl;
+    private CloudConnectionServiceImpl cloudServiceImpl;
     private BundleContext bundleContext;
 
     private final Set<CloudConnectionListener> cloudConnectionListeners = new CopyOnWriteArraySet<>();
