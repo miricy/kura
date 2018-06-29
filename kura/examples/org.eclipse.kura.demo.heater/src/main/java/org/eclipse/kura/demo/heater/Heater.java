@@ -239,66 +239,46 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
     @Override
     public void onControlMessageArrived(String deviceId, String appTopic, KuraPayload msg, int qos, boolean retain) {
         // TODO Auto-generated method stub
-    	String msgonoff=(String) msg.getMetric("status");
-    	String gpioName = (String) msg.getMetric("gpioname");
-    	s_logger.info("onControlMessageArrived... Done. status:"+msgonoff);
-    	KuraGPIOPin kuraPin = this.gpioService.getPinByName(gpioName);
-    	if(msgonoff.equalsIgnoreCase("ON"))
+
+    	s_logger.info("onControlMessageArrived... Done. deviceId:"+deviceId+" appTopic:"+appTopic);
+    	String gpioName = (String)msg.getMetric("gpio");
+    	if(gpioName != null && !gpioName.isEmpty())
     	{
-    		try {    			
-				if(kuraPin!=null) {
-					if(kuraPin.isOpen()) {
-					kuraPin.setValue(true);
-					}else {
-					  kuraPin.open();
-					  kuraPin.setValue(true);
-					 
-					}
-						
-					s_logger.info("______________________________"+kuraPin.getValue()+
-							" getDirection:"+kuraPin.getDirection().name()+" getMode:" + kuraPin.getMode().name());
-				}				
-				
-				
-			} catch (KuraUnavailableDeviceException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} catch (KuraClosedDeviceException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} catch (KuraGPIODeviceException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+    		s_logger.info("onControlMessageArrived... Done. gpioName:"+gpioName);
+    		try {
+    		KuraGPIOPin kuraPin = this.gpioService.getPinByName(gpioName);
+    		if(kuraPin == null) {
+    			s_logger.info("onControlMessageArrived... Done."+gpioName +"is not exist");
+    			return;
+    		}
+    		String direction=kuraPin.getDirection().name();
+    		if(!kuraPin.isOpen()) {
+    			kuraPin.open();
+    		}
+    		boolean value="ON".equalsIgnoreCase((String)msg.getMetric("status"))?true:false;
+    		s_logger.info("onControlMessageArrived... Done. direction:"+direction);
+            if("INPUT".equalsIgnoreCase(direction)) {
+				value=kuraPin.getValue();
+			}else{
+				 kuraPin.setValue(value);				 
 			}
-    	}
-    	else if(msgonoff.equalsIgnoreCase("OFF")) {
-    		try {    			
-				if(kuraPin!=null) {
-					if(kuraPin.isOpen()) {
-					kuraPin.setValue(false);
-					}else {
-					  kuraPin.open();
-					  kuraPin.setValue(false);
-					}
-						
-					s_logger.info("______________________________"+kuraPin.getValue()+
-							" getDirection:"+kuraPin.getDirection().name()+" getMode:" + kuraPin.getMode().name());
-				}								
-				
-			} catch (KuraUnavailableDeviceException e1) {
+            s_logger.info("______________________________"+kuraPin.getValue()+
+					" getDirection:"+direction+" getMode:" + kuraPin.getMode().name());
+    		} catch (KuraUnavailableDeviceException e1) {
 				// TODO Auto-generated catch block
+    			s_logger.info("______________________________"+e1.getMessage());
 				e1.printStackTrace();
 			} catch (KuraClosedDeviceException e1) {
 				// TODO Auto-generated catch block
+				s_logger.info("______________________________"+e1.getMessage());
 				e1.printStackTrace();
 			} catch (IOException e1) {
 				// TODO Auto-generated catch block
+				s_logger.info("______________________________"+e1.getMessage());
 				e1.printStackTrace();
 			} catch (KuraGPIODeviceException e1) {
 				// TODO Auto-generated catch block
+				s_logger.info("______________________________"+e1.getMessage());
 				e1.printStackTrace();
 			}
     	}
