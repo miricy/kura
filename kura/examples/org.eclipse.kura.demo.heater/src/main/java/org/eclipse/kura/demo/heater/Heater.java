@@ -241,6 +241,7 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
         // TODO Auto-generated method stub
 
     	s_logger.info("onControlMessageArrived... Done. deviceId:"+deviceId+" appTopic:"+appTopic);
+    	String[] topics=appTopic.split("/");
     	String gpioName = (String)msg.getMetric("gpio");
     	if(gpioName != null && !gpioName.isEmpty())
     	{
