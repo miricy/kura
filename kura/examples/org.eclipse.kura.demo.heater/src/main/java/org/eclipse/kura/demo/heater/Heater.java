@@ -245,7 +245,8 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
     	String gpioName = (String)msg.getMetric("gpio");
     	if(gpioName != null && !gpioName.isEmpty())
     	{
-    		s_logger.info("onControlMessageArrived... Done. gpioName:"+gpioName);
+    		s_logger.info("onControlMessageArrived... Done. gpioName:"+gpioName);  		
+    		
     		try {
     		KuraGPIOPin kuraPin = this.gpioService.getPinByName(gpioName);
     		if(kuraPin == null) {
@@ -263,7 +264,7 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
 			}else{
 				 kuraPin.setValue(value);				 
 			}
-            s_logger.info("______________________________"+kuraPin.getValue()+
+            s_logger.info("______________________________"+ value +
 					" getDirection:"+direction+" getMode:" + kuraPin.getMode().name());
     		} catch (KuraUnavailableDeviceException e1) {
 				// TODO Auto-generated catch block
@@ -282,6 +283,20 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
 				s_logger.info("______________________________"+e1.getMessage());
 				e1.printStackTrace();
 			}
+    	}else if("temhum".equalsIgnoreCase((String)msg.getMetric("func")))
+    	{
+    			s_logger.info("onControlMessageArrived... Done. temhum:");
+    			new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						getTempHumi(gpioName);
+					}
+    				
+    			}).start();
+    			
+    			return;
     	}
 
     }
@@ -620,4 +635,78 @@ public class Heater implements ConfigurableComponent, CloudClientListener {
         this.gpioServiceTracker = new ServiceTracker<>(this.bundleContext, filter, this.gpioServiceTrackerCustomizer);
         this.gpioServiceTracker.open();
     }
+    
+   private String getTempHumi(String gpioName) {
+	   String result="";
+	   try {
+		KuraGPIOPin kuraPin = this.gpioService.getPinByName(gpioName, KuraGPIODirection.OUTPUT, KuraGPIOMode.OUTPUT_PUSH_PULL,
+		            KuraGPIOTrigger.NONE);
+		  if(!kuraPin.isOpen()) kuraPin.open();
+//		   kuraPin.setValue(true);
+		   kuraPin.setValue(false);
+		   Thread.sleep(20);
+		   kuraPin.setValue(true);
+		   
+		   KuraGPIOPin kuraPin1 = this.gpioService.getPinByName(gpioName, KuraGPIODirection.INPUT, KuraGPIOMode.INPUT_PULL_DOWN,
+		            KuraGPIOTrigger.NONE);
+		   if(kuraPin1==null) { s_logger.error("kuraPin1 is null");return "";}
+		   if(!kuraPin1.isOpen()) kuraPin1.open();
+		   s_logger.info("kuraPin1 is opened, direct:" + kuraPin1.getDirection().name());
+		   while(!kuraPin1.getValue()) {
+			   continue;
+		   }
+		   s_logger.info("kuraPin1 is 1");
+		   while(kuraPin1.getValue()) {
+			   continue;
+		   }
+		   s_logger.info("kuraPin1 is 0");
+		   int j=0;
+		   while(j<40) {
+			   int k=0;
+			   while(!kuraPin1.getValue()) {
+				   continue;
+			   }
+			   while(kuraPin1.getValue()) {
+				   k +=1;
+				   if(k>100) break;
+				   if(k<8) {
+					   result = result + "0";
+				   }else {
+					   result = result + "1";
+				   }
+			   }
+			   j +=1;
+		   }
+	} catch (KuraUnavailableDeviceException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		s_logger.error(" KuraUnavailableDeviceException exception ", e);
+	} catch (KuraClosedDeviceException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		s_logger.error("KuraClosedDeviceException exception ", e);
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		s_logger.error("IOException exception ", e);
+	} catch (InterruptedException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		s_logger.error("InterruptedException exception ", e);
+	} catch (KuraGPIODeviceException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+		s_logger.error("KuraGPIODeviceException exception ", e);
+	}
+	   s_logger.debug("sensor is working."); 
+	   s_logger.debug(result); 
+	    
+	   String humidity_bit = result.substring(0, 8);
+	   String humidity_point_bit =result.substring(8, 16);
+	   String temperature_bit = result.substring(16, 24);
+	   String temperature_point_bit = result.substring(24, 32);
+	   String check_bit = result.substring(32, 40);
+	   return result;
+   }
+
 }
