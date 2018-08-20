@@ -44,7 +44,6 @@
         <module>org.eclipse.kura.core.configuration</module>
         <module>org.eclipse.kura.core.crypto</module>
         <module>org.eclipse.kura.core.deployment</module>
-        <module>org.eclipse.kura.core.log</module>
         <module>org.eclipse.kura.core.net</module>
         <module>org.eclipse.kura.core.status</module>
         <module>org.eclipse.kura.deployment.agent</module>
@@ -114,7 +113,7 @@
         <kura.build.version>${maven.build.timestamp}</kura.build.version>
 
         <!-- Jacoco version -->
-        <jacoco.version>0.7.4.201502262128</jacoco.version>
+        <jacoco.version>0.8.1</jacoco.version>
         <jacoco.reportDir>target/jacoco/</jacoco.reportDir>
         <sonar.core.codeCoveragePlugin>jacoco</sonar.core.codeCoveragePlugin>
         <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
