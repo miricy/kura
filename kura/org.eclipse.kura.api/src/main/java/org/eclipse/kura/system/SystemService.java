@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -11,15 +11,8 @@
  *******************************************************************************/
 package org.eclipse.kura.system;
 
-import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Properties;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 
 import org.osgi.annotation.versioning.ProviderType;
 import org.osgi.framework.Bundle;
@@ -27,7 +20,7 @@ import org.osgi.framework.Bundle;
 /**
  * Service to provide basic system information including Operating System
  * information, JVM information and filesystem information.
- * 
+ *
  * @noimplement This interface is not intended to be implemented by clients.
  */
 @ProviderType
@@ -45,6 +38,11 @@ public interface SystemService {
 
     public static final String KEY_KURA_NAME = "kura.name";
     public static final String KEY_KURA_VERSION = "kura.version";
+    /**
+     * since 1.4
+     */
+    public static final String KEY_KURA_FRAMEWORK_CONFIG_DIR = "kura.framework.config";
+    public static final String KEY_KURA_USER_CONFIG_DIR = "kura.user.config";
     /**
      * @since 1.3
      */
@@ -319,13 +317,29 @@ public interface SystemService {
     public String getKuraVersion();
 
     /**
+     * Gets the location where Kura stores the framework configuration files in the filesystem.
+     *
+     * @since 1.4
+     * @return The framework configuration files directory.
+     */
+    public String getKuraFrameworkConfigDirectory();
+
+    /**
+     * Gets the location where Kura stores the user configuration files in the filesystem.
+     *
+     * @since 1.4
+     * @return The user configuration files directory.
+     */
+    public String getKuraUserConfigDirectory();
+
+    /**
      * Gets the Eclipse Marketplace compatibility product version for this unit.
      *
      * The marketplace compatibility product version is defined in the {@code kura.marketplace.compatibility.version}
      * property of the kura.properties file located in the ${BASE_DIR}/${KURA_SYMLINK}/kura directory.
      * If the variable {@code kura.marketplace.compatibility.version} cannot be located, it defaults to the value
      * specified by {@link #getKuraVersion()}.
-     * 
+     *
      * @since 1.3
      * @return The marketplace compatibility Kura version string.
      */
@@ -462,5 +476,13 @@ public interface SystemService {
      * @return
      */
     public List<String> getDeviceManagementServiceIgnore();
+
+    /**
+     * Returns the device hostname
+     * 
+     * @return a String that represents the device hostname
+     * @since 2.0
+     */
+    public String getHostname();
 
 }

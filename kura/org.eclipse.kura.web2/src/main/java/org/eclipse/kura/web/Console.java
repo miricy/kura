@@ -21,7 +21,7 @@ import org.eclipse.kura.crypto.CryptoService;
 import org.eclipse.kura.system.SystemService;
 import org.eclipse.kura.web.server.GwtAssetServiceImpl;
 import org.eclipse.kura.web.server.GwtCertificatesServiceImpl;
-import org.eclipse.kura.web.server.GwtCloudServiceImpl;
+import org.eclipse.kura.web.server.GwtCloudConnectionServiceImpl;
 import org.eclipse.kura.web.server.GwtComponentServiceImpl;
 import org.eclipse.kura.web.server.GwtDeviceServiceImpl;
 import org.eclipse.kura.web.server.GwtEventServiceImpl;
@@ -36,7 +36,7 @@ import org.eclipse.kura.web.server.GwtStatusServiceImpl;
 import org.eclipse.kura.web.server.GwtWireServiceImpl;
 import org.eclipse.kura.web.server.servlet.ChannelServlet;
 import org.eclipse.kura.web.server.servlet.DeviceSnapshotsServlet;
-import org.eclipse.kura.web.server.servlet.EventHandlerServlet;
+import org.eclipse.kura.web.server.servlet.WiresBlinkServlet;
 import org.eclipse.kura.web.server.servlet.FileServlet;
 import org.eclipse.kura.web.server.servlet.SkinServlet;
 import org.eclipse.kura.web.server.servlet.WiresSnapshotServlet;
@@ -289,11 +289,12 @@ public class Console implements ConfigurableComponent {
         this.m_httpService.registerServlet(servletRoot + "/assetsUpDownload", new ChannelServlet(), null, httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/skin", new SkinServlet(), null, httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/ssl", new GwtSslServiceImpl(), null, httpCtx);
-        this.m_httpService.registerServlet(servletRoot + "/cloudservices", new GwtCloudServiceImpl(), null, httpCtx);
+        this.m_httpService.registerServlet(servletRoot + "/cloudservices", new GwtCloudConnectionServiceImpl(), null,
+                httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/wires", new GwtWireServiceImpl(), null, httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/wiresSnapshot", new WiresSnapshotServlet(), null, httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/assetservices", new GwtAssetServiceImpl(), null, httpCtx);
-        this.m_httpService.registerServlet("/sse", new EventHandlerServlet(), null, httpCtx);
+        this.m_httpService.registerServlet("/sse", new WiresBlinkServlet(), null, httpCtx);
         this.m_httpService.registerServlet(servletRoot + "/event", this.eventService, null, httpCtx);
         this.eventService.start();
     }

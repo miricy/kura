@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -8,6 +8,7 @@
  *******************************************************************************/
 package org.eclipse.kura.example.beacon.scanner;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,12 +17,11 @@ import org.eclipse.kura.bluetooth.BluetoothAdapter;
 import org.eclipse.kura.bluetooth.BluetoothBeaconData;
 import org.eclipse.kura.bluetooth.BluetoothBeaconScanListener;
 import org.eclipse.kura.bluetooth.BluetoothService;
-import org.eclipse.kura.cloud.CloudClient;
-import org.eclipse.kura.cloud.CloudService;
+import org.eclipse.kura.cloudconnection.message.KuraMessage;
+import org.eclipse.kura.cloudconnection.publisher.CloudPublisher;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.message.KuraPayload;
 import org.osgi.service.component.ComponentContext;
-import org.osgi.service.component.ComponentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,14 +30,12 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
     private static final Logger logger = LoggerFactory.getLogger(BeaconScannerExample.class);
 
     private static final String PROPERTY_ENABLE = "enableScanning";
-    private static final String PROPERTY_TOPIC_PREFIX = "topicPrefix";
     private static final String PROPERTY_INAME = "iname";
     private static final String PROPERTY_RATE_LIMIT = "rate_limit";
     private static final String PROPERTY_COMPANY_CODE = "companyCode";
 
     // Configurable State
     private String adapterName;		// eg. hci0
-    private String topicPrefix;		// eg. beacons
     private int rateLimit;			// eg. 5000ms
     private String companyCode;
     private Boolean enableScanning;
@@ -45,9 +43,9 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
     // Internal State
     private BluetoothService bluetoothService;
     private BluetoothAdapter bluetoothAdapter;
-    private CloudService cloudService;
-    private CloudClient cloudClient;
     private Map<String, Long> publishTimes;
+
+    private CloudPublisher cloudPublisher;
 
     // Services
     public void setBluetoothService(BluetoothService bluetoothService) {
@@ -58,23 +56,16 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
         this.bluetoothService = null;
     }
 
-    public void setCloudService(CloudService cloudService) {
-        this.cloudService = cloudService;
+    public void setCloudPublisher(CloudPublisher cloudPublisher) {
+        this.cloudPublisher = cloudPublisher;
     }
 
-    public void unsetCloudService(CloudService cloudService) {
-        this.cloudService = null;
+    public void unsetCloudPublisher(CloudPublisher cloudPublisher) {
+        this.cloudPublisher = null;
     }
 
     protected void activate(ComponentContext context, Map<String, Object> properties) {
         logger.info("Activating Bluetooth Beacon Scanner example...");
-
-        try {
-            this.cloudClient = this.cloudService.newCloudClient("BeaconScannerExample");
-        } catch (Exception e) {
-            logger.error("Unable to get CloudClient", e);
-            throw new ComponentException(e);
-        }
 
         this.enableScanning = false;
         updated(properties);
@@ -89,8 +80,6 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
 
         releaseResources();
         this.enableScanning = false;
-
-        this.cloudClient.release();
 
         logger.debug("Deactivating Beacon Scanner Example... Done.");
     }
@@ -107,8 +96,6 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
 
                 if (key.equals(PROPERTY_INAME)) {
                     this.adapterName = (String) value;
-                } else if (key.equals(PROPERTY_TOPIC_PREFIX)) {
-                    this.topicPrefix = (String) value;
                 } else if (key.equals(PROPERTY_RATE_LIMIT)) {
                     this.rateLimit = (Integer) value;
                 } else if (key.equals(PROPERTY_COMPANY_CODE)) {
@@ -155,15 +142,6 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
         double ratioLinear = Math.pow(10, (double) ratioDB / 10);
         distance = Math.sqrt(ratioLinear);
 
-        // See http://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing/20434019#20434019
-        // double ratio = rssi*1.0/txpower;
-        // if (ratio < 1.0) {
-        // distance = Math.pow(ratio,10);
-        // }
-        // else {
-        // distance = (0.89976)*Math.pow(ratio,7.7095) + 0.111;
-        // }
-
         return distance;
     }
 
@@ -180,17 +158,28 @@ public class BeaconScannerExample implements ConfigurableComponent, BluetoothBea
 
             // Store the publish time against the address
             this.publishTimes.put(beaconData.address, now);
+            
+            if (this.cloudPublisher == null) {
+                logger.info("No cloud publisher selected. Cannot publish!");
+                return;
+            }
 
             // Publish the beacon data to the beacon's topic
             KuraPayload kp = new KuraPayload();
+            kp.setTimestamp(new Date());
             kp.addMetric("uuid", beaconData.uuid);
             kp.addMetric("txpower", beaconData.txpower);
             kp.addMetric("rssi", beaconData.rssi);
             kp.addMetric("major", beaconData.major);
             kp.addMetric("minor", beaconData.minor);
             kp.addMetric("distance", calculateDistance(beaconData.rssi, beaconData.txpower));
+
+            Map<String, Object> properties = new HashMap<String, Object>();
+            properties.put("address", beaconData.address);
+            
+            KuraMessage message = new KuraMessage(kp, properties);
             try {
-                this.cloudClient.publish(this.topicPrefix + "/" + beaconData.address, kp, 0, false);
+                this.cloudPublisher.publish(message);
             } catch (KuraException e) {
                 logger.error("Unable to publish", e);
             }
