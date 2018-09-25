@@ -10,9 +10,11 @@
 package org.eclipse.kura.core.cloud.publisher;
 
 import static java.util.Objects.isNull;
+import static org.eclipse.kura.core.message.MessageConstants.CONTROL;
 import static org.eclipse.kura.core.message.MessageConstants.PRIORITY;
 import static org.eclipse.kura.core.message.MessageConstants.QOS;
 import static org.eclipse.kura.core.message.MessageConstants.RETAIN;
+import static org.eclipse.kura.core.message.MessageConstants.FULL_TOPIC;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,18 +56,6 @@ public class NotificationPublisherImpl implements CloudNotificationPublisher {
         this.cloudServiceImpl = cloudServiceImpl;
     }
 
-    protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
-        logger.debug("Activating Cloud Notification Publisher...");
-
-        logger.debug("Activating Cloud Notification Publisher... Done");
-    }
-
-    protected void deactivate(ComponentContext componentContext) {
-        logger.debug("Deactivating Cloud Notification Publisher...");
-
-        logger.debug("Deactivating Cloud Notification Publisher... Done");
-    }
-
     @Override
     public void registerCloudConnectionListener(CloudConnectionListener cloudConnectionListener) {
         // Not needed
@@ -101,10 +91,11 @@ public class NotificationPublisherImpl implements CloudNotificationPublisher {
         String fullTopic = encodeFullTopic(message);
 
         Map<String, Object> publishMessageProps = new HashMap<>();
-        publishMessageProps.put("fullTopic", fullTopic);
+        publishMessageProps.put(FULL_TOPIC.name(), fullTopic);
         publishMessageProps.put(QOS.name(), DFLT_PUB_QOS);
         publishMessageProps.put(RETAIN.name(), DFLT_RETAIN);
         publishMessageProps.put(PRIORITY.name(), DFLT_PRIORITY);
+        publishMessageProps.put(CONTROL.name(), true);
 
         KuraMessage publishMessage = new KuraMessage(message.getPayload(), publishMessageProps);
 

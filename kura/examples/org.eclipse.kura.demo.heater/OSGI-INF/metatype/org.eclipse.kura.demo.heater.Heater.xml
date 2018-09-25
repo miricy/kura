@@ -19,6 +19,15 @@
         
         <Icon resource="OSGI-INF/heater.png" size="32"/>
 
+        <AD id="CloudPublisher.target"
+            name="CloudPublisher Target Filter"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="(kura.service.pid=changeme)"
+            description="Specifies, as an OSGi target filter, the pid of the Cloud Publisher used to publish messages to the cloud platform.">
+        </AD>
+        
         <AD id="mode"  
             name="mode"
             type="String"
