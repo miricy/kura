@@ -81,7 +81,7 @@ public class CanSocketExample implements ConfigurableComponent {
             final String interfaceName = (String) properties.getOrDefault(CAN_INTERFACE_NAME_PROP_NAME,
                     CAN_INTERFACE_DEFAULT);
             final int canId = (Integer) properties.getOrDefault(CAN_IDENTIFIER_PROP_NAME, CAN_IDENTIFIER_DEFAULT);
-            startSenderThread(interfaceName, canId, 0);
+            startSenderThread(interfaceName, canId, 1);
         } else {
             startReceiverThread();
         }
@@ -94,14 +94,14 @@ public class CanSocketExample implements ConfigurableComponent {
             while (!Thread.interrupted()) {
                 int id = 0x500 + (canId << 4) + dest;
                 StringBuilder sb = new StringBuilder("Try to send can frame with message = ");
-                byte btest[] = new byte[8];
-                for (int i = 0; i < 8; i++) {
-                    btest[i] = (byte) (this.index + i);
-                    sb.append(btest[i]);
-                    sb.append(" ");
-                }
-                sb.append(" and id = ");
-                sb.append(id);
+                byte btest[] = new byte[]{0xf,0x01,0x01,0xf,0xf,0,0,0};
+//                for (int i = 0; i < 8; i++) {
+//                    btest[i] = (byte) (this.index + i);
+//                    sb.append(btest[i]);
+//                    sb.append(" ");
+//                }
+//                sb.append(" and id = ");
+//                sb.append(id);
                 logger.info(sb.toString());
 
                 try {
@@ -115,7 +115,7 @@ public class CanSocketExample implements ConfigurableComponent {
                     this.index = 0;
                 }
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     return;
                 }
