@@ -59,6 +59,7 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     private Map<String, Object> properties;
 
     private CloudPublisher cloudPublisher;
+    private CloudPublisher cloudPublisher1;
     private CloudSubscriber cloudSubscriber;
 
     // ----------------------------------------------------------------
@@ -78,6 +79,14 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
 
     public void unsetCloudPublisher(CloudPublisher cloudPublisher) {
         this.cloudPublisher = null;
+    }
+    
+    public void setCloudPublisher1(CloudPublisher cloudPublisher) {
+        this.cloudPublisher1 = cloudPublisher;
+    }
+
+    public void unsetCloudPublisher1(CloudPublisher cloudPublisher) {
+        this.cloudPublisher1 = null;
     }
     
     public void setCloudSubscriber(CloudSubscriber cloudSubscriber) {
@@ -266,7 +275,23 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
             try {
                 int c = -1;
                 StringBuilder sb = new StringBuilder();
+                logger.info("------------doSerial0");
+                // Allocate a new payload
+                KuraPayload payload1 = new KuraPayload();
 
+                // Timestamp the message
+                payload1.setTimestamp(new Date());
+
+                payload1.addMetric("line", "-------alva---------------test msg");
+
+                KuraMessage message1 = new KuraMessage(payload1);
+                try {
+                    this.cloudPublisher.publish(message1);
+                    this.cloudPublisher1.publish(message1);
+                    logger.info("Published message: {}", payload1);
+                } catch (Exception e) {
+                    logger.error("Cannot publish message: {}",message1,  e);
+                }
                 while (this.commIs != null) {
 
                     if (this.commIs.available() != 0) {
@@ -286,7 +311,7 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
 
                     // on reception of CR, publish the received sentence
                     if (c == 13) {
-                        
+                    	logger.info("------------doSerial1");
                         if (this.cloudPublisher == null) {
                             logger.info("No cloud publisher selected. Cannot publish!");
                             continue;
@@ -303,6 +328,7 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
                         KuraMessage message = new KuraMessage(payload);
                         // Publish the message
                         try {
+                            this.cloudPublisher1.publish(message);
                             this.cloudPublisher.publish(message);
                             logger.info("Published message: {}", payload);
                         } catch (Exception e) {
@@ -332,6 +358,13 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     @Override
     public void onMessageArrived(KuraMessage message) {
         // TODO Auto-generated method stub
-        
+    	logger.info("onMessageArrived message: {}----body: {}", message.getPayload().getMetric("line"), message.getPayload().getBody());
+    	if (this.commOs != null) {
+    		 try {
+    			 this.commOs.write(message.getPayload().getBody());
+    		 } catch (IOException e) {
+                 logger.error("Cannot read port", e);
+             } 
+    	}
     }
 }
