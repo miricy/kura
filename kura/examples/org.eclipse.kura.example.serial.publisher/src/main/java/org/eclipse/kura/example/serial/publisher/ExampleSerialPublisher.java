@@ -361,7 +361,9 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     	logger.info("onMessageArrived message: {}----body: {}", message.getPayload().getMetric("line"), message.getPayload().getBody());
     	if (this.commOs != null) {
     		 try {
-    			 this.commOs.write(message.getPayload().getBody());
+    			 byte[] size = new byte[] {0x59,0x4b,0x07,0x05,0x01,0x01,0x02,0x02,0x00,(byte)0xfb};
+    			 this.commOs.write(size);
+    			 logger.info("onMessageArrived serial data: {}",size);
     		 } catch (IOException e) {
                  logger.error("Cannot read port", e);
              } 
