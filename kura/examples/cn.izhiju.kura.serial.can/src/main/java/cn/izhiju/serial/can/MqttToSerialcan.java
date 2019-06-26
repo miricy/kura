@@ -9,7 +9,7 @@
  * Contributors:
  *     Eurotech
  *******************************************************************************/
-package org.eclipse.kura.example.serial.publisher;
+package cn.izhiju.serial.can;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,9 +36,9 @@ import org.osgi.service.io.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubscriberListener {
+public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(ExampleSerialPublisher.class);
+    private static final Logger logger = LoggerFactory.getLogger(MqttToSerialcan.class);
 
     private static final String SERIAL_DEVICE_PROP_NAME = "serial.device";
     private static final String SERIAL_BAUDRATE_PROP_NAME = "serial.baudrate";
@@ -69,7 +69,7 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     //
     // ----------------------------------------------------------------
 
-    public ExampleSerialPublisher() {
+    public MqttToSerialcan() {
         super();
         this.worker = Executors.newSingleThreadScheduledExecutor();
     }
@@ -92,11 +92,11 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     
     public void setCloudSubscriber(CloudSubscriber cloudSubscriber) {
         this.cloudSubscriber = cloudSubscriber;
-        this.cloudSubscriber.registerCloudSubscriberListener(ExampleSerialPublisher.this);
+        this.cloudSubscriber.registerCloudSubscriberListener(MqttToSerialcan.this);
     }
 
     public void unsetCloudSubscriber(CloudSubscriber cloudSubscriber) {
-        this.cloudSubscriber.unregisterCloudSubscriberListener(ExampleSerialPublisher.this);
+        this.cloudSubscriber.unregisterCloudSubscriberListener(MqttToSerialcan.this);
         this.cloudSubscriber = null;
     }
 
