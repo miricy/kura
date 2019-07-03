@@ -35,10 +35,10 @@
            unbind="unsetCloudPublisher"
            cardinality="0..1"
            interface="org.eclipse.kura.cloudconnection.publisher.CloudPublisher"/>
-   <reference name="CloudPublisher1"
+   <reference name="CloudPublisherLan"
            policy="dynamic"
-           bind="setCloudPublisher1"
-           unbind="unsetCloudPublisher1"
+           bind="setCloudPublisherLan"
+           unbind="unsetCloudPublisherLan"
            cardinality="0..1"
            interface="org.eclipse.kura.cloudconnection.publisher.CloudPublisher"/>
            
@@ -46,6 +46,12 @@
            policy="dynamic"
            bind="setCloudSubscriber"
            unbind="unsetCloudSubscriber"
+           cardinality="0..1"
+           interface="org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber"/>
+   <reference name="CloudSubscriberLan"
+           policy="dynamic"
+           bind="setCloudSubscriberLan"
+           unbind="unsetCloudSubscriberLan"
            cardinality="0..1"
            interface="org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber"/>
    <reference bind="setConnectionFactory" cardinality="1..1" interface="org.osgi.service.io.ConnectionFactory" name="ConnectionFactory" policy="static" unbind="unsetConnectionFactory"/>

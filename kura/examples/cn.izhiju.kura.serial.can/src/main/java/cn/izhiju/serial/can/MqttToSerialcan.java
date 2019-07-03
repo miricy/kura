@@ -60,8 +60,9 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
     private Map<String, Object> properties;
 
     private CloudPublisher cloudPublisher;
-    private CloudPublisher cloudPublisher1;
+    private CloudPublisher cloudPublisherLan;
     private CloudSubscriber cloudSubscriber;
+    private CloudSubscriber cloudSubscriberLan;
 
     // ----------------------------------------------------------------
     //
@@ -82,12 +83,12 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
         this.cloudPublisher = null;
     }
     
-    public void setCloudPublisher1(CloudPublisher cloudPublisher) {
-        this.cloudPublisher1 = cloudPublisher;
+    public void setCloudPublisherLan(CloudPublisher cloudPublisher) {
+        this.cloudPublisherLan = cloudPublisher;
     }
 
-    public void unsetCloudPublisher1(CloudPublisher cloudPublisher) {
-        this.cloudPublisher1 = null;
+    public void unsetCloudPublisherLan(CloudPublisher cloudPublisher) {
+        this.cloudPublisherLan = null;
     }
     
     public void setCloudSubscriber(CloudSubscriber cloudSubscriber) {
@@ -98,6 +99,16 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
     public void unsetCloudSubscriber(CloudSubscriber cloudSubscriber) {
         this.cloudSubscriber.unregisterCloudSubscriberListener(MqttToSerialcan.this);
         this.cloudSubscriber = null;
+    }
+    
+    public void setCloudSubscriberLan(CloudSubscriber cloudSubscriber) {
+        this.cloudSubscriberLan = cloudSubscriber;
+        this.cloudSubscriberLan.registerCloudSubscriberListener(MqttToSerialcan.this);
+    }
+
+    public void unsetCloudSubscriberLan(CloudSubscriber cloudSubscriber) {
+        this.cloudSubscriberLan.unregisterCloudSubscriberListener(MqttToSerialcan.this);
+        this.cloudSubscriberLan = null;
     }
 
     public void setConnectionFactory(ConnectionFactory connectionFactory) {
@@ -300,11 +311,6 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                     if (c == 10) {
                     	c=-1;
                     	logger.info("------------doSerial1");
-                        if (this.cloudPublisher == null) {
-                            logger.info("No cloud publisher selected. Cannot publish!");
-                            continue;
-                        }
-
                         // Allocate a new payload
                         KuraPayload payload = new KuraPayload();
 
@@ -315,11 +321,14 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                         KuraMessage message = new KuraMessage(payload);
                         // Publish the message
                         try {
-//                            if(this.cloudPublisher1!=null ) {
-//                            	this.cloudPublisher1.publish(message);
-//                            }
-                            this.cloudPublisher.publish(message);
-                            logger.info("Published message: {}", payload);
+                            if(this.cloudPublisherLan!=null ) {
+                            	this.cloudPublisherLan.publish(message);
+                            	logger.info("Published message by lan");
+                            }
+                        	if(this.cloudPublisher!=null) {
+                               this.cloudPublisher.publish(message);
+                               logger.info("Published message: {}", payload);
+                        	}
                         } catch (Exception e) {
                             logger.error("Cannot publish message: {}",message,  e);
                         }

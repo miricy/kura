@@ -24,16 +24,7 @@
             type="String"
             cardinality="0"
             required="true"
-            default="(kura.service.pid=changeme)"
-            description="Specifies, as an OSGi target filter, the pid of the Cloud Publisher used to publish messages to the cloud platform.">
-        </AD>
-        
-        <AD id="CloudPublisher1.target"
-            name="CloudPublisher1 Target Filter"
-            type="String"
-            cardinality="0"
-            required="true"
-            default="(kura.service.pid=changeme)"
+            default="(kura.service.pid=org.eclipse.kura.cloud.publisher.CloudPublisher-wan-stocan)"
             description="Specifies, as an OSGi target filter, the pid of the Cloud Publisher used to publish messages to the cloud platform.">
         </AD>
         
@@ -42,7 +33,25 @@
             type="String"
             cardinality="0"
             required="true"
-            default="(kura.service.pid=changeme)"
+            default="(kura.service.pid=org.eclipse.kura.cloud.subcriber.CloudSubscriber-wan-stocan)"
+            description="Specifies, as an OSGi target filter, the pid of the Cloud Subscriber used to receive messages from the cloud platform.">
+        </AD>
+        
+        <AD id="CloudPublisherLan.target"
+            name="CloudPublisherLan Target Filter"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="(kura.service.pid=org.eclipse.kura.cloud.publisher.CloudPublisher-lan-stocan)"
+            description="Specifies, as an OSGi target filter, the pid of the Cloud Publisher used to publish messages to the cloud platform.">
+        </AD>
+        
+        <AD id="CloudSubscriberLan.target"
+            name="CloudSubscriberLan Target Filter"
+            type="String"
+            cardinality="0"
+            required="true"
+            default="(kura.service.pid=org.eclipse.kura.cloud.subcriber.CloudSubscriber-lan-stocan)"
             description="Specifies, as an OSGi target filter, the pid of the Cloud Subscriber used to receive messages from the cloud platform.">
         </AD>
   
