@@ -51,6 +51,7 @@
             type="String"
             cardinality="0"
             required="false"
+            default="/dev/ttyS2"
             description="Name of the serial device (e.g. /dev/ttyS0, /dev/ttyACM0, /dev/ttyUSB0)."/>  
 
         <AD id="serial.baudrate"  

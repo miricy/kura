@@ -25,7 +25,7 @@
             type="String"
             cardinality="0" 
             required="true"
-            default="mqtt://broker-url:1883/" 
+            default="mqtt://www.izhiju.cn:1883/" 
             description="URL of the mqtt broker to connect to. Everyware Cloud: mqtt://broker-sandbox.everyware-cloud.com:1883/, mqtts://broker-sandbox.everyware-cloud.com:8883/, ws://broker-sandbox.everyware-cloud.com:8080/ or wss://broker-sandbox.everyware-cloud.com:443/. Eclipse IoT: mqtt://iot.eclipse.org:1883/, mqtts://iot.eclipse.org:8883/, ws://iot.eclipse.org:80/ws or wss://iot.eclipse.org:443/ws."/>
 
         <AD id="topic.context.account-name"
@@ -33,7 +33,7 @@
             type="String"
             cardinality="0"
             required="false"
-            default="account-name"
+            default="yeker"
             description="The value of this attribute will replace the '#account-name' token found in publishing topics. For connections to remote management servers, this is generally the name of the server side account."/>
 
         <AD id="username"  
@@ -41,7 +41,7 @@
             type="String"
             cardinality="0"
             required="false"
-            default="username" 
+            default="iottest" 
             description="Username to be used when connecting to the MQTT broker."/>
 
         <AD id="password"  
@@ -49,7 +49,7 @@
             type="Password"
             cardinality="0" 
             required="false"
-            default="password" 
+            default="Iottest8@h2018" 
             description="Password to be used when connecting to the MQTT broker."/>
 
         <AD id="client-id"
