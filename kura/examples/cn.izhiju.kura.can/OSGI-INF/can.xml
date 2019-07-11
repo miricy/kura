@@ -1,31 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
- *******************************************************************************
- * Copyright (c) 2019 Zhiju and/or its affiliates
- *
- *@author alva.huang
- *
- *******************************************************************************
+    Copyright (c) 2017 Eurotech and/or its affiliates and others
+
+     All rights reserved. This program and the accompanying materials
+     are made available under the terms of the Eclipse Public License v1.0
+     which accompanies this distribution, and is available at
+     http://www.eclipse.org/legal/epl-v10.html
 
 -->
-<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.2.0"
-    name="cn.izhiju.serial.can.MqttToSerialcan"
-    activate="activate"
-    deactivate="deactivate"
-    modified="updated"
-    enabled="true"
-    immediate="true"
-    configuration-policy="require">
-	<implementation class="cn.izhiju.serial.can.MqttToSerialcan"/>
-
-   <!-- If the component is configurable through the Kura ConfigurationService, it must expose a Service. -->
-   <property name="service.pid" type="String" value="cn.izhiju.serial.can.MqttToSerialcan"/>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" activate="activate" configuration-policy="require" deactivate="deactivate" enabled="true" immediate="true" modified="updated" name="cn.izhiju.kura.can.CanSocketGate">
+   <implementation class="cn.izhiju.kura.can.CanSocketGate"/>
    <service>
-       <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>
+      <provide interface="org.eclipse.kura.configuration.ConfigurableComponent"/>
    </service>
+   <property name="service.pid" value="cn.izhiju.kura.can.CanSocketGate"/>
 
-   <reference name="CloudPublisher"
+  <reference name="CloudPublisher"
            policy="dynamic"
            bind="setCloudPublisher"
            unbind="unsetCloudPublisher"
@@ -50,5 +41,11 @@
            unbind="unsetCloudSubscriberLan"
            cardinality="0..1"
            interface="org.eclipse.kura.cloudconnection.subscriber.CloudSubscriber"/>
-   <reference bind="setConnectionFactory" cardinality="1..1" interface="org.osgi.service.io.ConnectionFactory" name="ConnectionFactory" policy="static" unbind="unsetConnectionFactory"/>
+           
+   <reference name="CanConnectionService"
+              bind="setCanConnectionService"
+              unbind="unsetCanConnectionService"
+              cardinality="1..1"
+              policy="static"
+              interface="org.eclipse.kura.protocol.can.CanConnectionService"/>
 </scr:component>
