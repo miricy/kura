@@ -43,6 +43,8 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
 
     private byte index = 0;
     private Thread worker;
+    private String interfaceName = "can0";
+    private int canId = 0;
 
     public void setCanConnectionService(CanConnectionService canConnection) {
         this.canConnection = canConnection;
@@ -120,9 +122,9 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
 
         cancelCurrentTask();
 
-		final String interfaceName = (String) properties.getOrDefault(CAN_INTERFACE_NAME_PROP_NAME,
+		interfaceName = (String) properties.getOrDefault(CAN_INTERFACE_NAME_PROP_NAME,
 				CAN_INTERFACE_DEFAULT);
-		final int canId = (Integer) properties.getOrDefault(CAN_IDENTIFIER_PROP_NAME, CAN_IDENTIFIER_DEFAULT);
+		canId = (Integer) properties.getOrDefault(CAN_IDENTIFIER_PROP_NAME, CAN_IDENTIFIER_DEFAULT);
 //		startSenderThread(interfaceName, canId, 1);
 
 		startReceiverThread();
@@ -222,15 +224,23 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     @Override
     public void onMessageArrived(KuraMessage message) {
         // TODO Auto-generated method stub
-    	logger.info("onMessageArrived message---body: {}",  message.getPayload().getBody());
+    	logger.info("For can ---onMessageArrived message---body: {}",  message.getPayload().getBody());
 
 		try {
-			byte[] size = new byte[] { 0x59, 0x4b, 0x07, 0x05, 0x01, 0x01, 0x02, 0x02, 0x00, (byte) 0xfb };
-			logger.info("onMessageArrived message my----body: {}", Base64.getEncoder().encodeToString(size));
-			if (message.getPayload().getBody() != null) {
-//				this.canConnection.sendCanMessage(interfaceName, id, message.getPayload().getBody());
+			byte[] sizeData = message.getPayload().getBody();//new byte[] {  0x05, 0x01, 0x01, 0x02, 0x02, 0x00, (byte) 0xfb };
+			byte[] sendData = new byte[8];
+			
+			logger.info("For can ---onMessageArrived message my----body: {}", Base64.getEncoder().encodeToString(sizeData));
+			if (sizeData != null) {
+				if(sizeData.length>8) {
+				System.arraycopy(sizeData, 3, sendData, 0, sizeData.length-3);
+				this.canConnection.sendCanMessage(interfaceName, sizeData[4]+256, sendData);
+				}
+				else{
+					this.canConnection.sendCanMessage(interfaceName, sizeData[4]+256, sizeData);
+				}
 			}
-			logger.info("onMessageArrived can data: {}", size);
+			logger.info("onMessageArrived can data: {}", sizeData);
 		} catch (Exception e) {
 			logger.error("Cannot read port", e);
 		}
