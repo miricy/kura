@@ -312,8 +312,14 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                         // Timestamp the message
                         payload.setTimestamp(new Date());
                         payload.setBody(body);
+                        Map<String,Object> hmap = new HashMap<String,Object>();
+                        if(body[5]==255) {
+                        	hmap.put("address", "broadcast");
+                        }else {
+                        	hmap.put("address", Integer.toHexString(0x00ff&body[5]));
+                        }
+                        KuraMessage message = new KuraMessage(payload,hmap);
 
-                        KuraMessage message = new KuraMessage(payload);
                         // Publish the message
                         try {
                             if(this.cloudPublisherLan!=null ) {
@@ -347,15 +353,17 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
     @Override
     public void onMessageArrived(KuraMessage message) {
         // TODO Auto-generated method stub
-    	logger.info("onMessageArrived message---body: {}",  message.getPayload().getBody());
+    	logger.info("onMessageArrived message address {} ---body: {}",message.getProperties().get("address"),  message.getPayload().getBody());
     	if (this.commOs != null) {
     		 try {
     			 byte[] size = new byte[] {0x59,0x4b,0x07,0x05,0x01,0x01,0x02,0x02,0x00,(byte)0xfb};
     			 logger.info("onMessageArrived message my----body: {}", Base64.getEncoder().encodeToString(size));
     			 if(message.getPayload().getBody() != null) {
     				 this.commOs.write(message.getPayload().getBody());
+    				 this.commOs.flush();
+    				 logger.info("onMessageArrived serial data: {}",size);
     			 }
-    			 logger.info("onMessageArrived serial data: {}",size);
+    			 
     		 } catch (IOException e) {
                  logger.error("Cannot read port", e);
              } 

@@ -9,6 +9,7 @@ package cn.izhiju.kura.can;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.kura.configuration.ConfigurableComponent;
@@ -183,8 +184,13 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
                         // Timestamp the message
                         payload.setTimestamp(new Date());
                         payload.setBody(b);
-
-                        KuraMessage message = new KuraMessage(payload);
+                        Map<String,Object> hmap = new HashMap<String,Object>();
+                        if(b[1]==255) {
+                        	hmap.put("address", "broadcast");
+                        }else {
+                        	hmap.put("address", Integer.toHexString(b[1]));
+                        }
+                        KuraMessage message = new KuraMessage(payload,hmap);
                         // Publish the message
                         try {
                             if(this.cloudPublisherLan!=null ) {
