@@ -51,6 +51,14 @@
             default="(kura.service.pid=org.eclipse.kura.cloud.subcriber.CloudSubscriber-lan-stocan)"
             description="Specifies, as an OSGi target filter, the pid of the Cloud Subscriber used to receive messages from the cloud platform.">
         </AD>
+        
+        <AD id="serial.gateway-addr"
+            name="serial.gateway-addr"
+            type="String"
+            cardinality="0" 
+            required="true"
+            default="FF" 
+            description="the serial address of all getway, Forward from gateway"/>
   
         <AD id="serial.device"  
             name="serial.device"

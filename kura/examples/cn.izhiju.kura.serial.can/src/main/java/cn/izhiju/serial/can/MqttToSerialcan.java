@@ -40,6 +40,7 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
     private static final String SERIAL_DATA_BITS_PROP_NAME = "serial.data-bits";
     private static final String SERIAL_PARITY_PROP_NAME = "serial.parity";
     private static final String SERIAL_STOP_BITS_PROP_NAME = "serial.stop-bits";
+    private static final String SERIAL_GATEWAY_ADDR = "serial.gateway-addr";
 
     private static final String SERIAL_ECHO_PROP_NAME = "serial.echo";
 
@@ -276,22 +277,24 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
 
     private void doSerial() {
         Boolean echo = (Boolean) this.properties.get(SERIAL_ECHO_PROP_NAME);
-
+        String gatewayAddr = (String) this.properties.get(SERIAL_GATEWAY_ADDR);
+        
         if (this.commIs != null) {
 
             try {
                 int c = -1;
-                byte[] body=new byte[10];
+                byte[] body=null;
 //                StringBuilder sb = new StringBuilder();
                 logger.info("------------doSerial0");                
                 while (this.commIs != null) {
-
-                    if (this.commIs.available() != 0) {
+                    int alen = this.commIs.available();
+                    if (alen > 0) {
+                    	body = new byte[alen];
                         c = this.commIs.read(body);
                     } else {
                         try {
                         	c=-1;
-                            Thread.sleep(100);
+                            Thread.sleep(50);
                             continue;
                         } catch (InterruptedException e) {
                             return;
@@ -303,9 +306,8 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
 //                    }
                     logger.info("------------doSerial1: {}",c);
                     // on reception of CR, publish the received sentence
-                    if (c == 10) {
+                    if (c >= 9) {
                     	c=-1;
-                    	logger.info("------------doSerial1");
                         // Allocate a new payload
                         KuraPayload payload = new KuraPayload();
 
@@ -313,10 +315,12 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                         payload.setTimestamp(new Date());
                         payload.setBody(body);
                         Map<String,Object> hmap = new HashMap<String,Object>();
-                        if(body[5]==255) {
+                        if(body[0]==0x59 && body[1]== 0x4B && ((body[5]&0x80)==0x80)) {// yeker protocal   
+                        	body[5]=body[5]&0x7f;
+                        	hmap.put("address", Integer.toHexString(0x00ff&body[8]));
+                        }
+                        else {
                         	hmap.put("address", "broadcast");
-                        }else {
-                        	hmap.put("address", Integer.toHexString(0x00ff&body[5]));
                         }
                         KuraMessage message = new KuraMessage(payload,hmap);
 
@@ -352,21 +356,21 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
 
     @Override
     public void onMessageArrived(KuraMessage message) {
-        // TODO Auto-generated method stub
-    	logger.info("onMessageArrived message address {} ---body: {}",message.getProperties().get("address"),  message.getPayload().getBody());
+    	String appTopic = (String) message.getProperties().get("appTopic");
+    	String gatewayAddr = (String) this.properties.get(SERIAL_GATEWAY_ADDR);
+    	logger.info("onMessageArrived message apptopic {} ---gatewayAddr: {}",appTopic,  gatewayAddr);
+    	if(appTopic.equalsIgnoreCase(gatewayAddr)||appTopic.equalsIgnoreCase("data")) {
     	if (this.commOs != null) {
     		 try {
-    			 byte[] size = new byte[] {0x59,0x4b,0x07,0x05,0x01,0x01,0x02,0x02,0x00,(byte)0xfb};
-    			 logger.info("onMessageArrived message my----body: {}", Base64.getEncoder().encodeToString(size));
     			 if(message.getPayload().getBody() != null) {
     				 this.commOs.write(message.getPayload().getBody());
-    				 this.commOs.flush();
-    				 logger.info("onMessageArrived serial data: {}",size);
+    				 logger.info("onMessageArrived serial data: {}",message.getPayload().getBody());
     			 }
     			 
     		 } catch (IOException e) {
                  logger.error("Cannot read port", e);
              } 
     	}
+       }
     }
 }
