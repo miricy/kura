@@ -316,7 +316,7 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                         payload.setBody(body);
                         Map<String,Object> hmap = new HashMap<String,Object>();
                         if(body[0]==0x59 && body[1]== 0x4B && ((body[5]&0x80)==0x80)) {// yeker protocal   
-                        	body[5]=body[5]&0x7f;
+                        	body[5]=(byte)(body[5]&0x7f);
                         	hmap.put("address", Integer.toHexString(0x00ff&body[8]));
                         }
                         else {
