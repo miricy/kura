@@ -315,12 +315,18 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
                         payload.setTimestamp(new Date());
                         payload.setBody(body);
                         Map<String,Object> hmap = new HashMap<String,Object>();
-                        if(body[0]==0x59 && body[1]== 0x4B && ((body[5]&0x80)==0x80)) {// yeker protocal   
-                        	body[5]=(byte)(body[5]&0x7f);
-                        	hmap.put("address", Integer.toHexString(0x00ff&body[8]));
+                        if(body[0]==0x59 && body[1]== 0x4B && (body[5]==0x52)) {// yeker protocal   
+                        	if(body[5]==0x52) {
+                        	   body[5]=0x51;
+                        	   int toGateAddr = body[6]&0x03<<4 + body[7]>>4;
+                        	   hmap.put("address", gatewayAddr+"/"+Integer.toHexString(toGateAddr));
+                        	}
+                        	else {
+                        		hmap.put("address", gatewayAddr+"/"+Integer.toHexString(0x00ff&body[8]));
+                        	}
                         }
                         else {
-                        	hmap.put("address", "broadcast");
+                        	hmap.put("address", gatewayAddr+"/" + "broadcast");
                         }
                         KuraMessage message = new KuraMessage(payload,hmap);
 
@@ -359,8 +365,10 @@ public class MqttToSerialcan implements ConfigurableComponent, CloudSubscriberLi
     	String appTopic = (String) message.getProperties().get("appTopic");
     	String gatewayAddr = (String) this.properties.get(SERIAL_GATEWAY_ADDR);
     	logger.info("onMessageArrived message apptopic {} ---gatewayAddr: {}",appTopic,  gatewayAddr);
-    	if(appTopic.equalsIgnoreCase(gatewayAddr)||appTopic.equalsIgnoreCase("data")) {
+    	String[] appTopicArrary = appTopic.split("/");
+    	
     	if (this.commOs != null) {
+    		if(appTopic.equalsIgnoreCase("data") || ((appTopicArrary.length>1) && (!appTopicArrary[0].equalsIgnoreCase(gatewayAddr)) && (appTopicArrary[1].equalsIgnoreCase(gatewayAddr)) )) {
     		 try {
     			 if(message.getPayload().getBody() != null) {
     				 this.commOs.write(message.getPayload().getBody());

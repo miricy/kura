@@ -41,6 +41,8 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     private CloudPublisher cloudPublisherLan;
     private CloudSubscriber cloudSubscriber;
     private CloudSubscriber cloudSubscriberLan;
+    
+    private Map<String, Object> properties;
 
     private byte index = 0;
     private Thread worker;
@@ -122,7 +124,8 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
         logger.info("updating...");
 
         cancelCurrentTask();
-
+        this.properties.clear();
+        this.properties.putAll(properties);
 		interfaceName = (String) properties.getOrDefault(CAN_INTERFACE_NAME_PROP_NAME,
 				CAN_INTERFACE_DEFAULT);
 		canId = (Integer) properties.getOrDefault(CAN_IDENTIFIER_PROP_NAME, CAN_IDENTIFIER_DEFAULT);
@@ -170,6 +173,7 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     }
 
     private void startReceiverThread() {
+    	final String gatewayAddr = (String) this.properties.get(CAN_IDENTIFIER_PROP_NAME);
         this.worker = new Thread(() -> {
             while (!Thread.interrupted()) {
                 try {
@@ -229,7 +233,8 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     
     @Override
     public void onMessageArrived(KuraMessage message) {
-        // TODO Auto-generated method stub
+    	String appTopic = (String) message.getProperties().get("appTopic");
+    	String gatewayAddr = (String) this.properties.get(CAN_IDENTIFIER_PROP_NAME);
     	logger.info("For can ---onMessageArrived message---body: {}",  message.getPayload().getBody());
 
 		try {
@@ -243,7 +248,7 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
 				this.canConnection.sendCanMessage(interfaceName, sizeData[4]+256, sendData);
 				}
 				else{
-					this.canConnection.sendCanMessage(interfaceName, sizeData[4]+256, sizeData);
+					this.canConnection.sendCanMessage(interfaceName, sizeData[1]+256, sizeData);
 				}
 			}
 			logger.info("onMessageArrived can data: {}", sizeData);
