@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -24,6 +24,7 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.NetworkConfigurationVisitor;
 import org.eclipse.kura.core.net.modem.ModemInterfaceConfigImpl;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.linux.net.modem.SupportedUsbModemInfo;
 import org.eclipse.kura.linux.net.modem.SupportedUsbModemsInfo;
 import org.eclipse.kura.net.IP4Address;
@@ -81,6 +82,11 @@ public class PppConfigWriter implements NetworkConfigurationVisitor {
                 logger.warn("Could not create scripts directory: {}", OS_SCRIPTS_DIRECTORY);
             }
         }
+    }
+
+    @Override
+    public void setExecutorService(CommandExecutorService executorService) {
+        // Not needed
     }
 
     @Override
@@ -175,6 +181,12 @@ public class PppConfigWriter implements NetworkConfigurationVisitor {
                 logger.debug("Removing gpsEnabled for {}", oldInterfaceName);
                 KuranetConfig.deleteProperty(key.toString());
 
+                // Remove diversityEnabled
+                key = new StringBuilder().append("net.interface.").append(oldInterfaceName)
+                        .append(".config.diversityEnabled");
+                logger.debug("Removing diversityEnabled for {}", oldInterfaceName);
+                KuranetConfig.deleteProperty(key.toString());
+
                 // Remove apn
                 key = new StringBuilder().append("net.interface.").append(oldInterfaceName).append(".config.apn");
                 logger.debug("Removing apn for {}", oldInterfaceName);
@@ -210,6 +222,12 @@ public class PppConfigWriter implements NetworkConfigurationVisitor {
                             .append(newInterfaceName).append(".config.gpsEnabled");
                     logger.debug("Setting gpsEnabled for {}", newInterfaceName);
                     KuranetConfig.setProperty(gpsEnabledKey.toString(), Boolean.toString(modemConfig.isGpsEnabled()));
+
+                    final StringBuilder diversityEnabledKey = new StringBuilder().append("net.interface.")
+                            .append(newInterfaceName).append(".config.diversityEnabled");
+                    logger.debug("Setting diversityEnabled for {}", newInterfaceName);
+                    KuranetConfig.setProperty(diversityEnabledKey.toString(),
+                            Boolean.toString(modemConfig.isDiversityEnabled()));
 
                     final StringBuilder apnKey = new StringBuilder().append("net.interface.").append(newInterfaceName)
                             .append(".config.apn");
@@ -357,7 +375,8 @@ public class PppConfigWriter implements NetworkConfigurationVisitor {
         return sb.toString();
     }
 
-    // Delete all symbolic links to the specified target file in the specified directory
+    // Delete all symbolic links to the specified target file in the specified
+    // directory
     private void removeSymbolicLinks(String target, String directory) throws IOException {
         File targetFile = new File(target);
         File dir = new File(directory);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -35,6 +35,7 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.comm.CommURI;
 import org.eclipse.kura.core.net.AbstractNetInterface;
 import org.eclipse.kura.core.net.NetworkConfiguration;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.linux.net.ConnectionInfoImpl;
 import org.eclipse.kura.linux.net.modem.SupportedUsbModemInfo;
 import org.eclipse.kura.linux.net.modem.SupportedUsbModemsInfo;
@@ -96,6 +97,7 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
     private NetworkService networkService;
     private NetworkConfigurationService netConfigService;
     private EventAdmin eventAdmin;
+    private CommandExecutorService executorService;
 
     private final Set<ModemMonitorListener> listeners = Collections.synchronizedSet(new HashSet<>());
 
@@ -108,6 +110,7 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
 
     private final AtomicBoolean monitorRequestPending = new AtomicBoolean();
     private volatile boolean serviceActivated;
+    private LinuxNetworkUtil linuxNetworkUtil;
 
     public void setNetworkService(NetworkService networkService) {
         this.networkService = networkService;
@@ -141,8 +144,17 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
         this.systemService = null;
     }
 
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public void unsetExecutorService(CommandExecutorService executorService) {
+        this.executorService = null;
+    }
+
     protected void activate() {
 
+        this.linuxNetworkUtil = new LinuxNetworkUtil(this.executorService);
         executor.execute(() -> {
             // track currently installed modems
             try {
@@ -372,6 +384,18 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
 
                         modem.setConfiguration(newNetConfigs);
 
+                        if (modem.hasDiversityAntenna()) {
+                            if (isDiversityEnabledInConfig(newNetConfigs)) {
+                                if (!modem.isDiversityEnabled()) {
+                                    modem.enableDiversity();
+                                }
+                            } else {
+                                if (modem.isDiversityEnabled()) {
+                                    modem.disableDiversity();
+                                }
+                            }
+                        }
+
                         if (modem instanceof EvdoCellularModem) {
                             NetInterfaceStatus netIfaceStatus = getNetInterfaceStatus(newNetConfigs);
                             if (netIfaceStatus == NetInterfaceStatus.netIPv4StatusEnabledWAN) {
@@ -415,6 +439,10 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
         if (oldNetConfigIP4.equals(newNetConfigIP4) && oldModemConfig.equals(newModemConfig)) {
             ret = true;
         }
+        logger.info("old diversity = {},  new diversity = {}", oldModemConfig.isDiversityEnabled(),
+                newModemConfig.isDiversityEnabled());
+        if (oldModemConfig.isDiversityEnabled() != newModemConfig.isDiversityEnabled())
+            ret = false;
         return ret;
     }
 
@@ -493,6 +521,19 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
             }
         }
         return isGpsEnabled;
+    }
+
+    private boolean isDiversityEnabledInConfig(List<NetConfig> netConfigs) {
+        boolean isDiversityEnabled = false;
+        if (netConfigs != null) {
+            for (NetConfig netConfig : netConfigs) {
+                if (netConfig instanceof ModemConfig) {
+                    isDiversityEnabled = ((ModemConfig) netConfig).isDiversityEnabled();
+                    break;
+                }
+            }
+        }
+        return isDiversityEnabled;
     }
 
     private void monitor() {
@@ -584,9 +625,10 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
             }
 
             if (modemDevice instanceof UsbModemDevice) {
-                this.modems.put(((UsbModemDevice) modemDevice).getUsbPort(), new MonitoredModem(modem));
+                this.modems.put(((UsbModemDevice) modemDevice).getUsbPort(),
+                        new MonitoredModem(modem, this.linuxNetworkUtil));
             } else if (modemDevice instanceof SerialModemDevice) {
-                this.modems.put(modemDevice.getProductName(), new MonitoredModem(modem));
+                this.modems.put(modemDevice.getProductName(), new MonitoredModem(modem, this.linuxNetworkUtil));
             }
         } catch (Exception e) {
             logger.error("trackModem() :: {}", e.getMessage(), e);
@@ -633,7 +675,7 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
     }
 
     void addModem(final String intf, final CellularModem modem) {
-        this.modems.put(intf, new MonitoredModem(modem));
+        this.modems.put(intf, new MonitoredModem(modem, this.linuxNetworkUtil));
     }
 
     void sync() throws InterruptedException, ExecutionException {
@@ -642,7 +684,7 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
     }
 
     IModemLinkService getPppService(final String interfaceName, final String port) {
-        return PppFactory.getPppService(interfaceName, port);
+        return PppFactory.getPppService(interfaceName, port, this.executorService);
     }
 
     private boolean disableModemGps(CellularModem modem) {
@@ -738,10 +780,12 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
         private AtomicBoolean isValid = new AtomicBoolean(true);
         private boolean isInitialized;
         private PppState pppState = PppState.NOT_CONNECTED;
+        private LinuxNetworkUtil linuxNetworkUtil;
 
-        public MonitoredModem(final CellularModem modem) {
+        public MonitoredModem(final CellularModem modem, LinuxNetworkUtil linuxNetworkUtil) {
             this.modem = modem;
             this.resetTimer = new ModemResetTimer();
+            this.linuxNetworkUtil = linuxNetworkUtil;
         }
 
         CellularModem getModem() {
@@ -904,14 +948,14 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
 
                 final String ifaceName = networkService.getModemPppPort(modem.getModemDevice());
 
-                reportSignalStrength(ifaceName);
-
                 if (netInterfaceStatus == NetInterfaceStatus.netIPv4StatusUnmanaged) {
                     logger.warn("The {} interface is configured not to be managed by Kura and will not be monitored.",
                             ifaceName);
                     return;
                 }
                 if (netInterfaceStatus == NetInterfaceStatus.netIPv4StatusEnabledWAN && ifaceName != null) {
+
+                    reportSignalStrength(ifaceName);
 
                     pppService = getPppService(ifaceName, modem.getDataPort());
                     pppSt = pppService.getPppState();
@@ -947,7 +991,7 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
                     this.pppState = pppSt;
                     ConnectionInfo connInfo = new ConnectionInfoImpl(ifaceName);
                     InterfaceState interfaceState = new InterfaceState(ifaceName,
-                            LinuxNetworkUtil.hasAddress(ifaceName), pppSt == PppState.CONNECTED,
+                            this.linuxNetworkUtil.hasAddress(ifaceName), pppSt == PppState.CONNECTED,
                             connInfo.getIpAddress());
                     newInterfaceStatuses.put(ifaceName, interfaceState);
 
@@ -956,14 +1000,27 @@ public class ModemMonitorServiceImpl implements ModemMonitorService, ModemManage
                 }
 
                 // If the modem has been reset in this iteration of the monitor,
-                // do not immediately enable GPS to avoid concurrency issues due to asynchronous events
-                // (possible serial port contention between the PositionService and the trackModem() method),
+                // do not immediately enable GPS to avoid concurrency issues due to asynchronous
+                // events
+                // (possible serial port contention between the PositionService and the
+                // trackModem() method),
                 // GPS will be eventually enabled in the next iteration of the monitor.
                 if (!modemReset && modem.isGpsSupported() && isGpsEnabledInConfig(modem.getConfiguration())) {
                     if (modem instanceof HspaCellularModem && !modem.isGpsEnabled()) {
                         modem.enableGps();
                     }
                     postModemGpsEvent(modem, true);
+                }
+
+                // Same process for eventual DIV antenna.
+                if (!modemReset && modem.hasDiversityAntenna()) {
+                    if (isDiversityEnabledInConfig(modem.getConfiguration())) {
+                        if (!modem.isDiversityEnabled()) {
+                            modem.enableDiversity();
+                        }
+                    } else if (modem.isDiversityEnabled()) {
+                        modem.disableDiversity();
+                    }
                 }
 
             } catch (Exception e) {
