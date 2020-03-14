@@ -14,7 +14,6 @@ package org.eclipse.kura.example.serial.publisher;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,7 +59,6 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     private Map<String, Object> properties;
 
     private CloudPublisher cloudPublisher;
-    private CloudPublisher cloudPublisher1;
     private CloudSubscriber cloudSubscriber;
 
     // ----------------------------------------------------------------
@@ -80,14 +78,6 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
 
     public void unsetCloudPublisher(CloudPublisher cloudPublisher) {
         this.cloudPublisher = null;
-    }
-    
-    public void setCloudPublisher1(CloudPublisher cloudPublisher) {
-        this.cloudPublisher1 = cloudPublisher;
-    }
-
-    public void unsetCloudPublisher1(CloudPublisher cloudPublisher) {
-        this.cloudPublisher1 = null;
     }
     
     public void setCloudSubscriber(CloudSubscriber cloudSubscriber) {
@@ -275,16 +265,14 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
 
             try {
                 int c = -1;
-                byte[] body=new byte[10];
-//                StringBuilder sb = new StringBuilder();
-                logger.info("------------doSerial0");                
+                StringBuilder sb = new StringBuilder();
+
                 while (this.commIs != null) {
 
                     if (this.commIs.available() != 0) {
-                        c = this.commIs.read(body);
+                        c = this.commIs.read();
                     } else {
                         try {
-                        	c=-1;
                             Thread.sleep(100);
                             continue;
                         } catch (InterruptedException e) {
@@ -292,14 +280,13 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
                         }
                     }
 
-//                    if (echo && this.commOs != null) {
-//                        this.commOs.write((char) c);
-//                    }
-                    logger.info("------------doSerial1: {}",c);
+                    if (echo && this.commOs != null) {
+                        this.commOs.write((char) c);
+                    }
+
                     // on reception of CR, publish the received sentence
-                    if (c == 10) {
-                    	c=-1;
-                    	logger.info("------------doSerial1");
+                    if (c == 13) {
+                        
                         if (this.cloudPublisher == null) {
                             logger.info("No cloud publisher selected. Cannot publish!");
                             continue;
@@ -310,21 +297,23 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
 
                         // Timestamp the message
                         payload.setTimestamp(new Date());
-                        payload.setBody(body);
+
+                        payload.addMetric("line", sb.toString());
 
                         KuraMessage message = new KuraMessage(payload);
                         // Publish the message
                         try {
-//                            if(this.cloudPublisher1!=null ) {
-//                            	this.cloudPublisher1.publish(message);
-//                            }
                             this.cloudPublisher.publish(message);
                             logger.info("Published message: {}", payload);
                         } catch (Exception e) {
                             logger.error("Cannot publish message: {}", message,  e);
                         }
 
-                    } 
+                        sb = new StringBuilder();
+
+                    } else if (c != 10) {
+                        sb.append((char) c);
+                    }
                 }
             } catch (IOException e) {
                 logger.error("Cannot read port", e);
@@ -343,18 +332,6 @@ public class ExampleSerialPublisher implements ConfigurableComponent, CloudSubsc
     @Override
     public void onMessageArrived(KuraMessage message) {
         // TODO Auto-generated method stub
-    	logger.info("onMessageArrived message---body: {}",  message.getPayload().getBody());
-    	if (this.commOs != null) {
-    		 try {
-    			 byte[] size = new byte[] {0x59,0x4b,0x07,0x05,0x01,0x01,0x02,0x02,0x00,(byte)0xfb};
-    			 logger.info("onMessageArrived message my----body: {}", Base64.getEncoder().encodeToString(size));
-    			 if(message.getPayload().getBody() != null) {
-    				 this.commOs.write(message.getPayload().getBody());
-    			 }
-    			 logger.info("onMessageArrived serial data: {}",size);
-    		 } catch (IOException e) {
-                 logger.error("Cannot read port", e);
-             } 
-    	}
+        
     }
 }
