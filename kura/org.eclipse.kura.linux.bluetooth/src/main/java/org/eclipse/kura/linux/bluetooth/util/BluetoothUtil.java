@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -45,7 +45,7 @@ public class BluetoothUtil {
 
     private static final String ERROR_EXECUTING_COMMAND_MESSAGE = "Error executing command: {}";
     private static final Logger logger = LoggerFactory.getLogger(BluetoothUtil.class);
-    private static final ExecutorService processExecutor = Executors.newSingleThreadExecutor();
+    private static final ExecutorService PROCESS_EXECUTOR = Executors.newSingleThreadExecutor();
 
     public static final String HCITOOL = "hcitool";
     public static final String BTDUMP = "/tmp/BluetoothUtil.btsnoopdump.sh";
@@ -90,10 +90,9 @@ public class BluetoothUtil {
         command.setOutputStream(outputStream);
         command.setErrorStream(errorStream);
         CommandStatus status = executorService.execute(command);
-        if ((Integer) status.getExitStatus().getExitValue() == 0) {
+        if (status.getExitStatus().isSuccessful()) {
             // Check Input stream
             String[] outputLines = new String(outputStream.toByteArray(), Charsets.UTF_8).split("\n");
-            // TODO: Pull more parameters from hciconfig?
             props.put("leReady", "false");
             for (String result : outputLines) {
                 parseCommandResult(props, result);
@@ -152,7 +151,7 @@ public class BluetoothUtil {
         command.setOutputStream(outputStream);
         command.setErrorStream(errorStream);
         CommandStatus status = executorService.execute(command);
-        if ((Integer) status.getExitStatus().getExitValue() == 0) {
+        if (status.getExitStatus().isSuccessful()) {
             String[] outputLines = new String(outputStream.toByteArray(), Charsets.UTF_8).split("\n");
             for (String line : outputLines) {
                 if (line.contains("UP")) {
@@ -183,7 +182,7 @@ public class BluetoothUtil {
         command.setOutputStream(outputStream);
         command.setErrorStream(errorStream);
         CommandStatus status = executorService.execute(command);
-        if ((Integer) status.getExitStatus().getExitValue() == 0) {
+        if (status.getExitStatus().isSuccessful()) {
             outputString = new String(outputStream.toByteArray(), Charsets.UTF_8);
         } else {
             if (logger.isErrorEnabled()) {
@@ -266,7 +265,7 @@ public class BluetoothUtil {
             CommandExecutorService executorService) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
-        Future<BluetoothProcess> futureSafeProcess = processExecutor.submit(() -> {
+        Future<BluetoothProcess> futureSafeProcess = PROCESS_EXECUTOR.submit(() -> {
             Thread.currentThread().setName("BluetoothProcessExecutor");
             BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
             bluetoothProcess.exec(cmdArray, listener);
@@ -288,7 +287,7 @@ public class BluetoothUtil {
             CommandExecutorService executorService) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
-        Future<BluetoothProcess> futureSafeProcess = processExecutor.submit(() -> {
+        Future<BluetoothProcess> futureSafeProcess = PROCESS_EXECUTOR.submit(() -> {
             Thread.currentThread().setName("BTSnoopProcessExecutor");
             BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
             bluetoothProcess.execSnoop(cmdArray, listener);
@@ -459,7 +458,7 @@ public class BluetoothUtil {
      */
     public static List<BluetoothBeaconData> parseLEAdvertisingReport(byte[] b, String companyName) {
 
-        List<BluetoothBeaconData> results = new LinkedList<BluetoothBeaconData>();
+        List<BluetoothBeaconData> results = new LinkedList<>();
 
         // Packet Type: Event OR Event Type: LE Advertisement Report
         if (b[0] != 0x04 || b[1] != 0x3E) {

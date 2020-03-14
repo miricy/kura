@@ -26,13 +26,14 @@ import java.util.Set;
 
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
-import org.eclipse.kura.core.linux.executor.LinuxExitValue;
+import org.eclipse.kura.core.linux.executor.LinuxExitStatus;
 import org.eclipse.kura.core.net.EthernetInterfaceConfigImpl;
 import org.eclipse.kura.core.net.NetInterfaceAddressConfigImpl;
 import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.WifiInterfaceAddressConfigImpl;
 import org.eclipse.kura.core.net.WifiInterfaceConfigImpl;
 import org.eclipse.kura.core.testutil.TestUtil;
+import org.eclipse.kura.executor.Command;
 import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.executor.CommandStatus;
 import org.eclipse.kura.linux.net.iptables.NATRule;
@@ -82,7 +83,7 @@ public class FirewallAutoNatConfigTest {
         NetworkConfiguration config = prepareNetworkConfiguration(intfName, destinationInterface, false, false);
 
         CommandExecutorService esMock = mock(CommandExecutorService.class);
-        CommandStatus status = new CommandStatus(new LinuxExitValue(0));
+        CommandStatus status = new CommandStatus(new Command(new String[] {}), new LinuxExitStatus(0));
         when(esMock.execute(anyObject())).thenReturn(status);
 
         writer.setExecutorService(esMock);
@@ -252,7 +253,7 @@ public class FirewallAutoNatConfigTest {
         NetworkConfiguration config = prepareNetworkConfiguration(intfName, destinationInterface, false, true);
 
         CommandExecutorService esMock = mock(CommandExecutorService.class);
-        CommandStatus status = new CommandStatus(new LinuxExitValue(0));
+        CommandStatus status = new CommandStatus(new Command(new String[] {}), new LinuxExitStatus(0));
         when(esMock.execute(anyObject())).thenReturn(status);
 
         reader.setExecutorService(esMock);
@@ -296,16 +297,7 @@ public class FirewallAutoNatConfigTest {
         NetworkConfiguration config = prepareNetworkConfiguration(intfName, destinationInterface, false, true);
 
         CommandExecutorService esMock = mock(CommandExecutorService.class);
-        CommandStatus status = new CommandStatus(new LinuxExitValue(0));
-        // ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        // DataOutputStream out = new DataOutputStream(outputStream);
-        // out.write(
-        // "wlan1 IEEE 802.11 Mode:Master Tx-Power=31 dBm\n Retry short limit:7 RTS thr:off Fragment thr:off\n Power
-        // Management:on"
-        // .getBytes());
-        // outputStream.flush();
-        // outputStream.close();
-        // status.setOutputStream(outputStream);
+        CommandStatus status = new CommandStatus(new Command(new String[] {}), new LinuxExitStatus(0));
         when(esMock.execute(anyObject())).thenReturn(status);
 
         reader.setExecutorService(esMock);
@@ -417,7 +409,7 @@ public class FirewallAutoNatConfigTest {
         NetworkConfiguration config = prepareNetworkConfiguration(intfName, destinationInterface, false, true);
 
         CommandExecutorService esMock = mock(CommandExecutorService.class);
-        CommandStatus status = new CommandStatus(new LinuxExitValue(0));
+        CommandStatus status = new CommandStatus(new Command(new String[] {}), new LinuxExitStatus(0));
         when(esMock.execute(anyObject())).thenReturn(status);
 
         reader.setExecutorService(esMock);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -134,7 +134,7 @@ public class IptablesConfig {
         if (this.executorService != null) {
             CommandStatus status = execute(new String[] { "iptables-save" });
             iptablesSave((ByteArrayOutputStream) status.getOutputStream());
-            exitValue = (Integer) status.getExitStatus().getExitValue();
+            exitValue = status.getExitStatus().getExitCode();
         } else {
             logger.error(COMMAND_EXECUTOR_SERVICE_MESSAGE);
             throw new IllegalArgumentException(COMMAND_EXECUTOR_SERVICE_MESSAGE);
@@ -158,7 +158,7 @@ public class IptablesConfig {
         command.setErrorStream(err);
         command.setOutputStream(out);
         CommandStatus status = this.executorService.execute(command);
-        int exitValue = (Integer) status.getExitStatus().getExitValue();
+        int exitValue = status.getExitStatus().getExitCode();
         if (exitValue != 0) {
             if (logger.isErrorEnabled()) {
                 logger.error("command {} :: failed - {}", command, new String(err.toByteArray(), Charsets.UTF_8));
@@ -177,7 +177,7 @@ public class IptablesConfig {
         try {
             if (this.executorService != null) {
                 CommandStatus status = execute(new String[] { "iptables-restore", filename });
-                exitValue = (Integer) status.getExitStatus().getExitValue();
+                exitValue = status.getExitStatus().getExitCode();
             } else {
                 logger.error(COMMAND_EXECUTOR_SERVICE_MESSAGE);
                 throw new IllegalArgumentException(COMMAND_EXECUTOR_SERVICE_MESSAGE);
@@ -197,7 +197,7 @@ public class IptablesConfig {
     }
 
     /*
-     * Saves current configurations from the m_localRules, m_portForwardRules, m_natRules, and m_autoNatRules
+     * Saves current configurations from the localRules, portForwardRules, natRules, and autoNatRules
      * into specified temporary file
      */
     public void save(String filename) throws KuraException {
@@ -259,7 +259,7 @@ public class IptablesConfig {
                 }
             }
             if (this.autoNatRules != null && !this.autoNatRules.isEmpty()) {
-                List<NatPostroutingChainRule> appliedNatPostroutingChainRules = new ArrayList<NatPostroutingChainRule>();
+                List<NatPostroutingChainRule> appliedNatPostroutingChainRules = new ArrayList<>();
                 for (NATRule autoNatRule : this.autoNatRules) {
                     boolean found = false;
                     NatPostroutingChainRule natPostroutingChainRule = autoNatRule.getNatPostroutingChainRule();
@@ -293,6 +293,7 @@ public class IptablesConfig {
      * Populates the m_localRules, m_portForwardRules, m_natRules, and m_autoNatRules by parsing
      * the iptables configuration file.
      */
+    @SuppressWarnings("checkstyle:methodLength")
     public void restore() throws KuraException {
         try (FileReader fr = new FileReader(FIREWALL_CONFIG_FILE_NAME); BufferedReader br = new BufferedReader(fr)) {
             List<NatPreroutingChainRule> natPreroutingChain = new ArrayList<>();

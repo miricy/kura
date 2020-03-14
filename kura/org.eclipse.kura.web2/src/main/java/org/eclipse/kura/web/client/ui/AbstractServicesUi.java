@@ -237,10 +237,13 @@ public abstract class AbstractServicesUi extends Composite {
         });
         textBox.addKeyUpHandler(event -> {
             textBox.validate(true);
-            setDirty(true);
+        });
+        textBox.addValueChangeHandler(event -> {
+        	setDirty(true);
         });
 
         if (param.getId().endsWith(TARGET_SUFFIX)) {
+            textBox.setReadOnly(true);
             String targetedService = param.getId().split(TARGET_SUFFIX)[0];
 
             DropDown dropDown = new DropDown();

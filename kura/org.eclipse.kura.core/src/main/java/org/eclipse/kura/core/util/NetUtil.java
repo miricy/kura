@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,7 +21,12 @@ import org.slf4j.LoggerFactory;
 
 public class NetUtil {
 
-    private static final Logger s_logger = LoggerFactory.getLogger(NetUtil.class);
+    private static final String MAC_IS_INVALID_MESSAGE = "mac is invalid: ";
+    private static final Logger logger = LoggerFactory.getLogger(NetUtil.class);
+
+    private NetUtil() {
+
+    }
 
     public static String hardwareAddressToString(byte[] macAddress) {
         if (macAddress == null) {
@@ -34,9 +39,9 @@ public class NetUtil {
 
         StringJoiner sj = new StringJoiner(":");
         for (byte item : macAddress) {
-        	sj.add(String.format("%02X", item));
+            sj.add(String.format("%02X", item));
         }
-        
+
         return sj.toString();
     }
 
@@ -44,24 +49,24 @@ public class NetUtil {
         if (macAddress == null || macAddress.isEmpty()) {
             return new byte[] { 0, 0, 0, 0, 0, 0 };
         }
-        
+
         String[] items = macAddress.split("\\:");
 
         if (items.length != 6) {
-            throw new IllegalArgumentException("mac is invalid: " + macAddress);
+            throw new IllegalArgumentException(MAC_IS_INVALID_MESSAGE + macAddress);
         }
 
         byte[] bytes = new byte[6];
         for (int i = 0; i < 6; i++) {
             String item = items[i];
-            if (item.isEmpty() || (item.length() > 2)) {
-                throw new IllegalArgumentException("mac is invalid: " + macAddress);
+            if (item.isEmpty() || item.length() > 2) {
+                throw new IllegalArgumentException(MAC_IS_INVALID_MESSAGE + macAddress);
             }
 
             try {
                 bytes[i] = (byte) Integer.parseInt(items[i], 16);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("mac is invalid: " + macAddress, e);
+                throw new IllegalArgumentException(MAC_IS_INVALID_MESSAGE + macAddress, e);
             }
         }
 
@@ -102,7 +107,7 @@ public class NetUtil {
                 return hardwareAddressToString(firstInterface.getHardwareAddress());
             }
         } catch (Exception e) {
-            s_logger.warn("Exception while getting current IP", e);
+            logger.warn("Exception while getting current IP", e);
         }
 
         return null;
@@ -132,7 +137,7 @@ public class NetUtil {
                 }
             }
         } catch (Exception e) {
-            s_logger.warn("Exception while getting current IP", e);
+            logger.warn("Exception while getting current IP", e);
         }
         return null;
     }

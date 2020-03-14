@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -40,7 +40,7 @@ public class BluetoothProcess {
     private static final String INPUT_STREAM_MESSAGE = "Error in processing the input stream : ";
     private static final String ERROR_STREAM_MESSAGE = "Error in processing the error stream : ";
     private static final Logger logger = LoggerFactory.getLogger(BluetoothProcess.class);
-    private static final ExecutorService streamGobblers = Executors.newCachedThreadPool();
+    private static final ExecutorService STREAM_GOBBLERS = Executors.newCachedThreadPool();
 
     private Future<?> futureInputGobbler;
     private Future<?> futureErrorGobbler;
@@ -62,7 +62,7 @@ public class BluetoothProcess {
             this.outputStream.connect(this.readOutputStream);
             this.errorStream.connect(this.readErrorStream);
             this.inputStream.connect(this.writeInputStream);
-            this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(writeInputStream));
+            this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(this.writeInputStream));
         } catch (IOException e) {
             logger.error("Failed to connect streams", e);
         }
@@ -77,7 +77,7 @@ public class BluetoothProcess {
             logger.debug("Executing: {}", Arrays.toString(cmdArray));
         }
         Consumer<CommandStatus> callback = status -> logger.debug("Command ended with exit value {}",
-                status.getExitStatus().getExitValue());
+                status.getExitStatus().getExitCode());
         Command command = new Command(cmdArray);
         command.setOutputStream(this.outputStream);
         command.setErrorStream(this.errorStream);
@@ -85,7 +85,7 @@ public class BluetoothProcess {
         this.executorService.execute(command, callback);
 
         // process the input stream
-        this.futureInputGobbler = streamGobblers.submit(() -> {
+        this.futureInputGobbler = STREAM_GOBBLERS.submit(() -> {
             Thread.currentThread().setName("BluetoothProcess Input Stream Gobbler");
             try {
                 readInputStreamFully(this.readOutputStream, listener);
@@ -95,7 +95,7 @@ public class BluetoothProcess {
         });
 
         // process the error stream
-        this.futureErrorGobbler = streamGobblers.submit(() -> {
+        this.futureErrorGobbler = STREAM_GOBBLERS.submit(() -> {
             Thread.currentThread().setName("BluetoothProcess ErrorStream Gobbler");
             try {
                 readErrorStreamFully(this.readErrorStream, listener);
@@ -115,13 +115,13 @@ public class BluetoothProcess {
             logger.debug("Executing: {}", Arrays.toString(cmdArray));
         }
         Consumer<CommandStatus> callback = status -> logger.debug("Command ended with exit value {}",
-                status.getExitStatus().getExitValue());
+                status.getExitStatus().getExitCode());
         Command command = new Command(cmdArray);
         command.setOutputStream(this.outputStream);
         command.setErrorStream(this.errorStream);
         this.executorService.execute(command, callback);
 
-        this.futureInputGobbler = streamGobblers.submit(() -> {
+        this.futureInputGobbler = STREAM_GOBBLERS.submit(() -> {
             Thread.currentThread().setName("BluetoothProcess BTSnoop Gobbler");
             try {
                 readBTSnoopStreamFully(this.readOutputStream, listener);
@@ -131,7 +131,7 @@ public class BluetoothProcess {
         });
 
         // process the error stream
-        this.futureErrorGobbler = streamGobblers.submit(() -> {
+        this.futureErrorGobbler = STREAM_GOBBLERS.submit(() -> {
             Thread.currentThread().setName("BluetoothProcess BTSnoop ErrorStream Gobbler");
             try {
                 readBTErrorStreamFully(this.readErrorStream, listener);

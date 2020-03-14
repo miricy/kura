@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,6 +33,8 @@ import org.eclipse.kura.executor.CommandStatus;
 public class BluetoothProcess {
 
     private static final Logger logger = LogManager.getLogger(BluetoothProcess.class);
+    
+    @SuppressWarnings("checkstyle:constantName")
     private static final ExecutorService streamGobblers = Executors.newCachedThreadPool();
 
     private Future<?> futureInputGobbler;
@@ -66,7 +68,7 @@ public class BluetoothProcess {
             logger.debug("Executing: {}", Arrays.toString(cmdArray));
         }
         Consumer<CommandStatus> callback = status -> logger.debug("Command ended with exit value {}",
-                status.getExitStatus().getExitValue());
+                status.getExitStatus().getExitCode());
         Command command = new Command(cmdArray);
         command.setOutputStream(this.outputStream);
         command.setErrorStream(this.errorStream);
@@ -103,7 +105,7 @@ public class BluetoothProcess {
             logger.debug("Executing: {}", Arrays.toString(cmdArray));
         }
         Consumer<CommandStatus> callback = status -> logger.debug("Command ended with exit value {}",
-                status.getExitStatus().getExitValue());
+                status.getExitStatus().getExitCode());
         Command command = new Command(cmdArray);
         command.setOutputStream(this.outputStream);
         command.setErrorStream(this.errorStream);

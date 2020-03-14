@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * @noimplement This interface is not intended to be implemented by clients.
  */
 @ProviderType
+@SuppressWarnings("checkstyle:interfaceIsType")
 public interface UsbDeviceEvent {
 
     /** Name of the property to access the USB port of this device **/
@@ -48,14 +49,14 @@ public interface UsbDeviceEvent {
 
     /**
      * Name of the property to access the USB device type
-     * 
+     *
      * @since 1.4
      **/
     public static final String USB_EVENT_DEVICE_TYPE_PROPERTY = "usb.device.type";
 
     /**
      * Name of the property to access the interface number of a USB device
-     * 
+     *
      * @since 1.4
      **/
     public static final String USB_EVENT_USB_INTERFACE_NUMBER = "usb.interface.number";

@@ -1,11 +1,11 @@
 /*******************************************************************************
- * Copyright (c) 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2019, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  *******************************************************************************/
 package org.eclipse.kura.linux.net.util;
 
@@ -47,8 +47,8 @@ public final class IwlistCapabilityTool {
         command.setTimeout(60);
         command.setOutputStream(new ByteArrayOutputStream());
         CommandStatus status = executorService.execute(command);
-        int exitValue = (Integer) status.getExitStatus().getExitValue();
-        if (exitValue != 0) {
+        int exitValue = status.getExitStatus().getExitCode();
+        if (!status.getExitStatus().isSuccessful()) {
             logger.warn("error executing command --- iwlist --- exit value = {}", exitValue);
             throw new KuraException(KuraErrorCode.OS_COMMAND_ERROR, String.join(" ", cmd), exitValue);
         }
@@ -72,7 +72,7 @@ public final class IwlistCapabilityTool {
                 capabilities.add(Capability.CIPHER_TKIP);
             } else if ("CIPHER-CCMP".equals(cleanLine)) {
                 capabilities.add(Capability.CIPHER_CCMP);
-                // TODO: WEP options don't always seem to be displayed?
+                // FIXME: WEP options don't always seem to be displayed?
             } else if ("WEP-104".equals(cleanLine)) {
                 capabilities.add(Capability.CIPHER_WEP104);
             } else if ("WEP-40".equals(cleanLine)) {

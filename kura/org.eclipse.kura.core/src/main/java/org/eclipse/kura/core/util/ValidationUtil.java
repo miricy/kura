@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,10 @@ import org.eclipse.kura.KuraException;
 
 public class ValidationUtil {
 
+    private ValidationUtil() {
+
+    }
+
     public static void notNull(Object value, String argumentName) throws KuraException {
         if (value == null) {
             throw new KuraException(KuraErrorCode.CONFIGURATION_REQUIRED_ATTRIBUTE_MISSING, argumentName);
@@ -24,7 +28,7 @@ public class ValidationUtil {
 
     /**
      * Throws an KuraException if the string value for the specified argument is empty, null, or whitespace.
-     * 
+     *
      * @param obj
      * @param argumentName
      * @throws KuraException
@@ -37,7 +41,7 @@ public class ValidationUtil {
 
     /**
      * Throws an KuraException if the value for the specified argument is null.
-     * 
+     *
      * @param obj
      * @param argumentName
      * @throws KuraException
@@ -50,7 +54,7 @@ public class ValidationUtil {
 
     /**
      * Throws an KuraException if the value for the specified argument is null.
-     * 
+     *
      * @param obj
      * @param argumentName
      * @throws KuraException
@@ -63,7 +67,7 @@ public class ValidationUtil {
 
     /**
      * Throws an KuraException if the value for the specified argument is null.
-     * 
+     *
      * @param obj
      * @param argumentName
      * @throws KuraException

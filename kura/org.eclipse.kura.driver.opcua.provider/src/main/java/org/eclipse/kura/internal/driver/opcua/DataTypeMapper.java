@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates and others
  *
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
@@ -10,6 +10,8 @@
  *   Eurotech
  */
 package org.eclipse.kura.internal.driver.opcua;
+
+import java.util.Arrays;
 
 import org.eclipse.kura.type.DataType;
 import org.eclipse.kura.type.TypedValue;
@@ -50,7 +52,7 @@ public final class DataTypeMapper {
     public static Variant map(final Object value, final VariableType targetType) {
 
         if (targetType == VariableType.DEFINED_BY_JAVA_TYPE
-                || (value instanceof Boolean && targetType == VariableType.BOOLEAN)) {
+                || value instanceof Boolean && targetType == VariableType.BOOLEAN) {
             return new Variant(value);
         }
         if (value instanceof byte[]) {
@@ -152,7 +154,11 @@ public final class DataTypeMapper {
                 final LocalizedText text = (LocalizedText) value;
                 return TypedValues.newStringValue(text.getText());
             } else {
-                return TypedValues.newStringValue(value.toString());
+                if (value.getClass().isArray()) {
+                    return TypedValues.newStringValue(Arrays.deepToString((Object[]) value));
+                } else {
+                    return TypedValues.newStringValue(value.toString());
+                }
             }
         case BYTE_ARRAY:
             return TypedValues.newByteArrayValue(toByteArray(value));

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -40,7 +40,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * <li>latitudeHemisphere : hemisphere of the latitude = N or S
  * <li>longitudeHemisphere : hemisphere of the longitude = E or W
  * </ul>
- * 
+ *
  * @noextend This class is not intended to be subclassed by clients.
  */
 @ProviderType
@@ -66,6 +66,7 @@ public class NmeaPosition {
         this(lat, lon, alt, speed, track, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, '0', '0', '0');
     }
 
+    @SuppressWarnings("checkstyle:parameterNumber")
     public NmeaPosition(double lat, double lon, double alt, double speed, double track, int fixQuality,
             int nrSatellites, double dop, double pdop, double hdop, double vdop, int fix3D) {
         this(lat, lon, alt, speed, track, fixQuality, nrSatellites, dop, pdop, hdop, vdop, fix3D, '0', '0', '0');
@@ -74,6 +75,7 @@ public class NmeaPosition {
     /**
      * @since 2.0
      */
+    @SuppressWarnings("checkstyle:parameterNumber")
     public NmeaPosition(double lat, double lon, double alt, double speed, double track, int fixQuality,
             int nrSatellites, double dop, double pdop, double hdop, double vdop, int fix3D, char validF, char hemiLat,
             char hemiLon) {
@@ -223,7 +225,7 @@ public class NmeaPosition {
      * @since 2.0
      */
     public char getValidFix() {
-        return validFix;
+        return this.validFix;
     }
 
     /**
@@ -237,7 +239,7 @@ public class NmeaPosition {
      * @since 2.0
      */
     public char getLatitudeHemisphere() {
-        return latitudeHemisphere;
+        return this.latitudeHemisphere;
     }
 
     /**
@@ -251,7 +253,7 @@ public class NmeaPosition {
      * @since 2.0
      */
     public char getLongitudeHemisphere() {
-        return longitudeHemisphere;
+        return this.longitudeHemisphere;
     }
 
     /**

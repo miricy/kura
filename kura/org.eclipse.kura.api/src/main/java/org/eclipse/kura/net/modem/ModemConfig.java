@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -59,8 +59,8 @@ public class ModemConfig implements NetConfig {
     private int lcpEchoInterval = 0;
     private int lcpEchoFailure = 0;
     private IPAddress ipAddress = null;
-    private int dataCompression = 0;			// FIXME: change to enum?
-    private int headerCompression = 0;		// FIXME: change to enum?
+    private int dataCompression = 0; // FIXME: change to enum?
+    private int headerCompression = 0; // FIXME: change to enum?
     private boolean gpsEnabled = false;
     private boolean diversityEnabled = false;
     private int resetTimeout = 0;
@@ -180,6 +180,7 @@ public class ModemConfig implements NetConfig {
      * @return password as {@link String}
      * @deprecated
      */
+    @Deprecated
     public String getPassword() {
         return this.password.toString();
     }
@@ -503,7 +504,7 @@ public class ModemConfig implements NetConfig {
      * @since 2.2
      */
     public boolean isDiversityEnabled() {
-        return diversityEnabled;
+        return this.diversityEnabled;
     }
 
     /**

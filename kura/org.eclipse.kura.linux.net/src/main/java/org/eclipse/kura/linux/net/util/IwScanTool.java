@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -34,11 +34,11 @@ import org.slf4j.LoggerFactory;
 public class IwScanTool extends ScanTool implements IScanTool {
 
     private static final Logger logger = LoggerFactory.getLogger(IwScanTool.class);
-    private static final Object lock = new Object();
+    private static final Object LOCK = new Object();
     private String ifaceName;
     private int timeout;
-    private LinuxNetworkUtil linuxNetworkUtil;
-    private CommandExecutorService executorService;
+    private final LinuxNetworkUtil linuxNetworkUtil;
+    private final CommandExecutorService executorService;
 
     private InputStream scanOutput;
     private boolean status;
@@ -66,7 +66,7 @@ public class IwScanTool extends ScanTool implements IScanTool {
     public List<WifiAccessPoint> scan() throws KuraException {
 
         List<WifiAccessPoint> wifiAccessPoints;
-        synchronized (lock) {
+        synchronized (LOCK) {
             activateInterface();
 
             String[] cmd = formIwScanCommand(IwScanTool.this.ifaceName);
@@ -78,8 +78,8 @@ public class IwScanTool extends ScanTool implements IScanTool {
             iwScanCommand.setTimeout(IwScanTool.this.timeout);
             iwScanCommand.setOutputStream(new ByteArrayOutputStream());
             iwScanCommand.setErrorStream(new ByteArrayOutputStream());
-            CommandStatus iwCommandStatus = executorService.execute(iwScanCommand);
-            int exitValue = (Integer) iwCommandStatus.getExitStatus().getExitValue();
+            CommandStatus iwCommandStatus = this.executorService.execute(iwScanCommand);
+            int exitValue = iwCommandStatus.getExitStatus().getExitCode();
             if (logger.isInfoEnabled()) {
                 logger.info("scan() :: {} command returns status = {}", String.join(" ", cmd), exitValue);
             }
@@ -116,7 +116,7 @@ public class IwScanTool extends ScanTool implements IScanTool {
             // activate the interface
             String[] cmdIpLink = { "ip", "link", "set", this.ifaceName, "up" };
             CommandStatus commandStatus = this.executorService.execute(new Command(cmdIpLink));
-            if ((Integer) commandStatus.getExitStatus().getExitValue() != 0) {
+            if (!commandStatus.getExitStatus().isSuccessful()) {
                 throw new KuraException(KuraErrorCode.PROCESS_EXECUTION_ERROR,
                         "Failed to activate interface " + this.ifaceName);
             }
@@ -124,7 +124,7 @@ public class IwScanTool extends ScanTool implements IScanTool {
             // remove the previous ip address (needed on mgw)
             String[] cmdIpAddr = { "ip", "addr", "flush", "dev", this.ifaceName };
             commandStatus = this.executorService.execute(new Command(cmdIpAddr));
-            if ((Integer) commandStatus.getExitStatus().getExitValue() != 0) {
+            if (!commandStatus.getExitStatus().isSuccessful()) {
                 throw new KuraException(KuraErrorCode.PROCESS_EXECUTION_ERROR,
                         "Failed to remove address for interface " + this.ifaceName);
             }

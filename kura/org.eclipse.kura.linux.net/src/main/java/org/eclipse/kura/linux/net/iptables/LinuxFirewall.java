@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -65,7 +65,7 @@ public class LinuxFirewall {
                 logger.debug("{} file already exists", cfgFile);
             }
         } catch (Exception e) {
-            logger.error("cannot create or read file", e);// File did not exist and was created
+            logger.error("cannot create or read file", e); // File did not exist and was created
         }
         try {
             initialize();
@@ -86,6 +86,7 @@ public class LinuxFirewall {
         logger.debug("initialize() :: Parsing current firewall configuraion");
     }
 
+    @SuppressWarnings("checkstyle:parameterNumber")
     public void addLocalRule(int port, String protocol, String permittedNetwork, String permittedNetworkPrefix,
             String permittedInterfaceName, String unpermittedInterfaceName, String permittedMAC, String sourcePortRange)
             throws KuraException {
@@ -141,6 +142,7 @@ public class LinuxFirewall {
         }
     }
 
+    @SuppressWarnings("checkstyle:parameterNumber")
     public void addPortForwardRule(String inboundIface, String outboundIface, String address, String protocol,
             int inPort, int outPort, boolean masquerade, String permittedNetwork, String permittedNetworkPrefix,
             String permittedMAC, String sourcePortRange) throws KuraException {
@@ -482,7 +484,7 @@ public class LinuxFirewall {
             logger.info("Running custom firewall script - {}", CUSTOM_FIREWALL_SCRIPT_NAME);
             Command command = new Command(new String[] { "sh", CUSTOM_FIREWALL_SCRIPT_NAME });
             CommandStatus status = this.executorService.execute(command);
-            if ((Integer) status.getExitStatus().getExitValue() != 0) {
+            if (!status.getExitStatus().isSuccessful()) {
                 throw new KuraProcessExecutionErrorException("Failed to apply custom firewall script");
             }
         }

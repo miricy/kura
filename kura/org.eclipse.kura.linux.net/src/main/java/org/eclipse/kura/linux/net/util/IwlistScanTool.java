@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -41,10 +41,10 @@ public class IwlistScanTool implements IScanTool {
 
     private static final Logger logger = LoggerFactory.getLogger(IwlistScanTool.class);
 
-    private static final Object lock = new Object();
+    private static final Object LOCK = new Object();
     private String ifaceName;
     private int timeout;
-    private CommandExecutorService executorService;
+    private final CommandExecutorService executorService;
 
     private InputStream scanOutput;
     private boolean status;
@@ -73,14 +73,14 @@ public class IwlistScanTool implements IScanTool {
         String[] cmdIfconfig = { "ifconfig", this.ifaceName, "up" };
         Command ifconfigCommand = new Command(cmdIfconfig);
         ifconfigCommand.setErrorStream(new ByteArrayOutputStream());
-        CommandStatus ifconfigCommandStatus = executorService.execute(ifconfigCommand);
-        if ((Integer) ifconfigCommandStatus.getExitStatus().getExitValue() != 0 && logger.isErrorEnabled()) {
+        CommandStatus ifconfigCommandStatus = this.executorService.execute(ifconfigCommand);
+        if (!ifconfigCommandStatus.getExitStatus().isSuccessful() && logger.isErrorEnabled()) {
             logger.error("failed to execute the {} command {}", String.join(" ", cmdIfconfig), new String(
                     ((ByteArrayOutputStream) ifconfigCommandStatus.getErrorStream()).toByteArray(), Charsets.UTF_8));
         }
 
         List<WifiAccessPoint> wifiAccessPoints;
-        synchronized (lock) {
+        synchronized (LOCK) {
 
             String[] cmdIwList = formIwlistScanCommand(IwlistScanTool.this.ifaceName);
             if (logger.isInfoEnabled()) {
@@ -90,12 +90,12 @@ public class IwlistScanTool implements IScanTool {
             Command iwListCommand = new Command(cmdIwList);
             iwListCommand.setTimeout(IwlistScanTool.this.timeout);
             iwListCommand.setOutputStream(new ByteArrayOutputStream());
-            CommandStatus iwListCommandStatus = executorService.execute(iwListCommand);
-            int exitValue = (Integer) iwListCommandStatus.getExitStatus().getExitValue();
+            CommandStatus iwListCommandStatus = this.executorService.execute(iwListCommand);
+            int exitValue = iwListCommandStatus.getExitStatus().getExitCode();
             if (logger.isInfoEnabled()) {
                 logger.info("scan() :: {} command returns status = {}", String.join(" ", cmdIwList), exitValue);
             }
-            if (exitValue == 0) {
+            if (iwListCommandStatus.getExitStatus().isSuccessful()) {
                 IwlistScanTool.this.status = true;
                 IwlistScanTool.this.scanOutput = new ByteArrayInputStream(
                         ((ByteArrayOutputStream) iwListCommandStatus.getOutputStream()).toByteArray());

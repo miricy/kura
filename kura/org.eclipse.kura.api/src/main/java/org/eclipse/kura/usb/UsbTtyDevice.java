@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -35,6 +35,7 @@ public class UsbTtyDevice extends AbstractUsbDevice {
     /**
      * @since 1.4
      */
+    @SuppressWarnings("checkstyle:parameterNumber")
     public UsbTtyDevice(String vendorId, String productId, String manufacturerName, String productName,
             String usbBusNumber, String usbDevicePath, String deviceNode, Integer interfaceNumber) {
         super(vendorId, productId, manufacturerName, productName, usbBusNumber, usbDevicePath);
@@ -44,7 +45,7 @@ public class UsbTtyDevice extends AbstractUsbDevice {
 
     /**
      * Returns the tty device node name
-     * 
+     *
      * @return the device node
      */
     public String getDeviceNode() {
@@ -53,9 +54,9 @@ public class UsbTtyDevice extends AbstractUsbDevice {
 
     /**
      * Returns the tty interface number
-     * 
+     *
      * @since 1.4
-     * 
+     *
      * @return the interface number
      */
     public Integer getInterfaceNumber() {

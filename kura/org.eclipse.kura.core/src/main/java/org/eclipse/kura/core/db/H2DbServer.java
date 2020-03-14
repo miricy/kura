@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,7 +23,7 @@ public class H2DbServer implements ConfigurableComponent {
         WEB,
         TCP,
         PG
-    };
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(H2DbServer.class);
     private Server server;
@@ -48,7 +48,7 @@ public class H2DbServer implements ConfigurableComponent {
 
     private void restartServer(H2DbServerOptions configuration) {
         shutdownServer();
-        Server server = null;
+        Server newServer = null;
         if (configuration.isServerEnabled()) {
             try {
                 logger.info("Starting DB server...");
@@ -56,23 +56,23 @@ public class H2DbServer implements ConfigurableComponent {
                 logger.debug("Server type: {}, commandline: {}", configuration.getServerType(), commandline);
                 switch (configuration.getServerType()) {
                 case TCP:
-                    server = Server.createTcpServer(commandline);
+                    newServer = Server.createTcpServer(commandline);
                     break;
                 case WEB:
-                    server = Server.createWebServer(commandline);
+                    newServer = Server.createWebServer(commandline);
                     break;
                 case PG:
-                    server = Server.createPgServer(commandline);
+                    newServer = Server.createPgServer(commandline);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown server type");
                 }
-                server.start();
-                this.server = server;
+                newServer.start();
+                this.server = newServer;
                 logger.info("Starting DB server...done");
             } catch (SQLException e) {
                 logger.error("Failed to start server", e);
-                shutdownServer(server);
+                shutdownServer(newServer);
             }
         }
     }

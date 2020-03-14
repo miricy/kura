@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -41,6 +41,7 @@ public class WifiHotspotInfo {
         this.security = security;
     }
 
+    @SuppressWarnings("checkstyle:parameterNumber")
     public WifiHotspotInfo(String ssid, String macAddress, int signalLevel, int channel, int frequency,
             WifiSecurity security, EnumSet<WifiSecurity> pairCiphers, EnumSet<WifiSecurity> groupCiphers) {
         this(ssid, macAddress, signalLevel, channel, frequency, security);
@@ -81,15 +82,15 @@ public class WifiHotspotInfo {
     }
 
     /**
-	 * @since 1.2
-	 */
+     * @since 1.2
+     */
     public void setPairCiphers(EnumSet<WifiSecurity> pairCiphers) {
         this.pairCiphers = pairCiphers;
     }
 
     /**
-	 * @since 1.2
-	 */
+     * @since 1.2
+     */
     public void setGroupCiphers(EnumSet<WifiSecurity> groupCiphers) {
         this.groupCiphers = groupCiphers;
     }

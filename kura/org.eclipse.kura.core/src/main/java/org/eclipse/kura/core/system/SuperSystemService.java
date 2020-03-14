@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2019 Eurotech and/or its affiliates and others
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates and others
  *
  *   All rights reserved. This program and the accompanying materials
  *   are made available under the terms of the Eclipse Public License v1.0
@@ -18,8 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Superclass of System*Service.
+ * Superclass of SystemService.
  */
+@SuppressWarnings("checkstyle:hideUtilityClassConstructor")
 public class SuperSystemService {
 
     private static final Logger logger = LoggerFactory.getLogger(SuperSystemService.class);
@@ -32,7 +33,7 @@ public class SuperSystemService {
         command.setOutputStream(new ByteArrayOutputStream());
         command.setExecuteInAShell(runInShell);
         CommandStatus status = executorService.execute(command);
-        if ((Integer) status.getExitStatus().getExitValue() == 0) {
+        if (status.getExitStatus().isSuccessful()) {
             response = new String(((ByteArrayOutputStream) status.getOutputStream()).toByteArray(), Charsets.UTF_8);
         } else {
             if (logger.isErrorEnabled()) {

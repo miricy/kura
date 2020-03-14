@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -35,7 +35,7 @@ public class MiiTool implements LinkTool {
     private boolean linkDetected = false;
     private int speed = 0; // in b/s
 
-    private CommandExecutorService executorService;
+    private final CommandExecutorService executorService;
 
     /**
      * MiiTool constructor
@@ -61,10 +61,9 @@ public class MiiTool implements LinkTool {
         command.setTimeout(60);
         command.setOutputStream(new ByteArrayOutputStream());
         CommandStatus status = this.executorService.execute(command);
-        boolean result = (Integer) status.getExitStatus().getExitValue() == 0;
         parse(new String(((ByteArrayOutputStream) status.getOutputStream()).toByteArray(), Charsets.UTF_8));
 
-        return result;
+        return status.getExitStatus().isSuccessful();
     }
 
     private void parse(String commandOutput) {
@@ -72,7 +71,7 @@ public class MiiTool implements LinkTool {
         int spd = 0;
         String[] lines = commandOutput.split("\n");
         for (String line : lines) {
-            if (line.startsWith(this.ifaceName) && (line.indexOf("link ok") > -1)) {
+            if (line.startsWith(this.ifaceName) && line.indexOf("link ok") > -1) {
                 isLinkDetected = true;
                 spd = parseLine(line);
             }
@@ -91,9 +90,9 @@ public class MiiTool implements LinkTool {
                 tmp = line.substring(line.indexOf(',') + 2);
             }
             String speedTxt = tmp.substring(0, tmp.indexOf(','));
-            if ((speedTxt.compareTo("10baseT-HD") == 0) || (speedTxt.compareTo("10baseT-FD") == 0)) {
+            if (speedTxt.compareTo("10baseT-HD") == 0 || speedTxt.compareTo("10baseT-FD") == 0) {
                 spd = 10000000;
-            } else if ((speedTxt.compareTo("100baseTx-HD") == 0) || (speedTxt.compareTo("100baseTx-FD") == 0)) {
+            } else if (speedTxt.compareTo("100baseTx-HD") == 0 || speedTxt.compareTo("100baseTx-FD") == 0) {
                 spd = 100000000;
             } else {
                 spd = -2;

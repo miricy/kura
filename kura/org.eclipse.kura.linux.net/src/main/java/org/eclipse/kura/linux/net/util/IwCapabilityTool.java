@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019 Eurotech and/or its affiliates
+ * Copyright (c) 2019, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -46,6 +46,10 @@ public class IwCapabilityTool {
     }
 
     private static final EnumSet<ParseState> DONE = EnumSet.of(ParseState.HAS_RSN, ParseState.HAS_CHIPHERS);
+    
+    private IwCapabilityTool() {
+        
+    }
 
     private static Optional<Matcher> skipTo(final BufferedReader reader, final Pattern pattern) throws IOException {
         String line;
@@ -81,6 +85,7 @@ public class IwCapabilityTool {
         return Optional.empty();
     }
 
+    @SuppressWarnings("checkstyle:innerAssignment")
     private static Set<Capability> parseCapabilities(final InputStream in) throws IOException {
 
         final EnumSet<Capability> capabilities = EnumSet.noneOf(Capability.class);
@@ -131,9 +136,9 @@ public class IwCapabilityTool {
         Command command = new Command(commandLine);
         command.setOutputStream(new ByteArrayOutputStream());
         CommandStatus status = executorService.execute(command);
-        final int exitValue = (Integer) status.getExitStatus().getExitValue();
+        final int exitValue = status.getExitStatus().getExitCode();
 
-        if (exitValue != 0) {
+        if (!status.getExitStatus().isSuccessful()) {
             logger.warn("error executing command --- {} --- exit value = {}", commandLine, exitValue);
             throw new KuraException(KuraErrorCode.OS_COMMAND_ERROR, commandLine, exitValue);
         }
@@ -149,7 +154,7 @@ public class IwCapabilityTool {
             final int phy = parseWiphyIndex(exec(new String[] { "iw", interfaceName, "info" }, executorService))
                     .orElseThrow(() -> new KuraException(KuraErrorCode.PROCESS_EXECUTION_ERROR,
                             "failed to get phy index for " + interfaceName));
-            return parseCapabilities(exec(new String[] { "iw", "phy", String.valueOf(phy), "info" }, executorService));
+            return parseCapabilities(exec(new String[] { "iw", "phy" + String.valueOf(phy), "info" }, executorService));
 
         } catch (final KuraException e) {
             throw e;
