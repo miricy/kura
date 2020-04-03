@@ -41,8 +41,6 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     private CloudPublisher cloudPublisherLan;
     private CloudSubscriber cloudSubscriber;
     private CloudSubscriber cloudSubscriberLan;
-    
-    private Map<String, Object> properties;
 
     private byte index = 0;
     private Thread worker;
@@ -105,7 +103,9 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
         logger.info("activating...");
 
         try {
+            logger.info("activating... connect before");
             this.canConnection.connectCanSocket();
+            logger.info("activating... connect end");
         } catch (Exception e) {
             logger.error("failed to connect can socket", e);
             return;
@@ -132,13 +132,13 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
         logger.info("updating...");
 
         cancelCurrentTask();
-        this.properties.clear();
-        this.properties.putAll(properties);
+        logger.info("updating done... 1");
         interfaceName = (String) properties.getOrDefault(CAN_INTERFACE_NAME_PROP_NAME,
                 CAN_INTERFACE_DEFAULT);
+        
         canId = (Integer) properties.getOrDefault(CAN_IDENTIFIER_PROP_NAME, CAN_IDENTIFIER_DEFAULT);
 //        startSenderThread(interfaceName, canId, 1);
-
+        logger.info("updating done... 0");
         startReceiverThread();
 
 
@@ -146,7 +146,6 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     }
 
     private void startReceiverThread() {
-        final String gatewayAddr = (String) this.properties.get(CAN_IDENTIFIER_PROP_NAME);
         this.worker = new Thread(() -> {
             while (!Thread.interrupted()) {
                 try {
@@ -196,6 +195,7 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     private void cancelCurrentTask() {
         if (this.worker != null) {
             this.worker.interrupt();
+            logger.info("cancelCurrentTask... 1");
             try {
                 this.worker.join(1000);
             } catch (InterruptedException e) {
@@ -207,7 +207,6 @@ public class CanSocketGate implements ConfigurableComponent, CloudSubscriberList
     @Override
     public void onMessageArrived(KuraMessage message) {
         String appTopic = (String) message.getProperties().get("appTopic");
-        String gatewayAddr = (String) this.properties.get(CAN_IDENTIFIER_PROP_NAME);
         logger.info("For can ---onMessageArrived message--appTopic: {} -body: {}", appTopic, message.getPayload().getBody());
 
         try {
