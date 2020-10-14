@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -44,7 +44,9 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
 
     private static final Logger logger = LoggerFactory.getLogger(PositionServiceImpl.class);
 
-    private static String LOCATION = "boston";
+    private static final String SOURCE_KEY = "source";
+
+    private static final String BOSTON = "boston";
 
     private ComponentContext ctx;
     private EventAdmin eventAdmin;
@@ -58,6 +60,7 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
     private Date currentTime;
     private int index = 0;
     private boolean useGpsd;
+    private String source;
 
     public void setEventAdmin(EventAdmin eventAdmin) {
         this.eventAdmin = eventAdmin;
@@ -78,32 +81,35 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
         // save the bundle context
         this.ctx = componentContext;
         this.useGpsd = false;
-        if (properties != null) {
-            if (properties.get(USE_GPSD_PROPERTY_NAME) != null) {
-                this.useGpsd = (Boolean) properties.get(USE_GPSD_PROPERTY_NAME);
-            }
-            if (this.useGpsd) {
-                logger.info("USE GPSD");
-            }
-        }
+        doUpdate(properties);
 
         start();
     }
 
     public void updated(Map<String, Object> properties) {
-        if (properties != null) {
-            if (properties.get(USE_GPSD_PROPERTY_NAME) != null) {
-                this.useGpsd = (Boolean) properties.get(USE_GPSD_PROPERTY_NAME);
-            }
-            if (this.useGpsd) {
-                logger.info("USE GPSD");
-            }
-        }
+        logger.info("Updating position service");
+        stop();
+        doUpdate(properties);
+        start();
+        logger.info("Updating position service. Done.");
     }
 
     protected void deactivate(ComponentContext componentContext) {
         logger.info("Stopping position service");
         stop();
+    }
+
+    private void doUpdate(Map<String, Object> properties) {
+        if (properties == null) {
+            return;
+        }
+        if (properties.get(USE_GPSD_PROPERTY_NAME) != null) {
+            this.useGpsd = (Boolean) properties.get(USE_GPSD_PROPERTY_NAME);
+        }
+        if (this.useGpsd) {
+            logger.info("USE GPSD");
+        }
+        this.source = (String) properties.getOrDefault(SOURCE_KEY, BOSTON);
     }
 
     @Override
@@ -143,20 +149,23 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
         this.index = 0;
 
         String fileName = null;
-        if ("boston".equals(LOCATION)) {
+        if (BOSTON.equals(this.source)) {
             fileName = "boston.gpx";
-        } else if ("denver".equals(LOCATION)) {
+        } else if ("denver".equals(this.source)) {
             fileName = "denver.gpx";
-        } else if ("paris".equals(LOCATION)) {
+        } else if ("paris".equals(this.source)) {
             fileName = "paris.gpx";
-        } else if ("test".equals(LOCATION)) {
+        } else if ("test".equals(this.source)) {
             fileName = "test.gpx";
         }
 
         GpsXmlHandler handler = new GpsXmlHandler();
         SAXParserFactory factory = SAXParserFactory.newInstance();
-        factory.setValidating(false);
         try {
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setValidating(false);
+
             // Create the builder and parse the file
             SAXParser parser = factory.newSAXParser();
             logger.debug("Parsing: {}", fileName);
@@ -173,13 +182,7 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
 
         // schedule a new worker based on the properties of the service
         this.worker = Executors.newSingleThreadScheduledExecutor();
-        this.handle = this.worker.scheduleAtFixedRate(new Runnable() {
-
-            @Override
-            public void run() {
-                updateGps();
-            }
-        }, 0, 5, TimeUnit.SECONDS);
+        this.handle = this.worker.scheduleAtFixedRate(this::updateGps, 0, 5, TimeUnit.SECONDS);
 
         logger.debug("posting event");
         this.eventAdmin.postEvent(new PositionLockedEvent(new HashMap<String, Object>()));
@@ -218,19 +221,15 @@ public class PositionServiceImpl implements PositionService, ConfigurableCompone
                 this.gpsPoints[this.index].getLongitude(), this.gpsPoints[this.index].getAltitude(), 0, 0);
 
         this.index++;
-
-        return;
     }
 
     @Override
     public void registerListener(String listenerId, PositionListener positionListener) {
-        // TODO Auto-generated method stub
-
+        // Not supported
     }
 
     @Override
     public void unregisterListener(String listenerId) {
-        // TODO Auto-generated method stub
-
+        // Not supported
     }
 }

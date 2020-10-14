@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates and others
  *
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
@@ -10,68 +10,59 @@
 
 package org.eclipse.kura.internal.driver.opcua.request;
 
-import static org.eclipse.kura.internal.driver.opcua.Utils.tryExtract;
-
 import java.util.Map;
 
-import org.eclipse.kura.internal.driver.opcua.OpcUaChannelDescriptor;
+import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId;
 
-public class ListenParams extends ReadParams {
+public abstract class ListenParams extends ReadParams {
 
-    private final double samplingInterval;
-    private final long queueSize;
-    private final boolean discardOldest;
-
-    public ListenParams(Map<String, Object> channelConfig) {
+    public ListenParams(final Map<String, Object> channelConfig) {
         super(channelConfig);
-        this.samplingInterval = tryExtract(channelConfig, OpcUaChannelDescriptor::getSamplingInterval,
-                "Error while retrieving Sampling Interval");
-        this.queueSize = tryExtract(channelConfig, OpcUaChannelDescriptor::getQueueSize,
-                "Error while retrieving Queue Size");
-        this.discardOldest = tryExtract(channelConfig, OpcUaChannelDescriptor::getDiscardOldest,
-                "Error while retrieving Discard Oldest parameter");
     }
 
-    public double getSamplingInterval() {
-        return samplingInterval;
+    public ListenParams(final ReadValueId readValueId) {
+        super(readValueId);
     }
 
-    public long getQueueSize() {
-        return queueSize;
-    }
+    public abstract double getSamplingInterval();
 
-    public boolean getDiscardOldest() {
-        return discardOldest;
-    }
+    public abstract long getQueueSize();
+
+    public abstract boolean getDiscardOldest();
 
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        result = prime * result + (discardOldest ? 1231 : 1237);
-        result = prime * result + (int) (queueSize ^ (queueSize >>> 32));
+        result = prime * result + (getDiscardOldest() ? 1231 : 1237);
+        result = prime * result + (int) (getQueueSize() ^ getQueueSize() >>> 32);
         long temp;
-        temp = Double.doubleToLongBits(samplingInterval);
-        result = prime * result + (int) (temp ^ (temp >>> 32));
+        temp = Double.doubleToLongBits(getSamplingInterval());
+        result = prime * result + (int) (temp ^ temp >>> 32);
         return result;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
+    public boolean equals(final Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (this == obj) {
             return true;
-        if (!super.equals(obj))
+        }
+        if (!super.equals(obj)) {
             return false;
-        if (getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
-        ListenParams other = (ListenParams) obj;
-        if (discardOldest != other.discardOldest)
+        }
+        SingleNodeListenParams other = (SingleNodeListenParams) obj;
+        if (getDiscardOldest() != other.getDiscardOldest()) {
             return false;
-        if (queueSize != other.queueSize)
+        }
+        if (getQueueSize() != other.getQueueSize()) {
             return false;
-        if (Double.doubleToLongBits(samplingInterval) != Double.doubleToLongBits(other.samplingInterval))
-            return false;
-        return true;
+        }
+        return Double.doubleToLongBits(getSamplingInterval()) == Double.doubleToLongBits(other.getSamplingInterval());
     }
-
 }

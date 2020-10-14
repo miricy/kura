@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,7 +21,7 @@ import org.osgi.annotation.versioning.ProviderType;
  * The base class for firewall port forward configurations
  *
  * @param <T>
- * 
+ *
  * @noextend This class is not intended to be subclassed by clients.
  */
 @ProviderType
@@ -88,6 +88,7 @@ public abstract class FirewallPortForwardConfigIP<T extends IPAddress> implement
      * @param sourcePortRange
      *            The (options) permitted source port range for inbound connections
      */
+    @SuppressWarnings("checkstyle:parameterNumber")
     public FirewallPortForwardConfigIP(String inboundIface, String outboundIface, IP4Address address,
             NetProtocol protocol, int inPort, int outPort, boolean masquerade, NetworkPair<T> permittedNetwork,
             String permittedMac, String sourcePortRange) {

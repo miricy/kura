@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2016, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -32,11 +32,10 @@ import org.gwtbootstrap3.client.ui.ModalFooter;
 import org.gwtbootstrap3.client.ui.ModalHeader;
 import org.gwtbootstrap3.client.ui.Panel;
 import org.gwtbootstrap3.client.ui.TabListItem;
+import org.gwtbootstrap3.client.ui.constants.ModalBackdrop;
 import org.gwtbootstrap3.client.ui.html.Span;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
@@ -154,7 +153,7 @@ public class CloudConnectionsUi extends Composite {
     }
 
     private void handleConnectionStatusEvent(final GwtEventInfo info, final GwtCloudConnectionState state) {
-        final String cloudServicePid = (String) info.get(CONNECTION_EVENT_PID_PROPERTY_KEY);
+        final String cloudServicePid = info.get(CONNECTION_EVENT_PID_PROPERTY_KEY);
 
         if (cloudServicePid == null || !this.cloudInstancesBinder.setStatus(cloudServicePid, state)) {
             CloudConnectionsUi.this.refresh();
@@ -163,6 +162,10 @@ public class CloudConnectionsUi extends Composite {
 
     private void showDirtyModal() {
         final Modal modal = new Modal();
+        modal.setClosable(false);
+        modal.setFade(true);
+        modal.setDataKeyboard(true);
+        modal.setDataBackdrop(ModalBackdrop.STATIC);
 
         ModalHeader header = new ModalHeader();
         header.setTitle(MSGS.confirm());
@@ -176,36 +179,28 @@ public class CloudConnectionsUi extends Composite {
         ButtonGroup group = new ButtonGroup();
         Button yes = new Button();
         yes.setText(MSGS.yesButton());
-        yes.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                modal.hide();
-                GwtCloudEntry selectedInstanceEntry = CloudConnectionsUi.this.cloudInstancesBinder.getSelectedObject();
-                if (selectedInstanceEntry != null) {
-                    CloudConnectionsUi.this.currentlySelectedEntry = selectedInstanceEntry;
-                    CloudConnectionsUi.this.cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
-                }
-
-                CloudConnectionConfigurationUi dirtyConfig = CloudConnectionsUi.this.cloudServiceConfigurationsBinder
-                        .getDirtyCloudConfiguration();
-                if (dirtyConfig != null) {
-                    dirtyConfig.resetVisualization();
-                }
-
-                setDirty(false);
+        yes.addClickHandler(event -> {
+            modal.hide();
+            GwtCloudEntry selectedInstanceEntry = CloudConnectionsUi.this.cloudInstancesBinder.getSelectedObject();
+            if (selectedInstanceEntry != null) {
+                CloudConnectionsUi.this.currentlySelectedEntry = selectedInstanceEntry;
+                CloudConnectionsUi.this.cloudServiceConfigurationsBinder.selectEntry(selectedInstanceEntry);
             }
+
+            CloudConnectionConfigurationUi dirtyConfig = CloudConnectionsUi.this.cloudServiceConfigurationsBinder
+                    .getDirtyCloudConfiguration();
+            if (dirtyConfig != null) {
+                dirtyConfig.resetVisualization();
+            }
+
+            setDirty(false);
         });
         Button no = new Button();
         no.setText(MSGS.noButton());
-        no.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                CloudConnectionsUi.this.cloudInstancesBinder.setSelected(CloudConnectionsUi.this.currentlySelectedEntry);
-                CloudConnectionsUi.this.currentlySelectedTab.showTab();
-                modal.hide();
-            }
+        no.addClickHandler(event -> {
+            CloudConnectionsUi.this.cloudInstancesBinder.setSelected(CloudConnectionsUi.this.currentlySelectedEntry);
+            CloudConnectionsUi.this.currentlySelectedTab.showTab();
+            modal.hide();
         });
         group.add(no);
         group.add(yes);

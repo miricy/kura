@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,22 +18,29 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.eclipse.kura.web.client.ui.drivers.assets.AssetModel;
+import org.eclipse.kura.web.client.ui.drivers.assets.AssetModelImpl;
+import org.eclipse.kura.web.client.util.ValidationUtil;
+import org.eclipse.kura.web.shared.AssetConstants;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
+import org.eclipse.kura.web.shared.model.GwtConfigParameter;
 
 public class Configurations {
 
-    private final Set<String> allActivePids = new HashSet<String>();
+    private static final String WIRE_ASSET_PID = "org.eclipse.kura.wire.WireAsset";
+
+    private final Set<String> allActivePids = new HashSet<>();
     private final Map<String, GwtConfigComponent> componentDefinitions = new HashMap<>();
     private final Map<String, HasConfiguration> currentConfigurations = new HashMap<>();
     private final Map<String, GwtConfigComponent> channelDescriptors = new HashMap<>();
     private GwtConfigComponent baseChannelDescriptor = null;
 
     public GwtConfigComponent getFactoryDefinition(String factoryPid) {
-        return componentDefinitions.get(factoryPid);
+        return this.componentDefinitions.get(factoryPid);
     }
 
     public HasConfiguration getConfiguration(String pid) {
-        return currentConfigurations.get(pid);
+        return this.currentConfigurations.get(pid);
     }
 
     private GwtConfigComponent createConfigurationFromDefinition(String pid, String factoryPid,
@@ -41,6 +48,11 @@ public class Configurations {
         final GwtConfigComponent cloned = new GwtConfigComponent(definition);
         cloned.setComponentId(pid);
         cloned.setFactoryPid(factoryPid);
+        for (final GwtConfigParameter param : cloned.getParameters()) {
+            if (param.getValue() == null && param.isRequired()) {
+                param.setValue(param.getDefault());
+            }
+        }
         return cloned;
     }
 
@@ -86,7 +98,7 @@ public class Configurations {
     }
 
     public Collection<HasConfiguration> getConfigurations() {
-        return currentConfigurations.values();
+        return this.currentConfigurations.values();
     }
 
     public void clear() {
@@ -97,7 +109,7 @@ public class Configurations {
     }
 
     public void setConfiguration(HasConfiguration configuration) {
-        this.currentConfigurations.put(configuration.getConfiguration().getComponentId(), configuration);
+        this.currentConfigurations.put(configuration.getComponentId(), configuration);
     }
 
     public void deleteConfiguration(String pid) {
@@ -117,7 +129,7 @@ public class Configurations {
     }
 
     public GwtConfigComponent getBaseChannelDescriptor() {
-        return baseChannelDescriptor;
+        return this.baseChannelDescriptor;
     }
 
     public void setBaseChannelDescriptor(GwtConfigComponent baseChannelDescriptor) {
@@ -134,7 +146,7 @@ public class Configurations {
     }
 
     public List<String> getInvalidConfigurationPids() {
-        final List<String> result = new ArrayList<String>();
+        final List<String> result = new ArrayList<>();
         for (Entry<String, HasConfiguration> entry : this.currentConfigurations.entrySet()) {
             if (!entry.getValue().isValid()) {
                 result.add(entry.getKey());
@@ -199,20 +211,18 @@ public class Configurations {
     }
 
     public boolean isPidExisting(String pid) {
-        return currentConfigurations.containsKey(pid) || allActivePids.contains(pid);
+        return this.currentConfigurations.containsKey(pid) || this.allActivePids.contains(pid);
     }
 
     public void invalidateConfiguration(String pid) {
-        final HasConfiguration config = this.currentConfigurations.get(pid);
-        if (config != null) {
-            this.currentConfigurations.put(pid, new InvalidConfigurationWrapper(config));
-        }
+        this.currentConfigurations.computeIfPresent(pid,
+                (p, configuration) -> new InvalidConfigurationWrapper(configuration));
     }
 
     private class ConfigurationWrapper implements HasConfiguration {
 
         private boolean isDirty;
-        private GwtConfigComponent configuration;
+        private final GwtConfigComponent configuration;
 
         public ConfigurationWrapper(GwtConfigComponent configuration) {
             this.configuration = configuration;
@@ -220,31 +230,64 @@ public class Configurations {
 
         @Override
         public GwtConfigComponent getConfiguration() {
-            return configuration;
+            return this.configuration;
         }
 
         @Override
         public void clearDirtyState() {
-            isDirty = false;
+            this.isDirty = false;
         }
 
         @Override
         public boolean isValid() {
-            return configuration != null && configuration.isValid();
+            if (this.configuration == null || !this.configuration.isValid()) {
+                return false;
+            }
+
+            if (!WIRE_ASSET_PID.equals(this.configuration.getFactoryId())) {
+                return ValidationUtil.validateParameters(configuration);
+            } else {
+                return validateAssetConfiguration();
+            }
+        }
+
+        private boolean validateAssetConfiguration() {
+            final String driverPid = this.configuration.getParameterValue(AssetConstants.ASSET_DRIVER_PROP.value());
+
+            if (driverPid == null) {
+                return false;
+            }
+
+            final GwtConfigComponent driverDescriptor = channelDescriptors.get(driverPid);
+
+            if (driverDescriptor == null) {
+                return false;
+            }
+
+            final AssetModel assetModelImpl = new AssetModelImpl(configuration, driverDescriptor,
+                    baseChannelDescriptor);
+
+            return assetModelImpl.isValid();
         }
 
         @Override
         public boolean isDirty() {
-            return isDirty;
+            return this.isDirty;
         }
 
         @Override
         public void markAsDirty() {
-            isDirty = true;
+            this.isDirty = true;
         }
 
         @Override
         public void setListener(Listener listener) {
+            // Not needed
+        }
+
+        @Override
+        public String getComponentId() {
+            return configuration != null ? configuration.getComponentId() : null;
         }
     }
 
@@ -258,12 +301,12 @@ public class Configurations {
 
         @Override
         public GwtConfigComponent getConfiguration() {
-            return wrapped.getConfiguration();
+            return this.wrapped.getConfiguration();
         }
 
         @Override
         public void clearDirtyState() {
-            wrapped.clearDirtyState();
+            this.wrapped.clearDirtyState();
         }
 
         @Override
@@ -273,17 +316,22 @@ public class Configurations {
 
         @Override
         public boolean isDirty() {
-            return wrapped.isDirty();
+            return this.wrapped.isDirty();
         }
 
         @Override
         public void markAsDirty() {
-            wrapped.markAsDirty();
+            this.wrapped.markAsDirty();
         }
 
         @Override
         public void setListener(Listener listener) {
-            wrapped.setListener(listener);
+            this.wrapped.setListener(listener);
+        }
+
+        @Override
+        public String getComponentId() {
+            return wrapped.getComponentId();
         }
     }
 }

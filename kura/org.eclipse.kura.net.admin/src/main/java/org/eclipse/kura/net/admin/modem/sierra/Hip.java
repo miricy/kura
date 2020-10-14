@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -99,13 +99,13 @@ public class Hip {
     private static final int PAYLOAD_OFFSET = 4;
 
     private int payloadlength = 0;
-    private byte message_id = 0;
+    private byte messageId = 0;
     private byte parameter = 0;
 
     private byte[] hipmsg = null;
     private byte[] payload = null;
 
-    private boolean is_error = false;
+    private boolean errorState = false;
 
     /**
      * HIP request constructor
@@ -115,7 +115,7 @@ public class Hip {
      */
     public Hip(byte[] payload) {
 
-        this.message_id = MSGID_CNS_HOST2MODEM;
+        this.messageId = MSGID_CNS_HOST2MODEM;
         this.payloadlength = payload.length;
 
         List<Byte> alMsg = new ArrayList<>();
@@ -123,7 +123,7 @@ public class Hip {
         // form HIP message
         alMsg.add(Byte.valueOf((byte) (this.payloadlength >> 8 & 0xff)));
         alMsg.add(Byte.valueOf((byte) (this.payloadlength & 0xff)));
-        alMsg.add(Byte.valueOf(this.message_id));
+        alMsg.add(Byte.valueOf(this.messageId));
         alMsg.add(Byte.valueOf(this.parameter));
         for (int i = 0; i < this.payloadlength; i++) {
             alMsg.add(Byte.valueOf(payload[i]));
@@ -188,7 +188,7 @@ public class Hip {
 
             this.payloadlength = alMsg.get(0).byteValue() << 8 & 0x0ffff | alMsg.get(1).byteValue() & 0x0ff;
 
-            this.message_id = alMsg.get(MESSAGE_ID_OFFSET).byteValue();
+            this.messageId = alMsg.get(MESSAGE_ID_OFFSET).byteValue();
             this.parameter = alMsg.get(PARAMETER_OFFSET).byteValue();
 
             // get HIP payload
@@ -198,8 +198,7 @@ public class Hip {
                 this.payload[i] = alMsg.get(PAYLOAD_OFFSET + i).byteValue();
             }
         } catch (Exception e) {
-            this.is_error = true;
-            e.printStackTrace();
+            this.errorState = true;
         }
     }
 
@@ -227,7 +226,7 @@ public class Hip {
      * @return Message ID
      */
     public byte getMessageID() {
-        return this.message_id;
+        return this.messageId;
     }
 
     /**
@@ -238,6 +237,6 @@ public class Hip {
      *         false - no error
      */
     public boolean isError() {
-        return this.is_error;
+        return this.errorState;
     }
 }

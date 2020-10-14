@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,7 +33,6 @@ import org.eclipse.kura.KuraConnectException;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.KuraNotConnectedException;
 import org.eclipse.kura.KuraStoreException;
-import org.eclipse.kura.KuraTimeoutException;
 import org.eclipse.kura.KuraTooManyInflightMessagesException;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.configuration.ConfigurationService;
@@ -97,7 +96,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
     private boolean notifyPending;
     private final Condition lockCondition = this.lock.newCondition();
 
-    private volatile AtomicBoolean publisherEnabled = new AtomicBoolean();
+    private final AtomicBoolean publisherEnabled = new AtomicBoolean();
 
     private ServiceTracker<H2DbService, H2DbService> dbServiceTracker;
     private ComponentContext componentContext;
@@ -127,12 +126,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
         createThrottle();
         submitPublishingWork();
 
-        String[] parts = pid.split("-");
-        String table = "ds_messages";
-        if (parts.length > 1) {
-            table += "_" + parts[1];
-        }
-        this.store = new DbDataStore(table);
+        this.store = new DbDataStore(pid);
 
         restartDbServiceTracker(this.dataServiceOptions.getDbServiceInstancePid());
 
@@ -157,10 +151,10 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
                         @Override
                         public H2DbService addingService(ServiceReference<H2DbService> reference) {
                             logger.info("H2DbService instance found");
-                            H2DbService dbService = DataServiceImpl.this.componentContext.getBundleContext()
+                            H2DbService contextDbService = DataServiceImpl.this.componentContext.getBundleContext()
                                     .getService(reference);
-                            setH2DbService(dbService);
-                            return dbService;
+                            setH2DbService(contextDbService);
+                            return contextDbService;
                         }
 
                         @Override
@@ -361,8 +355,8 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
 
         if (newSession) {
             if (this.dataServiceOptions.isPublishInFlightMessages()) {
-                logger.info(
-                        "New session established. Unpublishing all in-flight messages. Disregarding the QoS level, this may cause duplicate messages.");
+                logger.info("New session established. Unpublishing all in-flight messages. Disregarding the QoS level, "
+                        + "this may cause duplicate messages.");
                 try {
                     this.store.unpublishAllInFlighMessages();
                     this.inFlightMsgIds.clear();
@@ -518,22 +512,22 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
     }
 
     @Override
-    public void subscribe(String topic, int qos) throws KuraTimeoutException, KuraException, KuraNotConnectedException {
+    public void subscribe(String topic, int qos) throws KuraException {
         this.dataTransportService.subscribe(topic, qos);
     }
 
     @Override
-    public void unsubscribe(String topic) throws KuraTimeoutException, KuraException, KuraNotConnectedException {
+    public void unsubscribe(String topic) throws KuraException {
         this.dataTransportService.unsubscribe(topic);
     }
 
     @Override
     public int publish(String topic, byte[] payload, int qos, boolean retain, int priority) throws KuraStoreException {
 
-        logger.info("Storing message on topic :{}, priority: {}", topic, priority);
+        logger.info("Storing message on topic: {}, priority: {}", topic, priority);
 
         DataMessage dataMsg = this.store.store(topic, payload, qos, retain, priority);
-        logger.info("Stored message on topic :{}, priority: {}", topic, priority);
+        logger.info("Stored message on topic: {}, priority: {}", topic, priority);
 
         signalPublisher();
 
@@ -595,8 +589,8 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
 
                 @Override
                 public void run() {
-                    String originalName = Thread.currentThread().getName();
-                    Thread.currentThread().setName("DataServiceImpl:ReconnectTask");
+                    Thread.currentThread().setName("DataServiceImpl:ReconnectTask:"
+                            + DataServiceImpl.this.dataServiceOptions.getKuraServicePid());
                     boolean connected = false;
                     try {
                         if (DataServiceImpl.this.dbService == null) {
@@ -630,7 +624,6 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
                         logger.error("Unexpected Error. Task will be terminated", e);
                         throw e;
                     } finally {
-                        Thread.currentThread().setName(originalName);
                         if (connected) {
                             unregisterAsCriticalComponent();
                             // Throwing an exception will suppress subsequent executions of this periodic task.
@@ -668,7 +661,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
 
             long publishPeriod = this.dataServiceOptions.getRateLimitTimeUnit() / publishRate;
 
-            logger.info("Get Throttle with burst length {} and send a message every {} millis", burstLength,
+            logger.info("Get Throttle with burst length {} and send a message every {} nanoseconds", burstLength,
                     publishPeriod);
             this.throttle = new TokenBucket(burstLength, publishPeriod);
         }
@@ -708,24 +701,23 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
         boolean retain = message.isRetain();
         int msgId = message.getId();
 
-        logger.debug("Publishing message with ID: {} on topic: {}, priority: {}",
-                new Object[] { msgId, topic, message.getPriority() });
+        logger.debug("Publishing message with ID: {} on topic: {}, priority: {}", msgId, topic, message.getPriority());
 
-        DataTransportToken token = this.dataTransportService.publish(topic, payload, qos, retain);
+        DataTransportToken token = DataServiceImpl.this.dataTransportService.publish(topic, payload, qos, retain);
 
         if (token == null) {
-            this.store.published(msgId);
+            DataServiceImpl.this.store.published(msgId);
             logger.debug("Published message with ID: {}", msgId);
         } else {
 
             // Check if the token is already tracked in the map (in which case we are in trouble)
-            Integer trackedMsgId = this.inFlightMsgIds.get(token);
+            Integer trackedMsgId = DataServiceImpl.this.inFlightMsgIds.get(token);
             if (trackedMsgId != null) {
-                logger.error("Token already tracked: {} -", token.getSessionId(), token.getMessageId());
+                logger.error("Token already tracked: {} - {}", token.getSessionId(), token.getMessageId());
             }
 
-            this.inFlightMsgIds.put(token, msgId);
-            this.store.published(msgId, token.getMessageId(), token.getSessionId());
+            DataServiceImpl.this.inFlightMsgIds.put(token, msgId);
+            DataServiceImpl.this.store.published(msgId, token.getMessageId(), token.getSessionId());
             logger.debug("Published message with ID: {} and MQTT message ID: {}", msgId, token.getMessageId());
         }
     }
@@ -744,25 +736,6 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
         }
 
         return ids;
-    }
-
-    private void handleInFlightCongestion() {
-        int timeout = this.dataServiceOptions.getInFlightMessagesCongestionTimeout();
-
-        // Do not schedule more that one task at a time
-        if (timeout != 0 && (this.congestionFuture == null || this.congestionFuture.isDone())) {
-            logger.warn("In-flight message congestion timeout started");
-            this.congestionFuture = this.congestionExecutor.schedule(new Runnable() {
-
-                @Override
-                public void run() {
-                    Thread.currentThread().setName("DataServiceImpl:InFlightCongestion");
-                    logger.warn("In-flight message congestion timeout elapsed. Disconnecting and reconnecting again");
-                    disconnect();
-                    startConnectionMonitorTask();
-                }
-            }, timeout, TimeUnit.SECONDS);
-        }
     }
 
     private void handleInFlightDecongestion() {
@@ -824,7 +797,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
                 }
 
                 if (!messagePublished) {
-                    suspendPublisher(sleepingTime, TimeUnit.MILLISECONDS);
+                    suspendPublisher(sleepingTime, TimeUnit.NANOSECONDS);
                 }
             }
             logger.debug("Exited publisher loop.");
@@ -849,7 +822,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
                         logger.debug("Suspending publishing thread indefinitely");
                         DataServiceImpl.this.lockCondition.await();
                     } else {
-                        logger.debug("Suspending publishing thread for {} milliseconds", timeout);
+                        logger.debug("Suspending publishing thread for {} nanoseconds", timeout);
                         DataServiceImpl.this.lockCondition.await(timeout, timeUnit);
                     }
                 }
@@ -867,7 +840,7 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
             DataServiceImpl.this.dataServiceListeners.onMessagePublished(message.getId(), message.getTopic());
         }
 
-        private boolean publishMessageTokenBucket(DataMessage message) throws KuraException, InterruptedException {
+        private boolean publishMessageTokenBucket(DataMessage message) throws KuraException {
             boolean tokenAvailable = DataServiceImpl.this.throttle.getToken();
 
             if (tokenAvailable) {
@@ -875,6 +848,22 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
                 return true;
             }
             return false;
+        }
+
+        private void handleInFlightCongestion() {
+            int timeout = DataServiceImpl.this.dataServiceOptions.getInFlightMessagesCongestionTimeout();
+
+            // Do not schedule more that one task at a time
+            if (timeout != 0 && (DataServiceImpl.this.congestionFuture == null
+                    || DataServiceImpl.this.congestionFuture.isDone())) {
+                logger.warn("In-flight message congestion timeout started");
+                DataServiceImpl.this.congestionFuture = DataServiceImpl.this.congestionExecutor.schedule(() -> {
+                    Thread.currentThread().setName("DataServiceImpl:InFlightCongestion");
+                    logger.warn("In-flight message congestion timeout elapsed. Disconnecting and reconnecting again");
+                    disconnect();
+                    startConnectionMonitorTask();
+                }, timeout, TimeUnit.SECONDS);
+            }
         }
     }
 
@@ -887,13 +876,13 @@ public class DataServiceImpl implements DataService, DataTransportListener, Conf
     public int getCriticalComponentTimeout() {
         return this.dataServiceOptions.getCriticalComponentTimeout();
     }
-    
-    public Map<String,String> getConnectionInfo() {
-        Map<String,String> result = new HashMap<>();
-        result.put("Broker URL", dataTransportService.getBrokerUrl());
-        result.put("Account", dataTransportService.getAccountName());
-        result.put("Username", dataTransportService.getUsername());
-        result.put("Client ID", dataTransportService.getClientId());
+
+    public Map<String, String> getConnectionInfo() {
+        Map<String, String> result = new HashMap<>();
+        result.put("Broker URL", this.dataTransportService.getBrokerUrl());
+        result.put("Account", this.dataTransportService.getAccountName());
+        result.put("Username", this.dataTransportService.getUsername());
+        result.put("Client ID", this.dataTransportService.getClientId());
         return result;
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,7 +14,6 @@ package org.eclipse.kura.web.server;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -23,48 +22,49 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
+import java.util.Base64.Decoder;
 import java.util.Collection;
 import java.util.Iterator;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.certificate.CertificatesService;
 import org.eclipse.kura.ssl.SslManagerService;
 import org.eclipse.kura.web.server.util.ServiceLocator;
+import org.eclipse.kura.web.session.Attributes;
 import org.eclipse.kura.web.shared.GwtKuraErrorCode;
 import org.eclipse.kura.web.shared.GwtKuraException;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 import org.eclipse.kura.web.shared.service.GwtCertificatesService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet implements GwtCertificatesService {
 
+    private static final Logger auditLogger = LoggerFactory.getLogger("AuditLogger");
     /**
      *
      */
     private static final long serialVersionUID = 7402961266449489433L;
+    private static final Decoder BASE64_DECODER = Base64.getDecoder();
 
     @Override
     public Integer storePublicPrivateKeys(GwtXSRFToken xsrfToken, String privateKey, String publicKey, String password,
             String alias) throws GwtKuraException {
         checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         try {
             // Remove header if exists
             String key = privateKey.replace("-----BEGIN PRIVATE KEY-----", "").replace("\n", "");
             key = key.replace("-----END PRIVATE KEY-----", "");
 
-            Object convertedData = null;
-            try {
-                Class<?> clazz = Class.forName("javax.xml.bind.DatatypeConverter");
-                Method method = clazz.getMethod("parseBase64Binary", String.class);
-                convertedData = method.invoke(null, key);
-            } catch (ClassNotFoundException e) {
-                convertedData = base64DecodeJava8(key);
-            } catch (LinkageError e) {
-                convertedData = base64DecodeJava8(key);
-            } catch (Exception e) {
-                throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e);
-            }
-
-            byte[] conversion = (byte[]) convertedData;
+            byte[] conversion = base64Decode(key);
             // Parse Base64 - after PKCS8
             PKCS8EncodedKeySpec specPriv = new PKCS8EncodedKeySpec(conversion);
 
@@ -75,6 +75,8 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
             Certificate[] certs = parsePublicCertificates(publicKey);
 
             if (privKey == null) {
+                auditLogger.warn("UI Certificate - Failure - Failed to store key for user: {}, session {}",
+                        session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
                 throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT);
             } else {
                 char[] privateKeyPassword = new char[0];
@@ -84,12 +86,13 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
                 SslManagerService sslService = ServiceLocator.getInstance().getService(SslManagerService.class);
                 sslService.installPrivateKey(alias, privKey, privateKeyPassword, certs);
             }
+
+            auditLogger.info("UI Certificate - Success - Successfully stored key for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             return 1;
-        } catch (UnsupportedEncodingException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (GeneralSecurityException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (IOException e) {
+        } catch (GeneralSecurityException | IOException e) {
+            auditLogger.warn("UI Certificate - Failure - Failed to store key for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
         }
     }
@@ -98,6 +101,10 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
     public Integer storeSSLPublicChain(GwtXSRFToken xsrfToken, String publicKeys, String alias)
             throws GwtKuraException {
         checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         try {
             X509Certificate[] certs = parsePublicCertificates(publicKeys);
 
@@ -113,20 +120,18 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
                         sslService.installTrustCertificate("ssl-" + alias, cert);
                         leafAssigned = true;
                     } else { // Certificate is CA.
- // http://stackoverflow.com/questions/12092457/how-to-check-if-x509certificate-is-ca-certificate
+                        // http://stackoverflow.com/questions/12092457/how-to-check-if-x509certificate-is-ca-certificate
                         String certificateAlias = "ca-" + cert.getSerialNumber().toString();
                         sslService.installTrustCertificate(certificateAlias, cert);
                     }
                 }
             }
+            auditLogger.info("UI Certificate - Success - Successfully stored public chain for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             return certs.length;
-        } catch (CertificateException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (UnsupportedEncodingException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (GeneralSecurityException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (IOException e) {
+        } catch (GeneralSecurityException | IOException e) {
+            auditLogger.warn("UI Certificate - Failure - Failed to store public chain for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
         }
     }
@@ -135,6 +140,10 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
     public Integer storeApplicationPublicChain(GwtXSRFToken xsrfToken, String publicKeys, String alias)
             throws GwtKuraException {
         checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         try {
             X509Certificate[] certs = parsePublicCertificates(publicKeys);
 
@@ -151,18 +160,22 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
                         certificateService.storeCertificate(cert, "bundle-" + alias);
                         leafAssigned = true;
                     } else { // Certificate is CA.
- // http://stackoverflow.com/questions/12092457/how-to-check-if-x509certificate-is-ca-certificate
+                        // http://stackoverflow.com/questions/12092457/how-to-check-if-x509certificate-is-ca-certificate
                         String certificateAlias = "bundle-" + cert.getSerialNumber().toString();
                         certificateService.storeCertificate(cert, certificateAlias);
                     }
                 }
             }
+
+            auditLogger.info(
+                    "UI Certificate - Success - Successfully stored application public chain for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
+
             return certs.length;
-        } catch (CertificateException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (UnsupportedEncodingException e) {
-            throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
-        } catch (KuraException e) {
+        } catch (CertificateException | UnsupportedEncodingException | KuraException e) {
+            auditLogger.warn(
+                    "UI Certificate - Failure - Failed to store application public chain for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
         }
     }
@@ -185,19 +198,11 @@ public class GwtCertificatesServiceImpl extends OsgiRemoteServiceServlet impleme
         return certs;
     }
 
-    private Object base64DecodeJava8(String key) throws GwtKuraException {
-        Object convertedData = null;
+    private byte[] base64Decode(String key) throws GwtKuraException {
         try {
-            Class<?> clazz = Class.forName("java.util.Base64");
-            Method decoderMethod = clazz.getMethod("getDecoder", (Class<?>[]) null);
-            Object decoder = decoderMethod.invoke(null, new Object[0]);
-
-            Class<?> Base64Decoder = Class.forName("java.util.Base64$Decoder");
-            Method decodeMethod = Base64Decoder.getMethod("decode", String.class);
-            convertedData = decodeMethod.invoke(decoder, key);
-        } catch (Exception e1) {
-            throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e1);
+            return BASE64_DECODER.decode(key);
+        } catch (final Exception e) {
+            throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e);
         }
-        return convertedData;
     }
 }

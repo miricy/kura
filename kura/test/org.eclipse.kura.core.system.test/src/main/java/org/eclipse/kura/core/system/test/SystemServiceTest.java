@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -28,7 +28,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.kura.core.testutil.TestUtil;
-import org.eclipse.kura.core.util.ProcessUtil;
+import org.eclipse.kura.executor.Command;
+import org.eclipse.kura.executor.CommandExecutorService;
+import org.eclipse.kura.executor.CommandStatus;
 import org.eclipse.kura.system.SystemService;
 import org.eclipse.kura.test.annotation.TestTarget;
 import org.junit.BeforeClass;
@@ -36,19 +38,29 @@ import org.junit.Test;
 
 public class SystemServiceTest {
 
+    private static final String UNKNOWN = "UNKNOWN";
+    private static final String LINUX = "Linux"; // Ubuntu
     private static SystemService systemService = null;
-    private static CountDownLatch dependencyLatch = new CountDownLatch(1);	// initialize with number of dependencies
-    private static boolean onCloudbees = false;
+    private static CommandExecutorService executorService = null;
+    private static CountDownLatch dependencyLatch = new CountDownLatch(2);	// initialize with number of dependencies
+    private boolean onCloudbees = false;
 
     @BeforeClass
     public static void setUp() {
         // Wait for OSGi dependencies
         try {
-            dependencyLatch.await(10, TimeUnit.SECONDS);
+            if (!dependencyLatch.await(10, TimeUnit.SECONDS)) {
+                fail("OSGi dependencies unfulfilled");
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             fail("OSGi dependencies unfulfilled");
         }
+    }
+
+    protected void setExecutorService(CommandExecutorService ces) {
+        executorService = ces;
+        dependencyLatch.countDown();
     }
 
     protected void setSystemService(SystemService sms) {
@@ -109,8 +121,7 @@ public class SystemServiceTest {
     @Test
     public void testGetOsDistro() {
         String[] expected = { "DevOsDitribution",   			// emulated
-                "Linux" 									// Ubuntu
-        };
+                LINUX };
 
         try {
             boolean foundMatch = false;
@@ -173,7 +184,7 @@ public class SystemServiceTest {
 
     @TestTarget(targetPlatforms = { TestTarget.PLATFORM_ALL })
     @Test
-    public void testGetOsVersion() {
+    public void testGetOsVersion() throws IOException {
         String osVersion = System.getProperty("os.version");
         StringBuilder sbOsVersion = new StringBuilder();
         sbOsVersion.append(osVersion);
@@ -189,7 +200,6 @@ public class SystemServiceTest {
                     kernelVersionData.append(tempLine);
                 }
                 sbOsVersion.append(kernelVersionData.toString());
-            } catch (IOException e) {
             }
         }
 
@@ -296,20 +306,19 @@ public class SystemServiceTest {
 
         String osName = systemService.getOsName();
         if (!osName.contains("indows")) {
-            if ("Linux".equals(osName)) {
-                try {
-                    ProcessUtil.exec("dmidecode");
-
-                    // note: this assert works locally and on travis, but not on hudson
-                    // assertNotEquals("UNKNOWN", modelName);
-
-                    assertNotEquals("DevModelName", modelName);
-                } catch (IOException e) {
-                    assertEquals("UNKNOWN", modelName);
+            if (LINUX.equals(osName)) {
+                CommandStatus status = executorService.execute(new Command(new String[] { "dmidecode" }));
+                if (!status.getExitStatus().isSuccessful()) {
+                    assertEquals(UNKNOWN, modelName);
                 }
+
+                // note: this assert works locally and on travis, but not on hudson
+                // assertNotEquals("UNKNOWN", modelName);
+
+                assertNotEquals("DevModelName", modelName);
             }
         } else {
-            assertEquals("UNKNOWN", modelName);
+            assertEquals(UNKNOWN, modelName);
         }
     }
 
@@ -332,20 +341,18 @@ public class SystemServiceTest {
 
         String osName = systemService.getOsName();
         if (!osName.contains("indows")) {
-            if ("Linux".equals(osName)) {
-                try {
-                    ProcessUtil.exec("dmidecode");
-
-                    // note: this assert works locally and on travis, but not on hudson
-                    // assertNotEquals("UNKNOWN", serialNumber);
-
-                    assertNotEquals("DevSerialNumber", serialNumber);
-                } catch (IOException e) {
-                    assertEquals("UNKNOWN", serialNumber);
+            if (LINUX.equals(osName)) {
+                CommandStatus status = executorService.execute(new Command(new String[] { "dmidecode" }));
+                if (!status.getExitStatus().isSuccessful()) {
+                    assertEquals(UNKNOWN, serialNumber);
                 }
+                // note: this assert works locally and on travis, but not on hudson
+                // assertNotEquals("UNKNOWN", serialNumber);
+
+                assertNotEquals("DevSerialNumber", serialNumber);
             }
         } else {
-            assertEquals("UNKNOWN", serialNumber);
+            assertEquals(UNKNOWN, serialNumber);
         }
     }
 }

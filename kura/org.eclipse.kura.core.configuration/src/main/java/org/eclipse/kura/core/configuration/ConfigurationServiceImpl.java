@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and others
+ * Copyright (c) 2011, 2020 Eurotech and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,7 +14,6 @@ package org.eclipse.kura.core.configuration;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -22,6 +21,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +66,7 @@ import org.eclipse.kura.system.SystemService;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
+import org.osgi.framework.Filter;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
@@ -299,6 +301,41 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
     @Override
     public List<ComponentConfiguration> getComponentConfigurations() throws KuraException {
         return getComponentConfigurationsInternal();
+    }
+
+    @Override
+    public List<ComponentConfiguration> getComponentConfigurations(final Filter filter) throws KuraException {
+
+        if (filter == null) {
+            return getComponentConfigurationsInternal();
+        }
+
+        try {
+            final ServiceReference<?>[] refs = this.bundleContext.getAllServiceReferences(null, null);
+            final List<ComponentConfiguration> result = new ArrayList<>(refs.length);
+
+            for (final ServiceReference<?> ref : refs) {
+
+                if (!filter.match(ref)) {
+                    continue;
+                }
+
+                final Object kuraServicePid = ref.getProperty(KURA_SERVICE_PID);
+
+                if (kuraServicePid instanceof String) {
+                    final ComponentConfiguration config = getComponentConfigurationInternal((String) kuraServicePid);
+
+                    if (config != null) {
+                        result.add(config);
+                    }
+                }
+            }
+
+            return result;
+        } catch (final Exception e) {
+            throw new KuraException(KuraErrorCode.CONFIGURATION_ERROR, e);
+        }
+
     }
 
     // Don't perform internal calls to this method
@@ -781,7 +818,7 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
                 factoryPid = (String) properties.get(ConfigurationAdmin.SERVICE_FACTORYPID);
             }
             if (factoryPid != null && !this.allActivatedPids.contains(config.getPid())) {
-                ConfigurationUpgrade.upgrade(config, bundleContext);
+                ConfigurationUpgrade.upgrade(config, this.bundleContext);
                 String pid = config.getPid();
                 logger.info("Creating configuration with pid: {} and factory pid: {}", pid, factoryPid);
                 try {
@@ -958,7 +995,22 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
         }
     }
 
-    private void encryptPlainSnapshots() throws Exception {
+    private static String readFully(final File file) throws IOException {
+        final char[] buf = new char[4096];
+        final StringBuilder builder = new StringBuilder();
+
+        try (final FileReader r = new FileReader(file)) {
+            int rd;
+
+            while ((rd = r.read(buf, 0, buf.length)) > 0) {
+                builder.append(buf, 0, rd);
+            }
+        }
+
+        return builder.toString();
+    }
+
+    private void encryptPlainSnapshots() throws KuraException, IOException {
         Set<Long> snapshotIDs = getSnapshots();
         if (snapshotIDs == null || snapshotIDs.isEmpty()) {
             return;
@@ -971,30 +1023,10 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
                 throw new KuraException(KuraErrorCode.CONFIGURATION_ERROR, snapshot);
             }
 
-            //
-            // Unmarshall
-            XmlComponentConfigurations xmlConfigs = null;
-            FileReader fr = null;
-            BufferedReader br = null;
-            try {
-                fr = new FileReader(fSnapshot);
-                br = new BufferedReader(fr);
-                String line = "";
-                StringBuilder entireFile = new StringBuilder();
-                while ((line = br.readLine()) != null) {
-                    entireFile.append(line);
-                }                    // end while
-                xmlConfigs = unmarshal(entireFile.toString(), XmlComponentConfigurations.class);
-            } finally {
-                if (br != null) {
-                    br.close();
-                }
-                if (fr != null) {
-                    fr.close();
-                }
-            }
-            List<ComponentConfiguration> configs = xmlConfigs.getConfigurations();
-            encryptConfigs(configs);
+            final XmlComponentConfigurations xmlConfigs = unmarshal(readFully(fSnapshot),
+                    XmlComponentConfigurations.class);
+
+            encryptConfigs(xmlConfigs.getConfigurations());
 
             // Writes an encrypted snapshot with encrypted passwords.
             writeSnapshot(snapshot, xmlConfigs);
@@ -1258,13 +1290,19 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
             // preserve snapshot ID 0 as this will be considered the seeding
             // one.
             long sid = sids.pollFirst();
-            if (sid != 0) {
-                File fSnapshot = getSnapshotFile(sid);
-                if (fSnapshot != null && fSnapshot.exists()) {
-                    logger.info("Snapshots Garbage Collector. Deleting {}", fSnapshot.getAbsolutePath());
-                    fSnapshot.delete();
+            File fSnapshot = getSnapshotFile(sid);
+            if (sid == 0 || fSnapshot == null) {
+                continue;
+            }
+
+            Path fSnapshotPath = fSnapshot.toPath();
+            try {
+                if (Files.deleteIfExists(fSnapshotPath)) {
+                    logger.info("Snapshots Garbage Collector. Deleted {}", fSnapshotPath);
                     currCount--;
                 }
+            } catch (IOException e) {
+                logger.warn("Snapshots Garbage Collector. Deletion failed for {}", fSnapshotPath, e);
             }
         }
     }
@@ -1359,21 +1397,18 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
                     fSnapshot != null ? fSnapshot.getAbsolutePath() : "null");
         }
 
-        StringBuilder entireFile = new StringBuilder();
-        try (FileReader fr = new FileReader(fSnapshot); BufferedReader br = new BufferedReader(fr)) {
-            String line = "";
-            while ((line = br.readLine()) != null) {
-                entireFile.append(line);
-            }
+        final String rawSnapshot;
+        try {
+            rawSnapshot = readFully(fSnapshot);
         } catch (IOException e) {
             logger.error("Error loading file from disk", e);
             return null;
         }
 
         // File loaded, try to decrypt and unmarshall
-        char[] decryptAes = this.cryptoService.decryptAes(entireFile.toString().toCharArray());
+        char[] decryptAes = this.cryptoService.decryptAes(rawSnapshot.toCharArray());
         if (decryptAes == null) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR);
+            throw new KuraException(KuraErrorCode.DECODER_ERROR, "snapshot");
         }
         String decryptedContent = new String(decryptAes);
 
@@ -1633,7 +1668,7 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
         }
 
         for (final ComponentConfiguration config : result) {
-            ConfigurationUpgrade.upgrade(config, bundleContext);
+            ConfigurationUpgrade.upgrade(config, this.bundleContext);
         }
 
         return result;
@@ -1730,15 +1765,15 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
         try {
             return requireNonNull(this.xmlUnmarshaller.unmarshal(string, clazz));
         } catch (final Exception e) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR, e);
+            throw new KuraException(KuraErrorCode.DECODER_ERROR, "configuration", e);
         }
     }
 
     protected String marshal(final Object object) throws KuraException {
         try {
-            return requireNonNull(xmlMarshaller.marshal(object));
+            return requireNonNull(this.xmlMarshaller.marshal(object));
         } catch (Exception e) {
-            throw new KuraException(KuraErrorCode.ENCODE_ERROR, e);
+            throw new KuraException(KuraErrorCode.ENCODE_ERROR, "configuration", e);
         }
     }
 
@@ -1753,35 +1788,40 @@ public class ConfigurationServiceImpl implements ConfigurationService, OCDServic
         }
 
         public String getFactoryPid() {
-            return factoryPid;
+            return this.factoryPid;
         }
 
         public Bundle getProviderBundle() {
-            return provider;
+            return this.provider;
         }
 
         @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
-            result = prime * result + ((factoryPid == null) ? 0 : factoryPid.hashCode());
+            result = prime * result + (this.factoryPid == null ? 0 : this.factoryPid.hashCode());
             return result;
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
+            if (this == obj) {
                 return true;
-            if (obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if (getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
+            }
             TrackedComponentFactory other = (TrackedComponentFactory) obj;
-            if (factoryPid == null) {
-                if (other.factoryPid != null)
+            if (this.factoryPid == null) {
+                if (other.factoryPid != null) {
                     return false;
-            } else if (!factoryPid.equals(other.factoryPid))
+                }
+            } else if (!this.factoryPid.equals(other.factoryPid)) {
                 return false;
+            }
             return true;
         }
     }

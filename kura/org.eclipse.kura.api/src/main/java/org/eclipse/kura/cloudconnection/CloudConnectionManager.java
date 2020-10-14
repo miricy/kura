@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,18 +13,17 @@ package org.eclipse.kura.cloudconnection;
 
 import org.eclipse.kura.KuraConnectException;
 import org.eclipse.kura.KuraDisconnectException;
-import org.eclipse.kura.KuraException;
 import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
  * A {@link CloudEndpoint} can implement CloudConnectionManager to support the management of
  * long-lived/always on connections.
- *  
+ *
  * This interface provides methods to connect, disconnect and get the connection state of the associated CloudEndpoint.
  * It also provides methods to register {@link CloudConnectionListener}s that will be notified of connection-related
  * events.
- * 
+ *
  * The implementor must register itself as a CloudConnectionManager OSGi service provider.
  *
  * @noimplement This interface is not intended to be implemented by clients.
@@ -36,7 +35,7 @@ public interface CloudConnectionManager {
     /**
      * Establishes a connection to the configured cloud platform.
      *
-     * @throws KuraException
+     * @throws org.eclipse.kura.KuraException
      *             if the operation fails
      */
     public void connect() throws KuraConnectException;
@@ -44,7 +43,7 @@ public interface CloudConnectionManager {
     /**
      * Performs a clean disconnection from the cloud platform.
      *
-     * @throws KuraException
+     * @throws org.eclipse.kura.KuraException
      *             if the operation fails
      */
     public void disconnect() throws KuraDisconnectException;

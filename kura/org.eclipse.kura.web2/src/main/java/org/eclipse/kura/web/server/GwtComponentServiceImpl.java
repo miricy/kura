@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,6 +12,8 @@
  *     Amit Kumar Mondal
  *******************************************************************************/
 package org.eclipse.kura.web.server;
+
+import static java.util.Objects.isNull;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,6 +34,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.eclipse.kura.KuraErrorCode;
@@ -48,6 +52,7 @@ import org.eclipse.kura.util.service.ServiceUtil;
 import org.eclipse.kura.web.server.util.GwtServerUtil;
 import org.eclipse.kura.web.server.util.KuraExceptionHandler;
 import org.eclipse.kura.web.server.util.ServiceLocator;
+import org.eclipse.kura.web.session.Attributes;
 import org.eclipse.kura.web.shared.GwtKuraErrorCode;
 import org.eclipse.kura.web.shared.GwtKuraException;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
@@ -55,12 +60,13 @@ import org.eclipse.kura.web.shared.model.GwtConfigParameter;
 import org.eclipse.kura.web.shared.model.GwtConfigParameter.GwtConfigParameterType;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 import org.eclipse.kura.web.shared.service.GwtComponentService;
-import org.eclipse.kura.web.shared.service.GwtWireService;
+import org.eclipse.kura.web.shared.service.GwtWireGraphService;
 import org.eclipse.kura.wire.WireHelperService;
 import org.eclipse.kura.wire.graph.WireComponentDefinition;
 import org.eclipse.kura.wire.graph.WireComponentDefinitionService;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
@@ -68,12 +74,28 @@ import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.runtime.ServiceComponentRuntime;
 import org.osgi.service.component.runtime.dto.ReferenceDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements GwtComponentService {
+
+    private static final String SUCCESSFULLY_LISTED_COMPONENT_CONFIGS_MESSAGE = "UI Component - Success - Successfully listed component configs for user: {}, session {}";
+
+    private static final String SUCCESSFULLY_LISTED_PIDS_FROM_TARGET_MESSAGE = "UI Component - Success - Successfully listed pids from target for user: {}, session: {}, pid: {}";
+
+    private static final String FAILED_TO_CREATE_COMPONENT_CONFIG_MESSAGE = "UI Component - Failure - Failed to create component config for user: {}, session {}";
+
+    private static final String FAILED_TO_LIST_COMPONENT_CONFIGS_MESSAGE = "UI Component - Failure - Failed to list component configs for user: {}, session {}";
+
+    private static final String SUCCESSFULLY_LISTED_COMPONENT_CONFIG_MESSAGE = "UI Component - Success - Successfully listed component config for user: {}, session {}";
+
+    private static final String FAILED_TO_LIST_COMPONENT_CONFIG_MESSAGE = "UI Component - Failure - Failed to list component config for user: {}, session {}";
+
+    private static final Logger auditLogger = LoggerFactory.getLogger("AuditLogger");
 
     private static final String DRIVER_PID = "driver.pid";
     private static final String KURA_SERVICE_PID = ConfigurationService.KURA_SERVICE_PID;
@@ -90,6 +112,8 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         checkXSRFToken(xsrfToken);
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
 
+        getThreadLocalRequest();
+
         return new ArrayList<>(cs.getConfigurableComponentPids());
     }
 
@@ -104,19 +128,29 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public List<GwtConfigComponent> findComponentConfigurations(GwtXSRFToken xsrfToken, String osgiFilter)
             throws GwtKuraException {
         checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         try {
-            final BundleContext context = FrameworkUtil.getBundle(GwtComponentServiceImpl.class).getBundleContext();
-            final Set<String> matchingPids = Arrays.stream(context.getServiceReferences((String) null, osgiFilter))
-                    .map(reference -> (String) reference.getProperty(KURA_SERVICE_PID)).collect(Collectors.toSet());
-            return ServiceLocator
-                    .applyToServiceOptionally(ConfigurationService.class,
-                            configurationService -> configurationService.getComponentConfigurations().stream()
-                                    .filter(config -> matchingPids.contains(config.getPid())))
-                    .map(this::createMetatypeOnlyGwtComponentConfigurationInternal).filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            final Filter filter = FrameworkUtil.createFilter(osgiFilter);
+            List<GwtConfigComponent> result = ServiceLocator.applyToServiceOptionally(ConfigurationService.class,
+                    configurationService -> configurationService.getComponentConfigurations(filter) //
+                            .stream() //
+                            .map(this::createMetatypeOnlyGwtComponentConfigurationInternal) //
+                            .filter(Objects::nonNull) //
+                            .collect(Collectors.toList()));
+
+            auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIGS_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
+            return result;
         } catch (InvalidSyntaxException e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIGS_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.ILLEGAL_ARGUMENT, e);
         } catch (Exception e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIGS_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, e);
         }
     }
@@ -145,6 +179,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public void updateComponentConfiguration(GwtXSRFToken xsrfToken, GwtConfigComponent gwtCompConfig)
             throws GwtKuraException {
         checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         try {
             // Build the new properties
@@ -173,7 +211,13 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
             //
             // apply them
             cs.updateConfiguration(gwtCompConfig.getComponentId(), properties);
+            auditLogger.info(
+                    "UI Component - Success - Successfully updated component config for user: {}, session {}, component ID: {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(),
+                    gwtCompConfig.getComponentId());
         } catch (KuraException e) {
+            auditLogger.warn("UI Component - Failure - Failed to update component config for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             KuraExceptionHandler.handle(e);
         }
     }
@@ -196,6 +240,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
 
     private void internalCreateFactoryComponent(String factoryPid, String pid, Map<String, Object> properties)
             throws GwtKuraException {
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         try {
             cs.createFactoryConfiguration(factoryPid, pid, properties, true);
@@ -205,11 +253,20 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
             if (!ServiceUtil.waitForService(filterString, SERVICE_WAIT_TIMEOUT, TimeUnit.SECONDS).isPresent()) {
                 throw new GwtKuraException("Created component did not start in " + SERVICE_WAIT_TIMEOUT + " seconds");
             }
+
+            auditLogger.info("UI Component - Success - Successfully created component config for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         } catch (KuraException e) {
+            auditLogger.warn(FAILED_TO_CREATE_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException("A component with the same name already exists!");
         } catch (InterruptedException e) {
+            auditLogger.warn(FAILED_TO_CREATE_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException("Interrupted while waiting for component creation");
         } catch (InvalidSyntaxException e) {
+            auditLogger.warn(FAILED_TO_CREATE_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException("Invalid value for " + ConfigurationService.KURA_SERVICE_PID + ": " + pid);
         }
     }
@@ -218,11 +275,19 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public void deleteFactoryConfiguration(GwtXSRFToken xsrfToken, String pid, boolean takeSnapshot)
             throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
 
         try {
             cs.deleteFactoryConfiguration(pid, takeSnapshot);
+            auditLogger.info("UI Component - Success - Successfully deleted component config for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         } catch (KuraException e) {
+            auditLogger.warn("UI Component - Failure - Failed to delete component config for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException("Could not delete component configuration!");
         }
     }
@@ -230,6 +295,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     @Override
     public List<String> findFactoryComponents(GwtXSRFToken xsrfToken) throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         List<String> result = new ArrayList<>();
         List<String> servicesToBeHidden = new ArrayList<>();
@@ -254,6 +323,9 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
         result.removeAll(allWireComponents);
         result.removeAll(servicesToBeHidden);
         result.removeAll(hiddenFactories);
+
+        auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIGS_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return result;
     }
 
@@ -278,6 +350,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public GwtConfigComponent findWireComponentConfigurationFromPid(GwtXSRFToken xsrfToken, String pid,
             String factoryPid, Map<String, Object> extraProps) throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         GwtConfigComponent comp = null;
         try {
@@ -296,19 +372,29 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                         String filterString = "(" + ConfigurationService.KURA_SERVICE_PID + "=" + temporaryName + ")";
                         ServiceUtil.waitForService(filterString, SERVICE_WAIT_TIMEOUT, TimeUnit.SECONDS);
 
-                        return createMetatypeOnlyGwtComponentConfiguration(
+                        comp = createMetatypeOnlyGwtComponentConfiguration(
                                 waitForComponentConfiguration(cs, temporaryName));
                     } catch (Exception ex) {
+                        auditLogger.warn(
+                                "UI Component - Failure - Failed to fetch component config for user: {}, session {}",
+                                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
                         throw new GwtKuraException(ex.getMessage());
                     } finally {
                         cs.deleteFactoryConfiguration(temporaryName, false);
                     }
                 }
+            } else {
+                comp = createMetatypeOnlyGwtComponentConfiguration(conf);
             }
-            comp = createMetatypeOnlyGwtComponentConfiguration(conf);
+
         } catch (KuraException e) {
+            auditLogger.warn("UI Component - Failure - Failed to fetch component config for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException("Could not retrieve component configuration!");
         }
+
+        auditLogger.info("UI Component - Success - Successfully returned component config for user: {}, session {}",
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return comp;
     }
 
@@ -321,8 +407,8 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     private List<String> findFactoryHideComponents() throws GwtKuraException {
         return ServiceLocator.applyToServiceOptionally(ServiceComponentRuntime.class,
                 scr -> scr.getComponentDescriptionDTOs().stream()
-                        .filter(dto -> dto.properties.containsKey("kura.ui.factory.hide"))
-                        .map(dto -> (String) dto.name).collect(Collectors.toList()));
+                        .filter(dto -> dto.properties.containsKey("kura.ui.factory.hide")).map(dto -> dto.name)
+                        .collect(Collectors.toList()));
     }
 
     private List<ComponentConfiguration> sortConfigurationsByName(List<ComponentConfiguration> configs) {
@@ -385,6 +471,9 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     }
 
     private List<GwtConfigComponent> findFilteredComponentConfigurationsInternal() throws GwtKuraException {
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         List<GwtConfigComponent> gwtConfigs = new ArrayList<>();
         try {
@@ -399,12 +488,20 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                 }
             }
         } catch (Exception e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIGS_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             KuraExceptionHandler.handle(e);
         }
+
+        auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIGS_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return gwtConfigs;
     }
 
     private List<GwtConfigComponent> findComponentConfigurationInternal(String componentPid) throws GwtKuraException {
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         List<GwtConfigComponent> gwtConfigs = new ArrayList<>();
         try {
@@ -421,13 +518,21 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                 gwtConfigs.add(fullGwtConfigComponent);
             }
         } catch (Exception e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             KuraExceptionHandler.handle(e);
         }
+
+        auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIG_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return gwtConfigs;
     }
 
     private List<GwtConfigComponent> findFilteredComponentConfigurationInternal(String componentPid)
             throws GwtKuraException {
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         List<GwtConfigComponent> gwtConfigs = new ArrayList<>();
         try {
@@ -438,8 +543,13 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                 gwtConfigs.add(gwtConfigComponent);
             }
         } catch (Exception e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             KuraExceptionHandler.handle(e);
         }
+
+        auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIG_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return gwtConfigs;
     }
 
@@ -472,6 +582,9 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     }
 
     private List<GwtConfigComponent> findComponentConfigurationsInternal() throws GwtKuraException {
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         ConfigurationService cs = ServiceLocator.getInstance().getService(ConfigurationService.class);
         List<GwtConfigComponent> gwtConfigs = new ArrayList<>();
         try {
@@ -484,8 +597,13 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                 gwtConfigs.add(gwtConfigComponent);
             }
         } catch (Exception e) {
+            auditLogger.warn(FAILED_TO_LIST_COMPONENT_CONFIG_MESSAGE,
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             KuraExceptionHandler.handle(e);
         }
+
+        auditLogger.info(SUCCESSFULLY_LISTED_COMPONENT_CONFIG_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
         return gwtConfigs;
     }
 
@@ -624,6 +742,10 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public boolean updateProperties(GwtXSRFToken xsrfToken, String pid, Map<String, Object> properties)
             throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
+
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         final ConfigurationAdmin configAdmin = ServiceLocator.getInstance().getService(ConfigurationAdmin.class);
         final WireHelperService wireHelperService = ServiceLocator.getInstance().getService(WireHelperService.class);
         try {
@@ -648,8 +770,15 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                 conf.update(props);
             }
         } catch (IOException e) {
+            auditLogger.info(
+                    "UI Component - Failure - Failed to update component config for user: {}, session: {}, pid: {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(), pid);
             return false;
         }
+
+        auditLogger.info(
+                "UI Component - Success - Successfully updated component config for user: {}, session: {}, pid: {}",
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(), pid);
 
         return true;
     }
@@ -658,27 +787,36 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
     public List<String> getDriverFactoriesList(GwtXSRFToken xsrfToken) throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
 
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         List<String> driverFactoriesPids = new ArrayList<>();
-        final Bundle[] bundles = FrameworkUtil.getBundle(GwtWireService.class).getBundleContext().getBundles();
+        final Bundle[] bundles = FrameworkUtil.getBundle(GwtWireGraphService.class).getBundleContext().getBundles();
         for (final Bundle bundle : bundles) {
             final Enumeration<URL> enumeration = bundle.findEntries("OSGI-INF", "*.xml", false);
             if (enumeration != null) {
                 while (enumeration.hasMoreElements()) {
                     final URL entry = enumeration.nextElement();
                     try (InputStreamReader inputStream = new InputStreamReader(entry.openConnection().getInputStream());
-                            BufferedReader reader= new BufferedReader(inputStream);){
+                            BufferedReader reader = new BufferedReader(inputStream);) {
                         final StringBuilder contents = new StringBuilder();
                         String line;
                         while ((line = reader.readLine()) != null) {
                             contents.append(line);
                         }
-                        // Configruation Policy=Require and
+                        // Configuration Policy=Require and
                         // SelfConfiguringComponent or ConfigurableComponent
                         if ((contents.toString().contains(GwtServerUtil.PATTERN_SERVICE_PROVIDE_SELF_CONFIGURING_COMP)
                                 || contents.toString()
                                         .contains(GwtServerUtil.PATTERN_SERVICE_PROVIDE_CONFIGURABLE_COMP))
                                 && contents.toString().contains(GwtServerUtil.PATTERN_CONFIGURATION_REQUIRE)) {
-                            final Document dom = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                            dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+                            dbf.setXIncludeAware(false);
+                            dbf.setExpandEntityReferences(false);
+
+                            final Document dom = dbf.newDocumentBuilder()
                                     .parse(entry.openConnection().getInputStream());
                             final NodeList nl = dom.getElementsByTagName("property");
                             for (int i = 0; i < nl.getLength(); i++) {
@@ -695,11 +833,18 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
                             }
                         }
                     } catch (final Exception ex) {
+                        auditLogger.info(
+                                "UI Component - Failure - Failed to list driver factories for user: {}, session: {}",
+                                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
                         throw new GwtKuraException(GwtKuraErrorCode.RESOURCE_FETCHING_FAILURE);
                     }
                 }
             }
         }
+
+        auditLogger.info("UI Component - Success - Successfully listed driver factories for user: {}, session: {}",
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
+
         return driverFactoriesPids;
     }
 
@@ -708,17 +853,26 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
             throws GwtKuraException {
         this.checkXSRFToken(xsrfToken);
 
+        final HttpServletRequest request = getThreadLocalRequest();
+        final HttpSession session = request.getSession(false);
+
         List<String> result = new ArrayList<>();
 
-        final BundleContext context = FrameworkUtil.getBundle(GwtWireService.class).getBundleContext();
+        final BundleContext context = FrameworkUtil.getBundle(GwtWireGraphService.class).getBundleContext();
         ServiceReference<ServiceComponentRuntime> scrServiceRef = context
                 .getServiceReference(ServiceComponentRuntime.class);
         try {
             final ServiceComponentRuntime scrService = context.getService(scrServiceRef);
 
             final Set<String> referenceInterfaces = scrService.getComponentDescriptionDTOs().stream()
-                    .map(component -> {
-                        ReferenceDTO[] references = component.references;
+                    .filter(componentDescription -> scrService.getComponentConfigurationDTOs(componentDescription)
+                            .stream().anyMatch(componentConfiguration -> {
+                                String kuraServicePid = (String) componentConfiguration.properties
+                                        .get(ConfigurationService.KURA_SERVICE_PID);
+                                return kuraServicePid != null && kuraServicePid.equals(pid);
+                            }))
+                    .map(componentDescription -> {
+                        ReferenceDTO[] references = componentDescription.references;
                         for (ReferenceDTO reference : references) {
                             if (targetRef.equals(reference.name)) {
                                 return reference.interfaceName;
@@ -729,25 +883,27 @@ public class GwtComponentServiceImpl extends OsgiRemoteServiceServlet implements
 
             referenceInterfaces.forEach(reference -> {
                 try {
-                    Class<?> t = Class.forName(reference);
-                    Collection<?> cloudServiceReferences = ServiceLocator.getInstance().getServiceReferences(t, null);
+                    ServiceReference<?>[] serviceReferences = context.getServiceReferences(reference, null);
 
-                    for (Object cloudServiceReferenceObject : cloudServiceReferences) {
-                        if (cloudServiceReferenceObject instanceof ServiceReference) {
-                            ServiceReference<?> cloudServiceReference = (ServiceReference<?>) cloudServiceReferenceObject;
-                            String cloudServicePid = (String) cloudServiceReference.getProperty(KURA_SERVICE_PID);
-                            result.add(cloudServicePid);
-                            ServiceLocator.getInstance().ungetService(cloudServiceReference);
-                        }
+                    if (isNull(serviceReferences)) {
+                        return;
                     }
-                } catch (ClassNotFoundException | GwtKuraException e) {
 
+                    Arrays.stream(serviceReferences).forEach(serviceReference -> {
+                        result.add((String) serviceReference.getProperty(KURA_SERVICE_PID));
+                        ServiceLocator.getInstance().ungetService(serviceReference);
+                    });
+                } catch (InvalidSyntaxException e) {
+                    // Nothing to do
                 }
             });
 
         } finally {
             context.ungetService(scrServiceRef);
         }
+
+        auditLogger.info(SUCCESSFULLY_LISTED_PIDS_FROM_TARGET_MESSAGE,
+                session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(), pid);
         return result;
     }
 

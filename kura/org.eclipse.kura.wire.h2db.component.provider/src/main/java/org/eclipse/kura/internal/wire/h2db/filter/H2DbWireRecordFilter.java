@@ -30,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.eclipse.kura.configuration.ConfigurableComponent;
 import org.eclipse.kura.db.H2DbService;
 import org.eclipse.kura.internal.wire.h2db.common.H2DbServiceHelper;
@@ -51,8 +53,6 @@ import org.osgi.service.component.ComponentException;
 import org.osgi.service.wireadmin.Wire;
 import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 /**
  * The Class DbWireRecordFilter is responsible for representing a wire component
@@ -61,7 +61,7 @@ import org.apache.logging.log4j.LogManager;
  */
 public class H2DbWireRecordFilter implements WireEmitter, WireReceiver, ConfigurableComponent {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(H2DbWireRecordFilter.class);
 
     private List<WireRecord> lastRecords;
 
@@ -214,7 +214,6 @@ public class H2DbWireRecordFilter implements WireEmitter, WireReceiver, Configur
                 continue;
             }
 
-            // TODO: Consider if moving to TypeValues
             if (dbExtractedData instanceof Blob) {
                 final Blob dbExtractedBlob = (Blob) dbExtractedData;
                 final int dbExtractedBlobLength = (int) dbExtractedBlob.length();
@@ -255,7 +254,7 @@ public class H2DbWireRecordFilter implements WireEmitter, WireReceiver, Configur
             result = Collections.unmodifiableList(new ArrayList<WireRecord>());
         }
 
-        if (!result.isEmpty() || options.emitOnEmptyResult()) {
+        if (!result.isEmpty() || this.options.emitOnEmptyResult()) {
             this.wireSupport.emit(result);
         }
     }

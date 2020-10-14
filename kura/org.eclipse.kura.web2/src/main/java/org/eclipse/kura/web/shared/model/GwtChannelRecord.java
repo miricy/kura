@@ -11,8 +11,6 @@ package org.eclipse.kura.web.shared.model;
 
 import java.io.Serializable;
 
-import org.eclipse.kura.web.client.util.KuraBaseModel;
-
 public class GwtChannelRecord extends KuraBaseModel implements Serializable {
 
     /** Serialization UUID */
@@ -56,6 +54,6 @@ public class GwtChannelRecord extends KuraBaseModel implements Serializable {
     }
 
     public StackTraceElement[] getExceptionStackTrace() {
-        return stackTrace;
+        return this.stackTrace;
     }
 }

@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.kura.core.configuration;
 
-import static org.eclipse.kura.cloudconnection.request.RequestHandlerConstants.ARGS_KEY;
+import static org.eclipse.kura.cloudconnection.request.RequestHandlerMessageConstants.ARGS_KEY;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -477,7 +477,7 @@ public class CloudConfigurationHandler implements RequestHandler {
             ungetServiceReferences(unmarshallerSRs);
         }
         if (result == null) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR);
+            throw new KuraException(KuraErrorCode.DECODER_ERROR, "value");
         }
         return result;
     }

@@ -16,7 +16,7 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
     <parent>
         <groupId>org.eclipse.kura</groupId>
         <artifactId>test</artifactId>
-        <version>4.0.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>org.eclipse.kura.core.deployment.test</artifactId>
@@ -121,11 +121,6 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                             <autoStart>true</autoStart>
                         </bundle>
                         <bundle>
-                            <id>osgi.cmpn</id>
-                            <level>4</level>
-                            <autoStart>true</autoStart>
-                        </bundle>
-                        <bundle>
                             <id>org.eclipse.equinox.launcher</id>
                             <level>4</level>
                             <autoStart>true</autoStart>
@@ -161,7 +156,7 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                             <autoStart>true</autoStart>
                         </bundle>
                         <bundle>
-                            <id>org.h2</id>
+                            <id>com.h2database</id>
                             <level>4</level>
                             <autoStart>true</autoStart>
                         </bundle>
@@ -268,10 +263,6 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                         </dependency>
                         <dependency>
                             <type>p2-installable-unit</type>
-                            <artifactId>osgi.cmpn</artifactId>
-                        </dependency>
-                        <dependency>
-                            <type>p2-installable-unit</type>
                             <artifactId>org.eclipse.equinox.launcher</artifactId>
                         </dependency>
                         <dependency>
@@ -280,7 +271,7 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                         </dependency>
                         <dependency>
                             <type>p2-installable-unit</type>
-                            <artifactId>org.h2</artifactId>
+                            <artifactId>com.h2database</artifactId>
                         </dependency>
                         <dependency>
                             <type>p2-installable-unit</type>

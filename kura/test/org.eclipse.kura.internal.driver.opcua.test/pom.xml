@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
+Copyright (c) 2017, 2019 Eurotech and/or its affiliates and others
 
   All rights reserved. This program and the accompanying materials
   are made available under the terms of the Eclipse Public License v1.0
@@ -16,7 +16,7 @@ Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
     <parent>
         <groupId>org.eclipse.kura</groupId>
         <artifactId>test</artifactId>
-        <version>4.0.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>org.eclipse.kura.internal.driver.opcua.test</artifactId>
@@ -24,7 +24,49 @@ Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
 
     <properties>
         <kura.basedir>${project.basedir}/../..</kura.basedir>
+        <org.eclipse.milo.version>0.2.4</org.eclipse.milo.version>
+        <io.dropwizard.metrics.version>3.2.2</io.dropwizard.metrics.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <version>${io.dropwizard.metrics.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>sdk-client</artifactId>
+            <version>${org.eclipse.milo.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>sdk-core</artifactId>
+            <version>${org.eclipse.milo.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>sdk-server</artifactId>
+            <version>${org.eclipse.milo.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>stack-core</artifactId>
+            <version>${org.eclipse.milo.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>stack-server</artifactId>
+            <version>${org.eclipse.milo.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
 
     <build>
         <plugins>
@@ -117,11 +159,6 @@ Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
                         </bundle>
                         <bundle>
                             <id>org.hamcrest.core</id>
-                            <level>4</level>
-                            <autoStart>true</autoStart>
-                        </bundle>
-                        <bundle>
-                            <id>osgi.cmpn</id>
                             <level>4</level>
                             <autoStart>true</autoStart>
                         </bundle>
@@ -268,10 +305,6 @@ Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
                         </dependency>
                         <dependency>
                             <type>p2-installable-unit</type>
-                            <artifactId>osgi.cmpn</artifactId>
-                        </dependency>
-                        <dependency>
-                            <type>p2-installable-unit</type>
                             <artifactId>org.eclipse.equinox.launcher</artifactId>
                         </dependency>
                         <dependency>
@@ -364,7 +397,66 @@ Copyright (c) 2017, 2018 Eurotech and/or its affiliates and others
                     </dependency-resolution>
                 </configuration>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/lib</outputDirectory>
+                            <stripVersion>true</stripVersion>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>io.dropwizard.metrics</groupId>
+                                    <artifactId>metrics-core</artifactId>
+                                    <version>${io.dropwizard.metrics.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.milo</groupId>
+                                    <artifactId>sdk-client</artifactId>
+                                    <version>${org.eclipse.milo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.milo</groupId>
+                                    <artifactId>sdk-core</artifactId>
+                                    <version>${org.eclipse.milo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.milo</groupId>
+                                    <artifactId>sdk-server</artifactId>
+                                    <version>${org.eclipse.milo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.milo</groupId>
+                                    <artifactId>stack-core</artifactId>
+                                    <version>${org.eclipse.milo.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.eclipse.milo</groupId>
+                                    <artifactId>stack-server</artifactId>
+                                    <version>${org.eclipse.milo.version}</version>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>lib</directory>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

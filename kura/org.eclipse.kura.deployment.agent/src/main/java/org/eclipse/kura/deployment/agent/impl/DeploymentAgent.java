@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and others
+ * Copyright (c) 2011, 2020 Eurotech and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -8,7 +8,7 @@
  *
  * Contributors:
  *     Eurotech
- *     Red Hat Inc - Clean up kura properties handling
+ *     Red Hat Inc
  *******************************************************************************/
 package org.eclipse.kura.deployment.agent.impl;
 
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
@@ -146,19 +147,17 @@ public class DeploymentAgent implements DeploymentAgentService {
         if (dpaConfFile.getParentFile() != null && !dpaConfFile.getParentFile().exists()) {
             dpaConfFile.getParentFile().mkdirs();
         }
-        if (!dpaConfFile.exists()) {
-            try {
-                dpaConfFile.createNewFile();
-            } catch (IOException e) {
-                throw new ComponentException("Cannot create empty DPA configuration file", e);
+        try {
+            if (!dpaConfFile.createNewFile()) {
+                logger.debug("DPA configuration file already available");
             }
+        } catch (IOException e) {
+            throw new ComponentException("Cannot create empty DPA configuration file", e);
         }
 
         File packagesDir = new File(this.packagesPath);
-        if (!packagesDir.exists()) {
-            if (!packagesDir.mkdirs()) {
-                throw new ComponentException("Cannot create packages directory");
-            }
+        if (!packagesDir.exists() && !packagesDir.mkdirs()) {
+            throw new ComponentException("Cannot create packages directory");
         }
 
         this.instPackageUrls = new ConcurrentLinkedQueue<>();
@@ -232,7 +231,9 @@ public class DeploymentAgent implements DeploymentAgentService {
     }
 
     public void unsetDeploymentAdmin(DeploymentAdmin deploymentAdmin) {
-        this.deploymentAdmin = null;
+        if (this.deploymentAdmin == deploymentAdmin) {
+            this.deploymentAdmin = null;
+        }
     }
 
     protected void setEventAdmin(EventAdmin eventAdmin) {
@@ -240,7 +241,9 @@ public class DeploymentAgent implements DeploymentAgentService {
     }
 
     protected void unsetEventAdmin(EventAdmin eventAdmin) {
-        this.eventAdmin = null;
+        if (this.eventAdmin == eventAdmin) {
+            this.eventAdmin = null;
+        }
     }
 
     public void setSystemService(SystemService systemService) {
@@ -248,7 +251,9 @@ public class DeploymentAgent implements DeploymentAgentService {
     }
 
     public void unsetSystemService(SystemService systemService) {
-        this.systemService = null;
+        if (this.systemService == systemService) {
+            this.systemService = null;
+        }
     }
 
     @Override
@@ -277,18 +282,20 @@ public class DeploymentAgent implements DeploymentAgentService {
 
     @Override
     public boolean isInstallingDeploymentPackage(String url) {
+        boolean result = false;
         if (this.instPackageUrls.contains(url)) {
-            return true;
+            result = true;
         }
-        return false;
+        return result;
     }
 
     @Override
     public boolean isUninstallingDeploymentPackage(String name) {
+        boolean result = false;
         if (this.uninstPackageNames.contains(name)) {
-            return true;
+            result = true;
         }
-        return false;
+        return result;
     }
 
     private void installer() {
@@ -303,29 +310,33 @@ public class DeploymentAgent implements DeploymentAgentService {
                 String url = this.instPackageUrls.peek();
                 if (url != null) {
                     logger.info("About to install package at URL {}", url);
-                    DeploymentPackage dp = null;
-                    Exception ex = null;
-                    try {
-                        dp = installDeploymentPackageInternal(url);
-                    } catch (Exception e) {
-                        ex = e;
-                        logger.error("Exception installing package at URL {}", url, e);
-                    } finally {
-                        boolean successful = dp != null ? true : false;
-                        logger.info("Posting INSTALLED event for package at URL {}: {}", url,
-                                successful ? "successful" : "unsuccessful");
-                        this.instPackageUrls.poll();
-                        postInstalledEvent(dp, url, successful, ex);
-                    }
+                    execInstall(url);
                 }
             } catch (InterruptedException e) {
                 logger.info("Exiting...");
                 Thread.currentThread().interrupt();
                 return;
-            } catch (Throwable t) {
-                logger.error("Unexpected throwable", t);
+            } catch (Exception e) {
+                logger.error("Unexpected exception", e);
             }
         } while (true);
+    }
+
+    private void execInstall(String url) {
+        DeploymentPackage dp = null;
+        Exception ex = null;
+        try {
+            dp = installDeploymentPackageInternal(url);
+        } catch (Exception e) {
+            ex = e;
+            logger.error("Exception installing package at URL {}", url, e);
+        } finally {
+            boolean successful = dp != null;
+            logger.info("Posting INSTALLED event for package at URL {}: {}", url,
+                    successful ? "successful" : "unsuccessful");
+            this.instPackageUrls.poll();
+            postInstalledEvent(dp, url, successful, ex);
+        }
     }
 
     private void uninstaller() {
@@ -339,33 +350,8 @@ public class DeploymentAgent implements DeploymentAgentService {
 
                 String name = this.uninstPackageNames.peek();
                 if (name != null) {
-                    logger.info("About to uninstall package ", name);
-                    DeploymentPackage dp = null;
-                    boolean successful = false;
-                    Exception ex = null;
-                    try {
-                        dp = this.deploymentAdmin.getDeploymentPackage(name);
-                        if (dp != null) {
-                            dp.uninstall();
-
-                            Properties deployedPackages = readDeployedPackages();
-                            String sUrl = deployedPackages.getProperty(name);
-                            File dpFile = new File(new URL(sUrl).getPath());
-                            if (!dpFile.delete()) {
-                                logger.warn("Cannot delete file at URL: {}", sUrl);
-                            }
-                            successful = true;
-                            removePackageFromConfFile(name);
-                        }
-                    } catch (Exception e) {
-                        ex = e;
-                        logger.error("Exception uninstalling package {}", name, e);
-                    } finally {
-                        logger.info("Posting UNINSTALLED event for package {}: {}", name,
-                                successful ? "successful" : "unsuccessful");
-                        this.uninstPackageNames.poll();
-                        postUninstalledEvent(name, successful, ex);
-                    }
+                    logger.info("About to uninstall package {}", name);
+                    execUninstall(name);
                 }
             } catch (InterruptedException e) {
                 logger.info("Exiting...");
@@ -375,6 +361,35 @@ public class DeploymentAgent implements DeploymentAgentService {
                 logger.error("Unexpected throwable", t);
             }
         } while (true);
+    }
+
+    private void execUninstall(String name) {
+        DeploymentPackage dp = null;
+        boolean successful = false;
+        Exception ex = null;
+        try {
+            dp = this.deploymentAdmin.getDeploymentPackage(name);
+            if (dp != null) {
+                dp.uninstall();
+
+                Properties deployedPackages = readDeployedPackages();
+                String sUrl = deployedPackages.getProperty(name);
+                File dpFile = new File(new URL(sUrl).getPath());
+                if (!Files.deleteIfExists(dpFile.toPath())) {
+                    logger.warn("Cannot delete file at URL: {}", sUrl);
+                }
+                successful = true;
+                removePackageFromConfFile(name);
+            }
+        } catch (Exception e) {
+            ex = e;
+            logger.error("Exception uninstalling package {}", name, e);
+        } finally {
+            logger.info("Posting UNINSTALLED event for package {}: {}", name,
+                    successful ? "successful" : "unsuccessful");
+            this.uninstPackageNames.poll();
+            postUninstalledEvent(name, successful, ex);
+        }
     }
 
     private void postInstalledEvent(DeploymentPackage dp, String url, boolean successful, Exception e) {
@@ -443,16 +458,13 @@ public class DeploymentAgent implements DeploymentAgentService {
             dpFile = getFileFromFilesystem(url);
         }
 
-        // Get the file base name from the URL
-        String urlPath = url.getPath();
-        String[] parts = urlPath.split("/");
-        String dpBasename = parts[parts.length - 1];
-        String dpPersistentFilePath = this.packagesPath + File.separator + dpBasename;
-        File dpPersistentFile = new File(dpPersistentFilePath);
-
         DeploymentPackage dp = null;
         try (InputStream dpInputStream = new FileInputStream(dpFile);) {
             dp = this.deploymentAdmin.installDeploymentPackage(dpInputStream);
+
+            String dpFsName = dp.getName() + "_" + dp.getVersion() + ".dp";
+            String dpPersistentFilePath = this.packagesPath + File.separator + dpFsName;
+            File dpPersistentFile = new File(dpPersistentFilePath);
 
             // Now we need to copy the deployment package file to the Kura
             // packages directory unless it's already there.
@@ -462,15 +474,13 @@ public class DeploymentAgent implements DeploymentAgentService {
                 FileUtils.copyFile(dpFile, dpPersistentFile);
                 addPackageToConfFile(dp.getName(), "file:" + dpPersistentFilePath);
             }
-        } catch (DeploymentException e) {
-            throw e;
-        } catch (IOException e) {
-            throw e;
         } finally {
             // The file from which we have installed the deployment package will be deleted
             // unless it's a persistent deployment package file.
-            if (!dpFile.getCanonicalPath().equals(dpPersistentFile.getCanonicalPath())) {
-                dpFile.delete();
+            File packagesFolder = new File(this.packagesPath);
+            if (!dpFile.getCanonicalPath().startsWith(packagesFolder.getCanonicalPath())) {
+                Files.delete(dpFile.toPath());
+                logger.debug("Deleted file: {}", dpFile.getName());
             }
         }
 

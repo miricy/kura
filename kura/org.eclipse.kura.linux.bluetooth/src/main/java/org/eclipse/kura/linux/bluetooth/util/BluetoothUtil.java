@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -11,33 +11,41 @@
  *******************************************************************************/
 package org.eclipse.kura.linux.bluetooth.util;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
+import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.kura.KuraErrorCode;
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.bluetooth.BluetoothBeaconData;
 import org.eclipse.kura.bluetooth.listener.AdvertisingReportRecord;
 import org.eclipse.kura.bluetooth.listener.BluetoothAdvertisementData;
+import org.eclipse.kura.core.linux.executor.LinuxSignal;
+import org.eclipse.kura.executor.Command;
+import org.eclipse.kura.executor.CommandExecutorService;
+import org.eclipse.kura.executor.CommandStatus;
+import org.eclipse.kura.executor.Pid;
+import org.eclipse.kura.executor.Signal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BluetoothUtil {
 
-    private static final Logger s_logger = LoggerFactory.getLogger(BluetoothUtil.class);
-    private static final ExecutorService s_processExecutor = Executors.newSingleThreadExecutor();
+    private static final String ERROR_EXECUTING_COMMAND_MESSAGE = "Error executing command: {}";
+    private static final Logger logger = LoggerFactory.getLogger(BluetoothUtil.class);
+    private static final ExecutorService PROCESS_EXECUTOR = Executors.newSingleThreadExecutor();
 
     public static final String HCITOOL = "hcitool";
     public static final String BTDUMP = "/tmp/BluetoothUtil.btsnoopdump.sh";
@@ -46,6 +54,8 @@ public class BluetoothUtil {
     private static final String HCICONFIG = "hciconfig";
     private static final String GATTTOOL = "gatttool";
 
+    private static final String DEFAULT_COMPANY_CODE = "004c";
+
     // Write bluetooth dumping script into /tmp
     static {
         try {
@@ -53,198 +63,146 @@ public class BluetoothUtil {
             FileUtils.writeStringToFile(f, "#!/bin/bash\n" + "set -e\n" + "ADAPTER=$1\n"
                     + "{ hcidump -i $ADAPTER -R -w /dev/fd/3 >/dev/null; } 3>&1", false);
 
-            f.setExecutable(true);
+            if (!f.setExecutable(true)) {
+                logger.warn("Unable to set as executable");
+            }
         } catch (IOException e) {
-            s_logger.info("Unable to update", e);
+            logger.info("Unable to update", e);
         }
 
+    }
+
+    private BluetoothUtil() {
+        // Empty constructor
     }
 
     /*
      * Use hciconfig utility to return information about the bluetooth adapter
      */
-    public static Map<String, String> getConfig(String name) throws KuraException {
-        Map<String, String> props = new HashMap<String, String>();
-        BluetoothSafeProcess proc = null;
-        BufferedReader br = null;
-        StringBuilder sb = null;
-        String[] command = { HCICONFIG, name, "version" };
-        try {
-            proc = BluetoothProcessUtil.exec(command);
-            // Check Error stream
-            br = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
-            String line = null;
-            while ((line = br.readLine()) != null) {
+    public static Map<String, String> getConfig(String name, CommandExecutorService executorService)
+            throws KuraException {
+        Map<String, String> props = new HashMap<>();
+        String[] commandLine = { HCICONFIG, name, "version" };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+        Command command = new Command(commandLine);
+        command.setTimeout(60);
+        command.setOutputStream(outputStream);
+        command.setErrorStream(errorStream);
+        CommandStatus status = executorService.execute(command);
+        if (status.getExitStatus().isSuccessful()) {
+            // Check Input stream
+            String[] outputLines = new String(outputStream.toByteArray(), Charsets.UTF_8).split("\n");
+            props.put("leReady", "false");
+            for (String result : outputLines) {
+                parseCommandResult(props, result);
+            }
+        } else {
+            // Check Enput stream
+            String[] errorLines = new String(errorStream.toByteArray(), Charsets.UTF_8).split("\n");
+            for (String line : errorLines) {
                 if (line.toLowerCase().contains("command not found")) {
-                    throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+                    throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, HCICONFIG);
                 } else if (line.toLowerCase().contains("no such device")) {
                     throw new KuraException(KuraErrorCode.INTERNAL_ERROR);
                 }
             }
-            if (br != null) {
-                br.close();
-            }
-
-            // Check Input stream
-            br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            sb = new StringBuilder();
-            line = null;
-            while ((line = br.readLine()) != null) {
-                sb.append(line + "\n");
-            }
-
-            // TODO: Pull more parameters from hciconfig?
-            String[] results = sb.toString().split("\n");
-            props.put("leReady", "false");
-            for (String result : results) {
-                if (result.indexOf(BD_ADDRESS) >= 0) {
-                    // Address reported as:
-                    // BD Address: xx:xx:xx:xx:xx:xx ACL MTU: xx:xx SCO MTU: xx:x
-                    String[] ss = result.split(" ");
-                    String address = "";
-                    for (String sss : ss) {
-                        if (sss.matches("^([0-9a-fA-F][0-9a-fA-F]:){5}([0-9a-fA-F][0-9a-fA-F])$")) {
-                            address = sss;
-                            break;
-                        }
-                    }
-                    // String address = result.substring(index + BD_ADDRESS.length());
-                    // String[] tmpAddress = address.split("\\s", 2);
-                    // address = tmpAddress[0].trim();
-                    props.put("address", address);
-                    s_logger.trace("Bluetooth adapter address set to: {}", address);
-                }
-                if (result.indexOf(HCI_VERSION) >= 0) {
-                    // HCI version : 4.0 (0x6) or HCI version : 4.1 (0x7)
-                    if (result.indexOf("0x6") >= 0 || result.indexOf("0x7") >= 0) {
-                        props.put("leReady", "true");
-                        s_logger.trace("Bluetooth adapter is LE ready");
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            s_logger.error("Failed to execute command: {}", command, e);
-            throw new KuraException(KuraErrorCode.INTERNAL_ERROR);
-        } finally {
-            try {
-                if (br != null) {
-                    br.close();
-                }
-                if (proc != null) {
-                    proc.destroy();
-                }
-            } catch (IOException e) {
-                s_logger.error("Error closing read buffer", e);
-            }
-
         }
 
         return props;
     }
 
+    private static void parseCommandResult(Map<String, String> props, String result) {
+        if (result.indexOf(BD_ADDRESS) >= 0) {
+            // Address reported as:
+            // BD Address: xx:xx:xx:xx:xx:xx ACL MTU: xx:xx SCO MTU: xx:x
+            String[] ss = result.split(" ");
+            String address = "";
+            for (String sss : ss) {
+                if (sss.matches("^([0-9a-fA-F][0-9a-fA-F]:){5}([0-9a-fA-F][0-9a-fA-F])$")) {
+                    address = sss;
+                    break;
+                }
+            }
+            // String address = result.substring(index + BD_ADDRESS.length());
+            // String[] tmpAddress = address.split("\\s", 2);
+            // address = tmpAddress[0].trim();
+            props.put("address", address);
+            logger.trace("Bluetooth adapter address set to: {}", address);
+        }
+        if (result.indexOf(HCI_VERSION) >= 0 && (result.indexOf("0x6") >= 0 || result.indexOf("0x7") >= 0)) {
+            // HCI version : 4.0 (0x6) or HCI version : 4.1 (0x7)
+            props.put("leReady", "true");
+            logger.trace("Bluetooth adapter is LE ready");
+        }
+    }
+
     /*
      * Use hciconfig utility to determine status of bluetooth adapter
      */
-    public static boolean isEnabled(String name) {
+    public static boolean isEnabled(String name, CommandExecutorService executorService) {
 
-        String[] command = { HCICONFIG, name };
-        BluetoothSafeProcess proc = null;
-        BufferedReader br = null;
-
-        try {
-            proc = BluetoothProcessUtil.exec(command);
-            br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String line = null;
-            while ((line = br.readLine()) != null) {
+        boolean isEnabled = false;
+        String[] commandLine = { HCICONFIG, name };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+        Command command = new Command(commandLine);
+        command.setTimeout(60);
+        command.setOutputStream(outputStream);
+        command.setErrorStream(errorStream);
+        CommandStatus status = executorService.execute(command);
+        if (status.getExitStatus().isSuccessful()) {
+            String[] outputLines = new String(outputStream.toByteArray(), Charsets.UTF_8).split("\n");
+            for (String line : outputLines) {
                 if (line.contains("UP")) {
-                    return true;
-                }
-                if (line.contains("DOWN")) {
-                    return false;
+                    isEnabled = true;
+                    break;
                 }
             }
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        } finally {
-            try {
-                if (br != null) {
-                    br.close();
-                }
-                if (proc != null) {
-                    proc.destroy();
-                }
-            } catch (IOException e) {
-                s_logger.error("Error closing read buffer", e);
+        } else {
+            if (logger.isErrorEnabled()) {
+                logger.error(ERROR_EXECUTING_COMMAND_MESSAGE, String.join(" ", commandLine));
             }
         }
 
-        return false;
+        return isEnabled;
     }
 
     /*
      * Utility method that allows sending any hciconfig command. The buffered
      * response is returned in case results are needed.
      */
-    public static BufferedReader hciconfigCmd(String name, String cmd) {
-        String[] command = { HCICONFIG, name, cmd };
-        BluetoothSafeProcess proc = null;
-        BufferedReader br = null;
-        try {
-            proc = BluetoothProcessUtil.exec(command);
-            br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        } finally {
-            try {
-                if (br != null) {
-                    br.close();
-                }
-                if (proc != null) {
-                    proc.destroy();
-                }
-            } catch (IOException e) {
-                s_logger.error("Error closing read buffer", e);
+    public static String hciconfigCmd(String name, String cmd, CommandExecutorService executorService) {
+        String outputString = "";
+        String[] commandLine = { HCICONFIG, name, cmd };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+        Command command = new Command(commandLine);
+        command.setTimeout(60);
+        command.setOutputStream(outputStream);
+        command.setErrorStream(errorStream);
+        CommandStatus status = executorService.execute(command);
+        if (status.getExitStatus().isSuccessful()) {
+            outputString = new String(outputStream.toByteArray(), Charsets.UTF_8);
+        } else {
+            if (logger.isErrorEnabled()) {
+                logger.error(ERROR_EXECUTING_COMMAND_MESSAGE, String.join(" ", commandLine));
             }
         }
-        return br;
+        return outputString;
     }
 
     /*
      * Utility method to send specific kill commands to processes.
      */
-    public static void killCmd(String cmd, String signal) {
-        // String[] command = { "pkill", "-" + signal, cmd };
-        String[] commandPidOf = { "pidof", cmd };
-        BluetoothSafeProcess proc = null;
-        BufferedReader br = null;
-        try {
-            proc = BluetoothProcessUtil.exec(commandPidOf);
-            proc.waitFor();
-            br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String pid = br.readLine();
-
-            // Check if the pid is not empty
-            if (pid != null) {
-                String[] commandKill = { "kill", "-" + signal, pid };
-                proc = BluetoothProcessUtil.exec(commandKill);
-            }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            s_logger.error("Error executing command: {}", commandPidOf, e);
-        } catch (IOException e) {
-            s_logger.error("Error executing command: {}", commandPidOf, e);
-        } finally {
-            if (proc != null) {
-                proc.destroy();
-            }
-            try {
-                if (br != null) {
-                    br.close();
-                }
-            } catch (IOException e) {
-                s_logger.warn("Error closing process for command: {}", commandPidOf, e);
+    public static void killCmd(String[] cmd, Signal signal, CommandExecutorService executorService) {
+        // Get the pids and filter the ones that exactly match the command
+        Map<String, Pid> pids = executorService.getPids(cmd).entrySet().stream()
+                .filter(entry -> entry.getKey().equals(String.join(" ", cmd)))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        for (Pid pid : pids.values()) {
+            if (!executorService.stop(pid, signal)) {
+                logger.warn("Failed to stop command with pid {}", pid.getPid());
             }
         }
     }
@@ -258,42 +216,28 @@ public class BluetoothUtil {
      *            Listener for receiving btsnoop records
      * @return BluetoothProcess created
      */
-    public static BluetoothProcess btdumpCmd(String name, BTSnoopListener listener) {
+    public static BluetoothProcess btdumpCmd(String name, BTSnoopListener listener,
+            CommandExecutorService executorService) throws IOException {
         String[] command = { BTDUMP, name };
-
-        BluetoothProcess proc = null;
-        try {
-            s_logger.debug("Command executed : {}", Arrays.toString(command));
-            proc = execSnoop(command, listener);
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        }
-
-        return proc;
+        return execSnoop(command, listener, executorService);
     }
 
     /*
      * Method to utilize BluetoothProcess and the hcitool utility. These processes run indefinitely, so the
      * BluetoothProcessListener is used to receive output from the process.
      */
-    public static BluetoothProcess hcitoolCmd(String name, String cmd, BluetoothProcessListener listener) {
+    public static BluetoothProcess hcitoolCmd(String name, String cmd, BluetoothProcessListener listener,
+            CommandExecutorService executorService) throws IOException {
         String[] command = { HCITOOL, "-i", name, cmd };
-        BluetoothProcess proc = null;
-        try {
-            s_logger.debug("Command executed : {}", Arrays.toString(command));
-            proc = exec(command, listener);
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        }
-
-        return proc;
+        return exec(command, listener, executorService);
     }
 
     /*
      * Method to utilize BluetoothProcess and the hcitool utility. These processes run indefinitely, so the
      * BluetoothProcessListener is used to receive output from the process.
      */
-    public static BluetoothProcess hcitoolCmd(String name, String[] cmd, BluetoothProcessListener listener) {
+    public static BluetoothProcess hcitoolCmd(String name, String[] cmd, BluetoothProcessListener listener,
+            CommandExecutorService executorService) throws IOException {
         String[] command = new String[3 + cmd.length];
         command[0] = HCITOOL;
         command[1] = "-i";
@@ -301,54 +245,37 @@ public class BluetoothUtil {
         for (int i = 0; i < cmd.length; i++) {
             command[i + 3] = cmd[i];
         }
-        BluetoothProcess proc = null;
-        try {
-            s_logger.debug("Command executed : {}", Arrays.toString(command));
-            proc = exec(command, listener);
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        }
-
-        return proc;
+        return exec(command, listener, executorService);
     }
 
     /*
      * Method to start an interactive session with a remote Bluetooth LE device using the gatttool utility. The
      * listener is used to receive output from the process.
      */
-    public static BluetoothProcess startSession(String adapterName, String address, BluetoothProcessListener listener) {
+    public static BluetoothProcess startSession(String adapterName, String address, BluetoothProcessListener listener,
+            CommandExecutorService executorService) throws IOException {
         String[] command = { GATTTOOL, "-i", adapterName, "-b", address, "-I" };
-        BluetoothProcess proc = null;
-        try {
-            proc = exec(command, listener);
-        } catch (Exception e) {
-            s_logger.error("Error executing command: {}", command, e);
-        }
-        return proc;
+        return exec(command, listener, executorService);
     }
 
     /*
      * Method to create a separate thread for the BluetoothProcesses.
      */
-    private static BluetoothProcess exec(final String[] cmdArray, final BluetoothProcessListener listener)
-            throws IOException {
+    private static BluetoothProcess exec(final String[] cmdArray, final BluetoothProcessListener listener,
+            CommandExecutorService executorService) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
-        Future<BluetoothProcess> futureSafeProcess = s_processExecutor.submit(new Callable<BluetoothProcess>() {
-
-            @Override
-            public BluetoothProcess call() throws Exception {
-                Thread.currentThread().setName("BluetoothProcessExecutor");
-                BluetoothProcess bluetoothProcess = new BluetoothProcess();
-                bluetoothProcess.exec(cmdArray, listener);
-                return bluetoothProcess;
-            }
+        Future<BluetoothProcess> futureSafeProcess = PROCESS_EXECUTOR.submit(() -> {
+            Thread.currentThread().setName("BluetoothProcessExecutor");
+            BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
+            bluetoothProcess.exec(cmdArray, listener);
+            return bluetoothProcess;
         });
 
         try {
             return futureSafeProcess.get();
         } catch (Exception e) {
-            s_logger.error("Error waiting from SafeProcess output", e);
+            logger.error("Error waiting from SafeProcess output", e);
             throw new IOException(e);
         }
     }
@@ -356,25 +283,21 @@ public class BluetoothUtil {
     /*
      * Method to create a separate thread for the BluetoothProcesses.
      */
-    private static BluetoothProcess execSnoop(final String[] cmdArray, final BTSnoopListener listener)
-            throws IOException {
+    private static BluetoothProcess execSnoop(final String[] cmdArray, final BTSnoopListener listener,
+            CommandExecutorService executorService) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
-        Future<BluetoothProcess> futureSafeProcess = s_processExecutor.submit(new Callable<BluetoothProcess>() {
-
-            @Override
-            public BluetoothProcess call() throws Exception {
-                Thread.currentThread().setName("BTSnoopProcessExecutor");
-                BluetoothProcess bluetoothProcess = new BluetoothProcess();
-                bluetoothProcess.execSnoop(cmdArray, listener);
-                return bluetoothProcess;
-            }
+        Future<BluetoothProcess> futureSafeProcess = PROCESS_EXECUTOR.submit(() -> {
+            Thread.currentThread().setName("BTSnoopProcessExecutor");
+            BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
+            bluetoothProcess.execSnoop(cmdArray, listener);
+            return bluetoothProcess;
         });
 
         try {
             return futureSafeProcess.get();
         } catch (Exception e) {
-            s_logger.error("Error waiting from SafeProcess output", e);
+            logger.error("Error waiting from SafeProcess output", e);
             throw new IOException(e);
         }
     }
@@ -406,6 +329,7 @@ public class BluetoothUtil {
 
                 int prefixPtr = ptr + 2;
                 byte[] prefix = new byte[4];
+                companyName = inSetHex(inSetRange(companyName, 4, DEFAULT_COMPANY_CODE), DEFAULT_COMPANY_CODE);
                 prefix[0] = (byte) Integer.parseInt(companyName.substring(2, 4), 16);
                 prefix[1] = (byte) Integer.parseInt(companyName.substring(0, 2), 16);
                 prefix[2] = 0x02;
@@ -440,6 +364,22 @@ public class BluetoothUtil {
         }
 
         return null;
+    }
+
+    private static String inSetRange(String value, int range, String defaultValue) {
+        if (value.length() != range) {
+            return defaultValue;
+        } else {
+            return value;
+        }
+    }
+
+    private static String inSetHex(String value, String defaultValue) {
+        if (!value.matches("^[0-9a-fA-F]+$")) {
+            return defaultValue;
+        } else {
+            return value;
+        }
     }
 
     /**
@@ -518,7 +458,7 @@ public class BluetoothUtil {
      */
     public static List<BluetoothBeaconData> parseLEAdvertisingReport(byte[] b, String companyName) {
 
-        List<BluetoothBeaconData> results = new LinkedList<BluetoothBeaconData>();
+        List<BluetoothBeaconData> results = new LinkedList<>();
 
         // Packet Type: Event OR Event Type: LE Advertisement Report
         if (b[0] != 0x04 || b[1] != 0x3E) {
@@ -557,4 +497,19 @@ public class BluetoothUtil {
 
         return results;
     }
+
+    public static boolean stopHcitool(String interfaceName, CommandExecutorService executorService, String... params) {
+        List<String> killCommand = new ArrayList<>();
+        killCommand.add(HCITOOL);
+        killCommand.add("-i");
+        killCommand.add(interfaceName);
+        Arrays.asList(params).stream().forEach(s -> killCommand.add(s));
+        return executorService.kill(killCommand.toArray(new String[0]), LinuxSignal.SIGINT);
+    }
+
+    public static boolean stopBtdump(String interfaceName, CommandExecutorService executorService) {
+        String[] killCommand = { BTDUMP, interfaceName };
+        return executorService.kill(killCommand, null);
+    }
+
 }

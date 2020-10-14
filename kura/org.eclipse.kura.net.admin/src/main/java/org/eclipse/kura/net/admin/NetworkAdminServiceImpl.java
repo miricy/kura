@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -30,6 +30,7 @@ import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.WifiInterfaceAddressConfigImpl;
 import org.eclipse.kura.core.net.modem.ModemInterfaceAddressConfigImpl;
 import org.eclipse.kura.core.net.modem.ModemInterfaceConfigImpl;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.internal.linux.net.dns.DnsServerService;
 import org.eclipse.kura.internal.linux.net.wifi.WifiDriverService;
 import org.eclipse.kura.linux.net.dhcp.DhcpClientManager;
@@ -53,6 +54,7 @@ import org.eclipse.kura.net.NetInterfaceStatus;
 import org.eclipse.kura.net.NetInterfaceType;
 import org.eclipse.kura.net.NetworkAdminService;
 import org.eclipse.kura.net.admin.event.NetworkConfigurationChangeEvent;
+import org.eclipse.kura.net.admin.monitor.InterfaceStateBuilder;
 import org.eclipse.kura.net.admin.monitor.WifiInterfaceState;
 import org.eclipse.kura.net.admin.visitor.linux.WpaSupplicantConfigWriter;
 import org.eclipse.kura.net.admin.visitor.linux.util.KuranetConfig;
@@ -83,6 +85,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
     private NetworkConfigurationService networkConfigurationService;
     private FirewallConfigurationService firewallConfigurationService;
     private DnsServerService dnsServer;
+    private CommandExecutorService executorService;
 
     private Object wifiClientMonitorServiceLock;
 
@@ -94,6 +97,11 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
             NetworkConfigurationChangeEvent.NETWORK_EVENT_CONFIG_CHANGE_TOPIC };
 
     private ComponentContext context;
+    private DhcpClientManager dhcpClientManager;
+    private DhcpServerManager dhcpServerManager;
+    private LinuxNetworkUtil linuxNetworkUtil;
+    private WpaSupplicantManager wpaSupplicantManager;
+    private HostapdManager hostapdManager;
 
     // ----------------------------------------------------------------
     //
@@ -149,6 +157,14 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         this.wifiDriverService = null;
     }
 
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public void unsetExecutorService(CommandExecutorService executorService) {
+        this.executorService = null;
+    }
+
     // ----------------------------------------------------------------
     //
     // Activation APIs
@@ -176,17 +192,22 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         Dictionary<String, String[]> d = new Hashtable<>();
         d.put(EventConstants.EVENT_TOPIC, EVENT_TOPICS);
         this.context.getBundleContext().registerService(EventHandler.class.getName(), this, d);
-
+        this.dhcpClientManager = new DhcpClientManager(this.executorService);
+        this.dhcpServerManager = new DhcpServerManager(this.executorService);
+        this.linuxNetworkUtil = new LinuxNetworkUtil(this.executorService);
+        this.wpaSupplicantManager = new WpaSupplicantManager(this.executorService);
+        this.hostapdManager = new HostapdManager(this.executorService);
         logger.debug("Done Activating NetworkAdmin Service...");
     }
 
     protected void deactivate(ComponentContext componentContext) {
+        // Empty method
     }
 
     protected List<WifiAccessPoint> getWifiAccessPoints(String ifaceName) throws KuraException {
         List<WifiAccessPoint> wifiAccessPoints;
 
-        IScanTool scanTool = ScanTool.get(ifaceName);
+        IScanTool scanTool = ScanTool.get(ifaceName, this.executorService);
         if (scanTool != null) {
             wifiAccessPoints = scanTool.scan();
         } else {
@@ -243,6 +264,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         return netConfigs;
     }
 
+    @SuppressWarnings("checkstyle:methodLength")
     @Override
     public void updateEthernetInterfaceConfig(String interfaceName, boolean autoConnect, int mtu,
             List<NetConfig> netConfigs) throws KuraException {
@@ -469,6 +491,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         }
     }
 
+    @SuppressWarnings("checkstyle:methodLength")
     @Override
     public void updateWifiInterfaceConfig(String interfaceName, boolean autoConnect, WifiAccessPoint accessPoint,
             List<NetConfig> netConfigs) throws KuraException {
@@ -728,6 +751,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         }
     }
 
+    @SuppressWarnings("checkstyle:methodLength")
     @Override
     public void updateModemInterfaceConfig(String interfaceName, String serialNum, String modemId, int pppNumber,
             boolean autoConnect, int mtu, List<NetConfig> netConfigs) throws KuraException {
@@ -937,7 +961,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
     @Override
     public void enableInterface(String interfaceName, boolean dhcp) throws KuraException {
         try {
-            NetInterfaceType type = LinuxNetworkUtil.getType(interfaceName);
+            NetInterfaceType type = this.linuxNetworkUtil.getType(interfaceName);
 
             NetInterfaceStatus status = NetInterfaceStatus.netIPv4StatusUnknown;
             WifiMode wifiMode = WifiMode.UNKNOWN;
@@ -965,10 +989,14 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
                         wifiConfig = (WifiConfig) netConfig;
                     }
                 }
-                wifiInterfaceState = new WifiInterfaceState(interfaceName, wifiMode, isL2Only);
+                InterfaceStateBuilder builder = new InterfaceStateBuilder(this.executorService);
+                builder.setInterfaceName(interfaceName);
+                builder.setWifiMode(wifiMode);
+                builder.setL2OnlyInterface(isL2Only);
+                wifiInterfaceState = builder.buildWifiInterfaceState();
             }
 
-            if (!LinuxNetworkUtil.hasAddress(interfaceName)
+            if (!this.linuxNetworkUtil.hasAddress(interfaceName)
                     || type == NetInterfaceType.WIFI && wifiInterfaceState != null && !wifiInterfaceState.isLinkUp()) {
 
                 logger.info("bringing interface {} up", interfaceName);
@@ -979,12 +1007,12 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
                 if (dhcp) {
                     renewDhcpLease(interfaceName);
                 } else {
-                    LinuxNetworkUtil.enableInterface(interfaceName);
+                    this.linuxNetworkUtil.enableInterface(interfaceName);
                 }
 
                 // if it isn't up - at least make sure the Ethernet controller is powered on
-                if (!LinuxNetworkUtil.hasAddress(interfaceName)) {
-                    LinuxNetworkUtil.bringUpDeletingAddress(interfaceName);
+                if (!this.linuxNetworkUtil.hasAddress(interfaceName)) {
+                    this.linuxNetworkUtil.bringUpDeletingAddress(interfaceName);
                 }
             } else {
                 logger.info("not bringing interface {} up because it is already up", interfaceName);
@@ -1043,14 +1071,14 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         manageDhcpClient(interfaceName, false);
         manageDhcpServer(interfaceName, false);
 
-        NetInterfaceType type = LinuxNetworkUtil.getType(interfaceName);
+        NetInterfaceType type = this.linuxNetworkUtil.getType(interfaceName);
         if (type == NetInterfaceType.WIFI) {
             disableWifiInterface(interfaceName);
         }
         try {
-            if (LinuxNetworkUtil.hasAddress(interfaceName)) {
+            if (this.linuxNetworkUtil.hasAddress(interfaceName)) {
                 logger.info("bringing interface {} down", interfaceName);
-                LinuxNetworkUtil.disableInterface(interfaceName);
+                this.linuxNetworkUtil.disableInterface(interfaceName);
             }
         } catch (Exception e) {
             throw new KuraException(KuraErrorCode.INTERNAL_ERROR, e);
@@ -1059,28 +1087,27 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
 
     @Override
     public void manageDhcpClient(String interfaceName, boolean enable) throws KuraException {
-        try {
-            DhcpClientManager.disable(interfaceName);
-            if (enable) {
-                renewDhcpLease(interfaceName);
-            }
-        } catch (Exception e) {
-            throw new KuraException(KuraErrorCode.INTERNAL_ERROR, e);
+        this.dhcpClientManager.disable(interfaceName);
+        if (enable) {
+            renewDhcpLease(interfaceName);
         }
     }
 
     @Override
     public void manageDhcpServer(String interfaceName, boolean enable) throws KuraException {
-        DhcpServerManager.disable(interfaceName);
-        if (enable) {
-            DhcpServerManager.enable(interfaceName);
+        if (enable && !this.dhcpServerManager.isRunning(interfaceName)) {
+            logger.debug("Starting DHCP server for {}", interfaceName);
+            this.dhcpServerManager.enable(interfaceName);
+        } else if (!enable && this.dhcpServerManager.isRunning(interfaceName)) {
+            logger.debug("Stopping DHCP server for {}", interfaceName);
+            this.dhcpServerManager.disable(interfaceName);
         }
     }
 
     @Override
     public void renewDhcpLease(String interfaceName) throws KuraException {
-        DhcpClientManager.releaseCurrentLease(interfaceName);
-        DhcpClientManager.enable(interfaceName);
+        this.dhcpClientManager.releaseCurrentLease(interfaceName);
+        this.dhcpClientManager.enable(interfaceName);
     }
 
     @Override
@@ -1120,7 +1147,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
             }
         }
 
-        LinuxFirewall firewall = LinuxFirewall.getInstance();
+        LinuxFirewall firewall = new LinuxFirewall(this.executorService);
         if (desiredNatRules != null) {
             firewall.replaceAllNatRules(desiredNatRules);
         } else {
@@ -1220,7 +1247,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
                 wpaSupplicantConfigWriter.generateTempWpaSupplicantConf(wifiConfig, ifaceName);
 
                 logger.debug("verifyWifiCredentials() :: Starting temporary instance of wpa_supplicant");
-                WpaSupplicantManager.startTemp(ifaceName, WifiMode.INFRA, wifiConfig.getDriver());
+                this.wpaSupplicantManager.startTemp(ifaceName, wifiConfig.getDriver());
                 wifiModeWait(ifaceName, WifiMode.INFRA, 10);
                 ret = isWifiConnectionCompleted(ifaceName, tout);
 
@@ -1252,7 +1279,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            WpaSupplicantStatus wpaSupplicantStatus = new WpaSupplicantStatus(ifaceName);
+            WpaSupplicantStatus wpaSupplicantStatus = new WpaSupplicantStatus(ifaceName, this.executorService);
             String wpaState = wpaSupplicantStatus.getWpaState();
             if (wpaState != null && "COMPLETED".equals(wpaState)) {
                 ret = true;
@@ -1272,7 +1299,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
                 Thread.currentThread().interrupt();
             }
             try {
-                if (LinuxNetworkUtil.getWifiMode(ifaceName) == mode) {
+                if (this.linuxNetworkUtil.getWifiMode(ifaceName) == mode) {
                     break;
                 }
             } catch (KuraException e) {
@@ -1287,7 +1314,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
     //
     // ----------------------------------------------------------------
 
-    // TODO: simplify method signature. Probably we could take the mode from the wifiConfig.
+    // FIXME: simplify method signature. Probably we could take the mode from the wifiConfig.
     private void enableWifiInterface(String ifaceName, NetInterfaceStatus status, WifiMode wifiMode,
             WifiConfig wifiConfig) throws KuraException {
         // ignore mon.* interface
@@ -1299,8 +1326,8 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         logger.debug("Configuring {} for {} mode", ifaceName, wifiMode);
 
         logger.debug("Stopping hostapd and wpa_supplicant");
-        HostapdManager.stop(ifaceName);
-        WpaSupplicantManager.stop(ifaceName);
+        this.hostapdManager.stop(ifaceName);
+        this.wpaSupplicantManager.stop(ifaceName);
 
         boolean enStatusAp = status == NetInterfaceStatus.netIPv4StatusL2Only
                 || status == NetInterfaceStatus.netIPv4StatusEnabledLAN ? true : false;
@@ -1309,19 +1336,19 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
                 || status == NetInterfaceStatus.netIPv4StatusEnabledWAN ? true : false;
         if (enStatusAp && wifiMode == WifiMode.MASTER) {
             logger.debug("Starting hostapd");
-            HostapdManager.start(ifaceName);
+            this.hostapdManager.start(ifaceName);
         } else if (enStatusInfra && (wifiMode == WifiMode.INFRA || wifiMode == WifiMode.ADHOC)) {
             if (wifiConfig != null) {
                 logger.debug("Starting wpa_supplicant");
                 logger.warn("enableWifiInterface() :: Starting wpa_supplicant ... driver={}", wifiConfig.getDriver());
-                WpaSupplicantManager.start(ifaceName, wifiMode, wifiConfig.getDriver());
+                this.wpaSupplicantManager.start(ifaceName, wifiConfig.getDriver());
                 if (isWifiConnectionCompleted(ifaceName, 60)) {
                     logger.debug("WiFi Connection Completed on {} !", ifaceName);
                 } else {
                     logger.warn("Failed to complete WiFi Connection on {}", ifaceName);
                 }
             } else {
-                logger.warn("No WifiConfig configured for mode " + wifiMode);
+                logger.warn("No WifiConfig configured for mode {}", wifiMode);
             }
         } else {
             logger.debug("Invalid wifi configuration - NetInterfaceStatus: {}, WifiMode:{}", status, wifiMode);
@@ -1330,14 +1357,14 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
 
     private void disableWifiInterface(String ifaceName) throws KuraException {
         logger.debug("Stopping hostapd and wpa_supplicant");
-        HostapdManager.stop(ifaceName);
-        WpaSupplicantManager.stop(ifaceName);
+        this.hostapdManager.stop(ifaceName);
+        this.wpaSupplicantManager.stop(ifaceName);
     }
 
     // Submit new configuration, waiting for network configuration change event before returning
     private void submitNetworkConfiguration(List<String> modifiedInterfaceNames,
             NetworkConfiguration networkConfiguration) throws KuraException {
-        short timeout = 30000;		// in milliseconds
+        short timeout = 30000; // in milliseconds
         final short sleep = 500;
 
         this.pendingNetworkConfigurationChange = true;
@@ -1368,9 +1395,9 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
     }
 
     private void stopTemporaryWpaSupplicant(String ifaceName) throws KuraException {
-        if (WpaSupplicantManager.isTempRunning()) {
+        if (this.wpaSupplicantManager.isTempRunning()) {
             logger.debug("getWifiHotspots() :: stoping temporary instance of wpa_supplicant");
-            WpaSupplicantManager.stop(ifaceName);
+            this.wpaSupplicantManager.stop(ifaceName);
         }
         reloadKernelModule(ifaceName, WifiMode.MASTER);
     }
@@ -1383,7 +1410,7 @@ public class NetworkAdminServiceImpl implements NetworkAdminService, EventHandle
         logger.debug("getWifiHotspots() :: Starting temporary instance of wpa_supplicant");
         StringBuilder key = new StringBuilder("net.interface.").append(ifaceName).append(".config.wifi.infra.driver");
         String driver = KuranetConfig.getProperty(key.toString());
-        WpaSupplicantManager.startTemp(ifaceName, WifiMode.INFRA, driver);
+        this.wpaSupplicantManager.startTemp(ifaceName, driver);
         wifiModeWait(ifaceName, WifiMode.INFRA, 10);
     }
 

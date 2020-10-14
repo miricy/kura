@@ -1,0 +1,142 @@
+/*******************************************************************************
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Eurotech
+ *******************************************************************************/
+package org.eclipse.kura.web.client.ui.firewall;
+
+import org.eclipse.kura.web.client.messages.Messages;
+import org.eclipse.kura.web.client.ui.Tab;
+import org.eclipse.kura.web.client.ui.Tab.RefreshHandler;
+import org.gwtbootstrap3.client.ui.Anchor;
+import org.gwtbootstrap3.client.ui.Button;
+import org.gwtbootstrap3.client.ui.Modal;
+import org.gwtbootstrap3.client.ui.TabListItem;
+import org.gwtbootstrap3.client.ui.html.Span;
+
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.uibinder.client.UiBinder;
+import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.HTMLPanel;
+import com.google.gwt.user.client.ui.Widget;
+
+public class FirewallPanelUi extends Composite {
+
+    private static FirewallPanelUiUiBinder uiBinder = GWT.create(FirewallPanelUiUiBinder.class);
+
+    interface FirewallPanelUiUiBinder extends UiBinder<Widget, FirewallPanelUi> {
+    }
+
+    @UiField
+    OpenPortsTabUi openPortsPanel;
+    @UiField
+    PortForwardingTabUi portForwardingPanel;
+    @UiField
+    NatTabUi ipForwardingPanel;
+
+    private static final Messages MSGS = GWT.create(Messages.class);
+
+    @UiField
+    HTMLPanel firewallIntro;
+    @UiField
+    TabListItem openPorts;
+    @UiField
+    TabListItem portForwarding;
+    @UiField
+    TabListItem ipForwarding;
+
+    @UiField
+    Modal dirtyModal;
+    @UiField
+    Button yes;
+    @UiField
+    Button no;
+
+    private TabListItem currentlySelectedTab;
+    private Tab.RefreshHandler openPortsHandler;
+    private Tab.RefreshHandler portForwardingHandler;
+    private Tab.RefreshHandler ipForwardingHandler;
+
+    public FirewallPanelUi() {
+
+        initWidget(uiBinder.createAndBindUi(this));
+        this.firewallIntro.add(new Span("<p>" + MSGS.firewallIntro() + "</p>"));
+        this.openPorts.setText(MSGS.firewallOpenPorts());
+        this.portForwarding.setText(MSGS.firewallPortForwarding());
+        this.ipForwarding.setText(MSGS.firewallNat());
+
+        this.openPortsHandler = new Tab.RefreshHandler(this.openPortsPanel);
+        this.openPorts.addClickHandler(event -> handleEvent(event, this.openPortsHandler));
+        this.portForwardingHandler = new Tab.RefreshHandler(this.portForwardingPanel);
+        this.portForwarding.addClickHandler(event -> handleEvent(event, this.portForwardingHandler));
+        this.ipForwardingHandler = new Tab.RefreshHandler(this.ipForwardingPanel);
+        this.ipForwarding.addClickHandler(event -> handleEvent(event, this.ipForwardingHandler));
+    }
+
+    public void initFirewallPanel() {
+        FirewallPanelUi.this.currentlySelectedTab = openPorts;
+        this.portForwardingPanel.clear();
+        this.ipForwardingPanel.clear();
+        this.openPortsPanel.refresh();
+        this.openPorts.showTab();
+    }
+
+    public boolean isDirty() {
+        return this.openPortsPanel.isDirty() || this.portForwardingPanel.isDirty() || this.ipForwardingPanel.isDirty();
+    }
+
+    public void setDirty(boolean b) {
+        this.openPortsPanel.setDirty(b);
+        this.portForwardingPanel.setDirty(b);
+        this.ipForwardingPanel.setDirty(b);
+    }
+
+    private void showDirtyModal(TabListItem newTabListItem, RefreshHandler newTabRefreshHandler) {
+        this.yes.addClickHandler(event -> {
+            this.dirtyModal.hide();
+            FirewallPanelUi.this.getTab(this.currentlySelectedTab).clear();
+            FirewallPanelUi.this.currentlySelectedTab = newTabListItem;
+            newTabRefreshHandler.onClick(event);
+        });
+        this.no.addClickHandler(event -> {
+            FirewallPanelUi.this.currentlySelectedTab.showTab();
+            this.dirtyModal.hide();
+        });
+        this.no.setFocus(true);
+        this.dirtyModal.show();
+    }
+
+    private void handleEvent(ClickEvent event, Tab.RefreshHandler handler) {
+        TabListItem newTabListItem = (TabListItem) ((Anchor) event.getSource()).getParent();
+        if (newTabListItem != FirewallPanelUi.this.currentlySelectedTab) {
+            if (getTab(FirewallPanelUi.this.currentlySelectedTab).isDirty()) {
+                showDirtyModal(newTabListItem, handler);
+            } else {
+                FirewallPanelUi.this.currentlySelectedTab = newTabListItem;
+                getTab(FirewallPanelUi.this.currentlySelectedTab).setDirty(true);
+                handler.onClick(event);
+            }
+        }
+    }
+
+    // This is not very clean...
+    private Tab getTab(TabListItem item) {
+        if (item.getDataTarget().equals("#openPortsPanel")) {
+            return this.openPortsPanel;
+        } else if (item.getDataTarget().equals("#portForwardingPanel")) {
+            return this.portForwardingPanel;
+        } else if (item.getDataTarget().equals("#ipForwardingPanel")) {
+            return this.ipForwardingPanel;
+        } else {
+            return this.openPortsPanel;
+        }
+    }
+}

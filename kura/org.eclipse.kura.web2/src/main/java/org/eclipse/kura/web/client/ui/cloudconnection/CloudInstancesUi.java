@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2016, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,6 +20,7 @@ import java.util.Map;
 
 import org.eclipse.kura.web.client.messages.Messages;
 import org.eclipse.kura.web.client.ui.AlertDialog;
+import org.eclipse.kura.web.client.ui.AlertDialog.ConfirmListener;
 import org.eclipse.kura.web.client.util.FailureHandler;
 import org.eclipse.kura.web.client.util.PidTextBox;
 import org.eclipse.kura.web.client.util.request.RequestContext;
@@ -39,13 +40,9 @@ import org.gwtbootstrap3.client.ui.Button;
 import org.gwtbootstrap3.client.ui.Icon;
 import org.gwtbootstrap3.client.ui.ListBox;
 import org.gwtbootstrap3.client.ui.Modal;
-import org.gwtbootstrap3.client.ui.ModalBody;
-import org.gwtbootstrap3.client.ui.ModalFooter;
-import org.gwtbootstrap3.client.ui.ModalHeader;
 import org.gwtbootstrap3.client.ui.Well;
 import org.gwtbootstrap3.client.ui.form.validator.RegExValidator;
 import org.gwtbootstrap3.client.ui.gwt.CellTable;
-import org.gwtbootstrap3.client.ui.html.Span;
 
 import com.google.gwt.cell.client.Cell.Context;
 import com.google.gwt.core.client.GWT;
@@ -61,6 +58,8 @@ import com.google.gwt.view.client.SingleSelectionModel;
 
 public class CloudInstancesUi extends Composite {
 
+    private static final String STATUS_TABLE_ROW = "status-table-row";
+    private static final int REFRESH_DELAY_MS = 2000;
     private static CloudConnectionsUiUiBinder uiBinder = GWT.create(CloudConnectionsUiUiBinder.class);
     private static final Messages MSGS = GWT.create(Messages.class);
 
@@ -154,7 +153,7 @@ public class CloudInstancesUi extends Composite {
             final String factoryPid = this.cloudFactoriesPids.getSelectedValue();
             getSuggestedCloudConnectionPid(factoryPid);
         });
-        
+
         this.pubSubFactoriesPids.addChangeHandler(event -> {
             final String factoryPid = this.pubSubFactoriesPids.getSelectedValue();
             getSuggestedCloudPubSubPid(factoryPid);
@@ -244,6 +243,11 @@ public class CloudInstancesUi extends Composite {
     }
 
     public GwtCloudEntry getSelectedObject() {
+        GwtCloudEntry selectedCloudEntry = this.selectionModel.getSelectedObject();
+        if (selectedCloudEntry == null && !cloudServicesDataProvider.getList().isEmpty()) {
+            GwtCloudEntry firstEntry = this.cloudServicesDataProvider.getList().get(0);
+            this.selectionModel.setSelected(firstEntry, true);
+        }
         return this.selectionModel.getSelectedObject();
     }
 
@@ -288,7 +292,8 @@ public class CloudInstancesUi extends Composite {
 
             if (getSelectedObject() instanceof GwtCloudConnectionEntry
                     && getObjectAfterSelection() instanceof GwtCloudPubSubEntry) {
-                this.alertDialog.show(MSGS.cannotDeleteConnection(), AlertDialog.Severity.ALERT, null);
+                this.alertDialog.show(MSGS.cannotDeleteConnection(), AlertDialog.Severity.ALERT,
+                        (ConfirmListener) null);
                 return;
             }
 
@@ -306,126 +311,140 @@ public class CloudInstancesUi extends Composite {
 
     private void initConnectionsTable() {
 
-        {
+        initPidColumn();
 
-            TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
+        initTypeColumn();
 
-                @Override
-                public String getValue(GwtCloudEntry object) {
-                    final String pid = object.getPid();
+        initCloudConnectionStatusColumn();
 
-                    if (object instanceof GwtCloudPubSubEntry) {
-                        return " -> " + pid;
-                    } else {
-                        return pid;
-                    }
-                }
-
-                @Override
-                public void render(Context context, GwtCloudEntry object, SafeHtmlBuilder sb) {
-                    final String pid = object.getPid();
-
-                    if (object instanceof GwtCloudPubSubEntry) {
-
-                        final String iconStyle = ((GwtCloudPubSubEntry) object)
-                                .getType() == GwtCloudPubSubEntry.Type.PUBLISHER ? "fa-arrow-up" : "fa-arrow-down";
-
-                        sb.append(() -> "&ensp;<i class=\"fa assets-status-icon " + iconStyle + "\"></i>" + pid);
-                    } else {
-                        sb.append(() -> "<i class=\"fa assets-status-icon fa-cloud\"></i>" + pid);
-                    }
-                }
-            };
-            col.setCellStyleNames("status-table-row");
-            this.connectionsGrid.addColumn(col, MSGS.connectionCloudConnectionPidHeader());
-        }
-
-        {
-
-            TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
-
-                @Override
-                public String getValue(GwtCloudEntry object) {
-
-                    if (object instanceof GwtCloudConnectionEntry) {
-                        return "Cloud connection";
-                    }
-
-                    return ((GwtCloudPubSubEntry) object).getType() == GwtCloudPubSubEntry.Type.PUBLISHER ? "Publisher"
-                            : "Subscriber";
-                }
-
-            };
-            col.setCellStyleNames("status-table-row");
-            this.connectionsGrid.addColumn(col, MSGS.typeLabel());
-        }
-
-        {
-            TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
-
-                @Override
-                public String getValue(GwtCloudEntry object) {
-
-                    if (!(object instanceof GwtCloudConnectionEntry)) {
-                        return "";
-                    }
-
-                    final GwtCloudConnectionEntry entry = (GwtCloudConnectionEntry) object;
-
-                    switch (entry.getState()) {
-                    case UNREGISTERED:
-                        return MSGS.unregistered();
-                    case CONNECTED:
-                        return MSGS.connected();
-                    case DISCONNECTED:
-                        return MSGS.disconnected();
-                    default:
-                        return entry.getState().toString();
-                    }
-                }
-
-                @Override
-                public String getCellStyleNames(Context context, GwtCloudEntry object) {
-                    final String defaultStyle = "status-table-row";
-
-                    if (!(object instanceof GwtCloudConnectionEntry)) {
-                        return defaultStyle;
-                    }
-
-                    final GwtCloudConnectionEntry entry = (GwtCloudConnectionEntry) object;
-
-                    switch (entry.getState()) {
-                    case CONNECTED:
-                        return defaultStyle + " text-success";
-                    case DISCONNECTED:
-                        return defaultStyle + " text-danger";
-                    default:
-                        return defaultStyle;
-                    }
-                }
-            };
-
-            this.connectionsGrid.addColumn(col, MSGS.netIPv4Status());
-        }
-
-        {
-            TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
-
-                @Override
-                public String getValue(GwtCloudEntry object) {
-
-                    if (object instanceof GwtCloudConnectionEntry) {
-                        return ((GwtCloudConnectionEntry) object).getCloudConnectionFactoryPid();
-                    }
-
-                    return object.getFactoryPid();
-                }
-            };
-            col.setCellStyleNames("status-table-row");
-            this.connectionsGrid.addColumn(col, MSGS.connectionCloudConnectionFactoryPidHeader());
-        }
+        initCloudConnectionFactoryPidColumn();
 
         this.cloudServicesDataProvider.addDataDisplay(this.connectionsGrid);
+    }
+
+    private void initPidColumn() {
+
+        TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
+
+            @Override
+            public String getValue(GwtCloudEntry object) {
+                final String pid = object.getPid();
+
+                if (object instanceof GwtCloudPubSubEntry) {
+                    return " -> " + pid;
+                } else {
+                    return pid;
+                }
+            }
+
+            @Override
+            public void render(Context context, GwtCloudEntry object, SafeHtmlBuilder sb) {
+                final String pid = object.getPid();
+
+                if (object instanceof GwtCloudPubSubEntry) {
+
+                    final String iconStyle = ((GwtCloudPubSubEntry) object)
+                            .getType() == GwtCloudPubSubEntry.Type.PUBLISHER ? "fa-arrow-up" : "fa-arrow-down";
+
+                    sb.append(() -> "&ensp;<i class=\"fa assets-status-icon " + iconStyle + "\"></i>" + pid);
+                } else {
+                    sb.append(() -> "<i class=\"fa assets-status-icon fa-cloud\"></i>" + pid);
+                }
+            }
+        };
+        col.setCellStyleNames(STATUS_TABLE_ROW);
+        this.connectionsGrid.addColumn(col, MSGS.connectionCloudConnectionPidHeader());
+
+    }
+
+    private void initTypeColumn() {
+
+        TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
+
+            @Override
+            public String getValue(GwtCloudEntry object) {
+
+                if (object instanceof GwtCloudConnectionEntry) {
+                    return "Cloud connection";
+                }
+
+                return ((GwtCloudPubSubEntry) object).getType() == GwtCloudPubSubEntry.Type.PUBLISHER ? "Publisher"
+                        : "Subscriber";
+            }
+
+        };
+        col.setCellStyleNames(STATUS_TABLE_ROW);
+        this.connectionsGrid.addColumn(col, MSGS.typeLabel());
+
+    }
+
+    private void initCloudConnectionStatusColumn() {
+
+        TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
+
+            @Override
+            public String getValue(GwtCloudEntry object) {
+
+                if (!(object instanceof GwtCloudConnectionEntry)) {
+                    return "";
+                }
+
+                final GwtCloudConnectionEntry entry = (GwtCloudConnectionEntry) object;
+
+                switch (entry.getState()) {
+                case UNREGISTERED:
+                    return MSGS.unregistered();
+                case CONNECTED:
+                    return MSGS.connected();
+                case DISCONNECTED:
+                    return MSGS.disconnected();
+                default:
+                    return entry.getState().toString();
+                }
+            }
+
+            @Override
+            public String getCellStyleNames(Context context, GwtCloudEntry object) {
+                final String defaultStyle = STATUS_TABLE_ROW;
+
+                if (!(object instanceof GwtCloudConnectionEntry)) {
+                    return defaultStyle;
+                }
+
+                final GwtCloudConnectionEntry entry = (GwtCloudConnectionEntry) object;
+
+                switch (entry.getState()) {
+                case CONNECTED:
+                    return defaultStyle + " text-success";
+                case DISCONNECTED:
+                    return defaultStyle + " text-danger";
+                default:
+                    return defaultStyle;
+                }
+            }
+        };
+
+        this.connectionsGrid.addColumn(col, MSGS.netIPv4Status());
+
+    }
+
+    private void initCloudConnectionFactoryPidColumn() {
+
+        TextColumn<GwtCloudEntry> col = new TextColumn<GwtCloudEntry>() {
+
+            @Override
+            public String getValue(GwtCloudEntry object) {
+
+                if (object instanceof GwtCloudConnectionEntry) {
+                    return ((GwtCloudConnectionEntry) object).getCloudConnectionFactoryPid();
+                }
+
+                return object.getFactoryPid();
+            }
+        };
+        col.setCellStyleNames(STATUS_TABLE_ROW);
+        this.connectionsGrid.addColumn(col, MSGS.connectionCloudConnectionFactoryPidHeader());
+
     }
 
     private void createPubSub() {
@@ -443,19 +462,18 @@ public class CloudInstancesUi extends Composite {
             return;
         }
 
-        final String cloudConnectionPid = entry.getPid();
         final String factoryPid = this.pubSubFactoriesPids.getSelectedValue();
 
-        RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
-                context.callback(token -> this.gwtCloudConnection.createPubSubInstance(token, kuraServicePid, factoryPid,
-                        cloudConnectionPid, context.callback(v -> this.cloudServicesUi.refresh())))));
+        RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(context.callback(
+                token -> this.gwtCloudConnection.createPubSubInstance(token, kuraServicePid, factoryPid, entry.getPid(),
+                        context.callback(v -> context.defer(REFRESH_DELAY_MS, this.cloudServicesUi::refresh))))));
     }
 
     private void deletePubSub(final String pid) {
 
-        RequestQueue.submit(
-                context -> this.gwtXSRFService.generateSecurityToken(context.callback(token -> this.gwtCloudConnection
-                        .deletePubSubInstance(token, pid, context.callback(v -> this.cloudServicesUi.refresh())))));
+        RequestQueue.submit(context -> this.gwtXSRFService
+                .generateSecurityToken(context.callback(token -> this.gwtCloudConnection.deletePubSubInstance(token,
+                        pid, context.callback(v -> context.defer(REFRESH_DELAY_MS, this.cloudServicesUi::refresh))))));
     }
 
     private void createCloudConnectionServiceFactory() {
@@ -479,7 +497,7 @@ public class CloudInstancesUi extends Composite {
 
                             @Override
                             public void onSuccess(Void result) {
-                                CloudInstancesUi.this.cloudServicesUi.refresh();
+                                context.defer(REFRESH_DELAY_MS, CloudInstancesUi.this.cloudServicesUi::refresh);
                                 CloudInstancesUi.this.newConnectionModal.hide();
                             }
                         })))));
@@ -504,14 +522,14 @@ public class CloudInstancesUi extends Composite {
         final List<GwtCloudEntry> entries = this.pubSubFactoryEntries.get(connectionFactoryPid);
 
         if (entries == null || entries.isEmpty()) {
-            this.alertDialog.show(MSGS.noPubSubFactoriesFound(), AlertDialog.Severity.ALERT, null);
+            this.alertDialog.show(MSGS.noPubSubFactoriesFound(), AlertDialog.Severity.ALERT, (ConfirmListener) null);
             return;
         }
 
         for (final GwtCloudEntry entry : entries) {
             this.pubSubFactoriesPids.addItem(entry.getPid());
         }
-        
+
         String selectedPubSubPid = CloudInstancesUi.this.pubSubFactoriesPids.getSelectedValue();
         getSuggestedCloudPubSubPid(selectedPubSubPid);
 
@@ -546,14 +564,14 @@ public class CloudInstancesUi extends Composite {
 
         RequestQueue.submit(context -> this.gwtXSRFService
                 .generateSecurityToken(context.callback(token -> CloudInstancesUi.this.gwtStatusService
-                        .connectDataService(token, connectionId, context.<Void> callback()))));
+                        .connectDataService(token, connectionId, context.<Void>callback()))));
     }
 
     private void disconnectDataService(final String connectionId) {
 
         RequestQueue.submit(context -> this.gwtXSRFService
                 .generateSecurityToken(context.callback(token -> CloudInstancesUi.this.gwtStatusService
-                        .disconnectDataService(token, connectionId, context.<Void> callback()))));
+                        .disconnectDataService(token, connectionId, context.<Void>callback()))));
 
     }
 
@@ -562,23 +580,12 @@ public class CloudInstancesUi extends Composite {
         RequestQueue.submit(context -> this.gwtXSRFService.generateSecurityToken(
                 context.callback(token -> CloudInstancesUi.this.gwtCloudConnection.deleteCloudServiceFromFactory(token,
                         factoryPid, cloudServicePid,
-                        context.callback(result -> CloudInstancesUi.this.cloudServicesUi.refresh())))));
+                        context.callback(result -> context.defer(REFRESH_DELAY_MS, this.cloudServicesUi::refresh))))));
 
     }
 
     private void showDeleteModal() {
-        final Modal modal = new Modal();
-
-        ModalHeader header = new ModalHeader();
-        header.setTitle(MSGS.warning());
-        modal.add(header);
-
-        ModalBody body = new ModalBody();
-        body.add(new Span(MSGS.cloudServiceDeleteConfirmation()));
-        modal.add(body);
-
-        ModalFooter footer = new ModalFooter();
-        Button yes = new Button(MSGS.yesButton(), event -> {
+        alertDialog.show(MSGS.cloudServiceDeleteConfirmation(), () -> {
             GwtCloudEntry selection = CloudInstancesUi.this.selectionModel.getSelectedObject();
 
             if (selection instanceof GwtCloudConnectionEntry) {
@@ -590,16 +597,7 @@ public class CloudInstancesUi extends Composite {
             } else {
                 deletePubSub(selection.getPid());
             }
-            modal.hide();
         });
-
-        Button no = new Button(MSGS.noButton(), event -> modal.hide());
-
-        footer.add(no);
-        footer.add(yes);
-        modal.add(footer);
-        modal.show();
-        no.setFocus(true);
     }
 
     private void getSuggestedCloudConnectionPid(final String factoryPid) {
@@ -613,7 +611,8 @@ public class CloudInstancesUi extends Composite {
     }
 
     @SuppressWarnings("unchecked")
-    private void getCloudConnectionPidRegex(final RequestContext context, final String factoryPid, final String example) {
+    private void getCloudConnectionPidRegex(final RequestContext context, final String factoryPid,
+            final String example) {
         this.gwtCloudConnection.findCloudServicePidRegex(factoryPid, context.callback(result -> {
             final PidTextBox pidTextBox = CloudInstancesUi.this.cloudConnectionPid;
             pidTextBox.reset();
@@ -636,20 +635,20 @@ public class CloudInstancesUi extends Composite {
             this.cloudConnectionPidSpinner.setVisible(false);
         }));
     }
-    
+
     @SuppressWarnings("unchecked")
     private void getSuggestedCloudPubSubPid(final String pubSubPid) {
         this.pubSubPid.clear();
         this.pubSubPid.setEnabled(false);
         this.pubSubPid.setVisible(true);
-       
-        final List<GwtCloudEntry> providerList = cloudComponentFactories.getPubSubFactories();
+
+        final List<GwtCloudEntry> providerList = this.cloudComponentFactories.getPubSubFactories();
 
         for (final GwtCloudEntry entry : providerList) {
             if (pubSubPid.equals(entry.getPid())) {
                 String example = entry.getDefaultFactoryPid();
                 String regex = entry.getDefaultFactoryPidRegex();
-                
+
                 String placeholder = null;
                 String validationMessage = null;
                 if (example != null) {

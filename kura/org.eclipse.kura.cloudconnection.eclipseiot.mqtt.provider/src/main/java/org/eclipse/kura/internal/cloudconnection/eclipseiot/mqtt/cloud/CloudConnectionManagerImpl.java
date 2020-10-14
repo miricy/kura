@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,7 +19,9 @@ import static org.eclipse.kura.internal.cloudconnection.eclipseiot.mqtt.message.
 import static org.eclipse.kura.internal.cloudconnection.eclipseiot.mqtt.message.MessageConstants.RETAIN;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -55,6 +57,8 @@ import org.eclipse.kura.core.data.DataServiceImpl;
 import org.eclipse.kura.data.DataService;
 import org.eclipse.kura.data.listener.DataServiceListener;
 import org.eclipse.kura.internal.cloudconnection.eclipseiot.mqtt.message.MessageType;
+import org.eclipse.kura.marshalling.Marshaller;
+import org.eclipse.kura.marshalling.Unmarshaller;
 import org.eclipse.kura.message.KuraApplicationTopic;
 import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.net.NetworkService;
@@ -98,6 +102,8 @@ public class CloudConnectionManagerImpl
     private PositionService positionService;
     private EventAdmin eventAdmin;
     private CertificatesService certificatesService;
+    private Unmarshaller jsonUnmarshaller;
+    private Marshaller jsonMarshaller;
 
     // package visibility for LifeCyclePayloadBuilder
     String imei;
@@ -197,6 +203,22 @@ public class CloudConnectionManagerImpl
 
     public void unsetEventAdmin(EventAdmin eventAdmin) {
         this.eventAdmin = null;
+    }
+
+    public void setJsonUnmarshaller(Unmarshaller jsonUnmarshaller) {
+        this.jsonUnmarshaller = jsonUnmarshaller;
+    }
+
+    public void unsetJsonUnmarshaller(Unmarshaller jsonUnmarshaller) {
+        this.jsonUnmarshaller = null;
+    }
+
+    public void setJsonMarshaller(Marshaller jsonMarshaller) {
+        this.jsonMarshaller = jsonMarshaller;
+    }
+
+    public void unsetJsonMarshaller(Marshaller jsonMarshaller) {
+        this.jsonMarshaller = null;
     }
 
     // ----------------------------------------------------------------
@@ -347,7 +369,7 @@ public class CloudConnectionManagerImpl
         } else if (preferencesEncoding == SIMPLE_JSON) {
             bytes = encodeJsonPayload(payload);
         } else {
-            throw new KuraException(KuraErrorCode.ENCODE_ERROR);
+            throw new KuraException(KuraErrorCode.ENCODE_ERROR, "KuraPayload");
         }
         return bytes;
     }
@@ -409,13 +431,16 @@ public class CloudConnectionManagerImpl
         KuraPayload kuraPayload = null;
 
         if (this.options.getPayloadEncoding() == SIMPLE_JSON) {
-            kuraPayload = createKuraPayloadFromJson(payload);
+            try {
+                kuraPayload = createKuraPayloadFromJson(payload);
+            } catch (KuraException e) {
+                logger.warn("Error creating Kura Payload from Json", e);
+            }
         } else if (this.options.getPayloadEncoding() == KURA_PROTOBUF) {
             kuraPayload = createKuraPayloadFromProtoBuf(topic, payload);
         }
 
         try {
-
             boolean validMessage = isValidMessage(kuraTopic, kuraPayload);
 
             if (validMessage) {
@@ -505,7 +530,7 @@ public class CloudConnectionManagerImpl
             bytes = encoder.getBytes();
             return bytes;
         } catch (IOException e) {
-            throw new KuraException(KuraErrorCode.ENCODE_ERROR, e);
+            throw new KuraException(KuraErrorCode.ENCODE_ERROR, "KuraPayload", e);
         }
     }
 
@@ -524,7 +549,7 @@ public class CloudConnectionManagerImpl
             kuraPayload = encoder.buildFromByteArray();
             return kuraPayload;
         } catch (KuraInvalidMessageException | IOException e) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR, e);
+            throw new KuraException(KuraErrorCode.DECODER_ERROR, "KuraPayload", e);
         }
     }
 
@@ -607,6 +632,8 @@ public class CloudConnectionManagerImpl
         // has been published (i.e. written to the socket).
         synchronized (this.messageId) {
             this.messageId.set(-1);
+            // add a timestamp to the message
+            payload.setTimestamp(new Date());
             byte[] encodedPayload = encodePayload(payload);
             int localMessageId = this.dataService.publish(topic, encodedPayload, this.options.getLifeCycleMessageQos(),
                     this.options.getLifeCycleMessageRetain(), this.options.getLifeCycleMessagePriority());
@@ -634,17 +661,17 @@ public class CloudConnectionManagerImpl
         try {
             bytes = encoder.getBytes();
         } catch (IOException e) {
-            throw new KuraException(KuraErrorCode.ENCODE_ERROR, e);
+            throw new KuraException(KuraErrorCode.ENCODE_ERROR, "KuraPayload", e);
         }
         return bytes;
     }
 
-    private byte[] encodeJsonPayload(KuraPayload payload) {
-        return CloudPayloadJsonEncoder.getBytes(payload);
+    private byte[] encodeJsonPayload(KuraPayload payload) throws KuraException {
+        return this.jsonMarshaller.marshal(payload).getBytes(StandardCharsets.UTF_8);
     }
 
-    private KuraPayload createKuraPayloadFromJson(byte[] payload) {
-        return CloudPayloadJsonDecoder.buildFromByteArray(payload);
+    private KuraPayload createKuraPayloadFromJson(byte[] payload) throws KuraException {
+        return this.jsonUnmarshaller.unmarshal(new String(payload), KuraPayload.class);
     }
 
     private KuraPayload createKuraPayloadFromProtoBuf(String topic, byte[] payload) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,6 +26,7 @@ import org.eclipse.kura.core.net.AbstractNetInterface;
 import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.NetworkConfigurationVisitor;
 import org.eclipse.kura.core.util.IOUtil;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.linux.net.wifi.HostapdManager;
 import org.eclipse.kura.net.NetConfig;
 import org.eclipse.kura.net.NetConfigIP4;
@@ -48,10 +49,17 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
     private static final Logger logger = LoggerFactory.getLogger(HostapdConfigWriter.class);
 
     private static final String HEXES = "0123456789ABCDEF";
-
+    private static final String KURA_SECURITY = "KURA_SECURITY";
+    private static final String KURA_PAIRWISE_CIPHER = "KURA_PAIRWISE_CIPHER";
+    private static final String KURA_HTCAPAB = "KURA_HTCAPAB";
+    private static final String HT_CAPAB_KURA_HTCAPAB = "ht_capab=KURA_HTCAPAB";
+    private static final String KURA_IEEE80211N = "KURA_IEEE80211N";
+    private static final String KURA_WME_ENABLED = "KURA_WME_ENABLED";
+    private static final String KURA_HW_MODE = "KURA_HW_MODE";
     private static final String HOSTAPD_TMP_CONFIG_FILE = "/etc/hostapd.conf.tmp";
 
     private static HostapdConfigWriter instance;
+    private CommandExecutorService executorService;
 
     public static HostapdConfigWriter getInstance() {
         if (instance == null) {
@@ -62,7 +70,15 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
     }
 
     @Override
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    @Override
     public void visit(NetworkConfiguration config) throws KuraException {
+        if (this.executorService == null) {
+            throw new KuraException(KuraErrorCode.CONFIGURATION_ERROR, "The CommandExecutorService cannot be null");
+        }
 
         List<NetInterfaceConfig<? extends NetInterfaceAddressConfig>> netInterfaceConfigs = config
                 .getModifiedNetInterfaceConfigs();
@@ -76,6 +92,9 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
                 writeConfig(netInterfaceConfig);
             }
         }
+
+        // After every visit, unset the executorService. This must be set before every call.
+        this.executorService = null;
     }
 
     private void writeConfig(NetInterfaceConfig<? extends NetInterfaceAddressConfig> netInterfaceConfig)
@@ -161,7 +180,8 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
             fileAsString = updateWPA(wifiConfig, fileAsString);
         } else {
             logger.error(
-                    "Unsupported security type: {}. It must be WifiSecurity.NONE, WifiSecurity.SECURITY_NONE, WifiSecurity.SECURITY_WEP, WifiSecurity.SECURITY_WPA, or WifiSecurity.SECURITY_WPA2",
+                    "Unsupported security type: {}. It must be WifiSecurity.NONE, WifiSecurity.SECURITY_NONE, "
+                    + "WifiSecurity.SECURITY_WEP, WifiSecurity.SECURITY_WPA, or WifiSecurity.SECURITY_WPA2",
                     wifiConfig.getSecurity());
             throw KuraException.internalError("unsupported security type: " + wifiConfig.getSecurity());
         }
@@ -188,22 +208,22 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
 
     private String updateWPA(WifiConfig wifiConfig, String fileAsString) throws KuraException {
         if (wifiConfig.getSecurity() == WifiSecurity.SECURITY_WPA) {
-            fileAsString = fileAsString.replaceFirst("KURA_SECURITY", "1");
+            fileAsString = fileAsString.replaceFirst(KURA_SECURITY, "1");
         } else if (wifiConfig.getSecurity() == WifiSecurity.SECURITY_WPA2) {
-            fileAsString = fileAsString.replaceFirst("KURA_SECURITY", "2");
+            fileAsString = fileAsString.replaceFirst(KURA_SECURITY, "2");
         } else if (wifiConfig.getSecurity() == WifiSecurity.SECURITY_WPA_WPA2) {
-            fileAsString = fileAsString.replaceFirst("KURA_SECURITY", "3");
+            fileAsString = fileAsString.replaceFirst(KURA_SECURITY, "3");
         } else {
             throw KuraException.internalError("invalid WiFi Security");
         }
 
         WifiCiphers wifiCiphers = wifiConfig.getPairwiseCiphers();
         if (wifiCiphers == WifiCiphers.TKIP) {
-            fileAsString = fileAsString.replaceFirst("KURA_PAIRWISE_CIPHER", "TKIP");
+            fileAsString = fileAsString.replaceFirst(KURA_PAIRWISE_CIPHER, "TKIP");
         } else if (wifiCiphers == WifiCiphers.CCMP) {
-            fileAsString = fileAsString.replaceFirst("KURA_PAIRWISE_CIPHER", "CCMP");
+            fileAsString = fileAsString.replaceFirst(KURA_PAIRWISE_CIPHER, "CCMP");
         } else if (wifiCiphers == WifiCiphers.CCMP_TKIP) {
-            fileAsString = fileAsString.replaceFirst("KURA_PAIRWISE_CIPHER", "CCMP TKIP");
+            fileAsString = fileAsString.replaceFirst(KURA_PAIRWISE_CIPHER, "CCMP TKIP");
         } else {
             throw KuraException.internalError("invalid WiFi Pairwise Ciphers");
         }
@@ -288,7 +308,7 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
         if (interfaceDriver != null && interfaceDriver.length() > 0) {
             fileAsString = fileAsString.replaceFirst("KURA_DRIVER", interfaceDriver);
         } else {
-            String drv = HostapdManager.getDriver(interfaceName);
+            String drv = new HostapdManager(this.executorService).getDriver(interfaceName);
             logger.warn("The 'driver' parameter must be set: setting to: {}", drv);
             fileAsString = fileAsString.replaceFirst("KURA_DRIVER", drv);
         }
@@ -296,11 +316,11 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
     }
 
     private String updateChannels(WifiConfig wifiConfig, String fileAsString) throws KuraException {
-        if (wifiConfig.getChannels()[0] > 0 && wifiConfig.getChannels()[0] < 14) {
+        if (wifiConfig.getChannels()[0] > 0 && wifiConfig.getChannels()[0] <= 14) {
             fileAsString = fileAsString.replaceFirst("KURA_CHANNEL", Integer.toString(wifiConfig.getChannels()[0]));
         } else {
             throw KuraException.internalError(String.format(
-                    "the channel (%s) must be between 1 (inclusive) and 11 (inclusive) or 1 (inclusive) and 13 (inclusive) depending on your locale",
+                    "the channel (%s) must be between 1 (inclusive) and 11 (inclusive) or 1 (inclusive) and 14 (inclusive) depending on your locale",
                     wifiConfig.getChannels()[0]));
         }
         return fileAsString;
@@ -329,35 +349,35 @@ public class HostapdConfigWriter implements NetworkConfigurationVisitor {
     private String updateRadioMode(WifiConfig wifiConfig, String fileAsString) throws KuraException {
         WifiRadioMode radioMode = wifiConfig.getRadioMode();
         if (radioMode == WifiRadioMode.RADIO_MODE_80211a) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "a");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "0");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "0");
-            fileAsString = fileAsString.replaceFirst("ht_capab=KURA_HTCAPAB", "");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "a");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "0");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "0");
+            fileAsString = fileAsString.replaceFirst(HT_CAPAB_KURA_HTCAPAB, "");
         } else if (radioMode == WifiRadioMode.RADIO_MODE_80211b) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "b");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "0");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "0");
-            fileAsString = fileAsString.replaceFirst("ht_capab=KURA_HTCAPAB", "");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "b");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "0");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "0");
+            fileAsString = fileAsString.replaceFirst(HT_CAPAB_KURA_HTCAPAB, "");
         } else if (radioMode == WifiRadioMode.RADIO_MODE_80211g) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "g");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "0");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "0");
-            fileAsString = fileAsString.replaceFirst("ht_capab=KURA_HTCAPAB", "");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "g");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "0");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "0");
+            fileAsString = fileAsString.replaceFirst(HT_CAPAB_KURA_HTCAPAB, "");
         } else if (radioMode == WifiRadioMode.RADIO_MODE_80211nHT20) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "g");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_HTCAPAB", "[SHORT-GI-20]");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "g");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_HTCAPAB, "[SHORT-GI-20]");
         } else if (radioMode == WifiRadioMode.RADIO_MODE_80211nHT40above) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "g");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_HTCAPAB", "[HT40+][SHORT-GI-20][SHORT-GI-40]");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "g");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_HTCAPAB, "[HT40+][SHORT-GI-20][SHORT-GI-40]");
         } else if (radioMode == WifiRadioMode.RADIO_MODE_80211nHT40below) {
-            fileAsString = fileAsString.replaceFirst("KURA_HW_MODE", "g");
-            fileAsString = fileAsString.replaceFirst("KURA_WME_ENABLED", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_IEEE80211N", "1");
-            fileAsString = fileAsString.replaceFirst("KURA_HTCAPAB", "[HT40-][SHORT-GI-20][SHORT-GI-40]");
+            fileAsString = fileAsString.replaceFirst(KURA_HW_MODE, "g");
+            fileAsString = fileAsString.replaceFirst(KURA_WME_ENABLED, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_IEEE80211N, "1");
+            fileAsString = fileAsString.replaceFirst(KURA_HTCAPAB, "[HT40-][SHORT-GI-20][SHORT-GI-40]");
         } else {
             throw KuraException.internalError("invalid hardware mode");
         }

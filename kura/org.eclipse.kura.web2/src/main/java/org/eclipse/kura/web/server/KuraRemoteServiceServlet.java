@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,6 +20,7 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.eclipse.kura.web.session.Attributes;
 import org.eclipse.kura.web.shared.GwtKuraErrorCode;
 import org.eclipse.kura.web.shared.GwtKuraException;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
@@ -34,7 +35,8 @@ public class KuraRemoteServiceServlet extends RemoteServiceServlet {
      *
      */
     private static final long serialVersionUID = 3473193315046407200L;
-    private static Logger logger = LoggerFactory.getLogger(KuraRemoteServiceServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(KuraRemoteServiceServlet.class);
+    private static final Logger auditLogger = LoggerFactory.getLogger("AuditLogger");
 
     /**
      *
@@ -59,9 +61,9 @@ public class KuraRemoteServiceServlet extends RemoteServiceServlet {
      */
     private static void performXSRFTokenValidation(HttpServletRequest req, GwtXSRFToken userToken)
             throws GwtKuraException {
-        HttpSession session = req.getSession();
+        HttpSession session = req.getSession(false);
 
-        if (!isValidXSRFToken(session, userToken)) {
+        if (!isValidXSRFToken(session, userToken.getToken())) {
             logger.info("XSRF token is NOT VALID");
 
             if (userToken != null) {
@@ -70,12 +72,14 @@ public class KuraRemoteServiceServlet extends RemoteServiceServlet {
             logger.debug("\tSender IP: {}", req.getRemoteAddr());
             logger.debug("\tSender Host: {}", req.getRemoteHost());
             logger.debug("\tSender Port: {}", req.getRemotePort());
-            logger.debug("\tFull Request URL\n {}?{}\n\n", req.getRequestURL().toString(), req.getQueryString());
+            logger.debug("\tFull Request URL\n {}?{}\n\n", req.getRequestURL(), req.getQueryString());
 
             // forcing the console log out
             session.invalidate();
             logger.debug("Session invalidated.");
 
+            auditLogger.warn("UI XSRF - Failure - XSRF Token validation error for user: {}, session {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId());
             throw new GwtKuraException(GwtKuraErrorCode.INTERNAL_ERROR, null, "Invalid XSRF token");
         }
     }
@@ -91,10 +95,10 @@ public class KuraRemoteServiceServlet extends RemoteServiceServlet {
      * @param userToken
      * @return boolean
      */
-    public static boolean isValidXSRFToken(HttpSession session, GwtXSRFToken userToken) {
+    public static boolean isValidXSRFToken(HttpSession session, String userToken) {
         logger.debug("Starting XSRF Token validation...'");
 
-        if (userToken == null) {
+        if (userToken == null || session == null) {
             logger.debug("XSRF Token is NOT VALID -> NULL TOKEN");
             return false;
         }
@@ -105,23 +109,22 @@ public class KuraRemoteServiceServlet extends RemoteServiceServlet {
             String serverToken = serverXSRFToken.getToken();
 
             // Checking the XSRF validity on the serverToken
-            if (isValidStringToken(serverToken) && isValidStringToken(userToken.getToken())
-                    && serverToken.equals(userToken.getToken())) {
+            if (isValidStringToken(serverToken) && isValidStringToken(userToken) && serverToken.equals(userToken)) {
                 // Checking expire date
-                if (new Date().before(userToken.getExpiresOn())) {
-                    logger.debug("XSRF Token is VALID - {}", userToken.getToken());
+                if (new Date().before(serverXSRFToken.getExpiresOn())) {
+                    logger.debug("XSRF Token is VALID - {}", userToken);
 
                     // Reset used token
                     session.setAttribute(GwtSecurityTokenServiceImpl.XSRF_TOKEN_KEY, null);
                     return true;
                 } else {
                     session.setAttribute(GwtSecurityTokenServiceImpl.XSRF_TOKEN_KEY, null);
-                    logger.error("XSRF Token is EXPIRED - {}", userToken.getToken());
+                    logger.error("XSRF Token is EXPIRED - {}", userToken);
                 }
             }
         }
 
-        logger.debug("XSRF Token is NOT VALID - {}", userToken.getToken());
+        logger.debug("XSRF Token is NOT VALID - {}", userToken);
         return false;
     }
 

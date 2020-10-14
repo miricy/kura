@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,23 +15,23 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.eclipse.kura.bluetooth.le.BluetoothLeAdapter;
 import org.eclipse.kura.bluetooth.le.BluetoothLeService;
 import org.osgi.service.component.ComponentContext;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import tinyb.BluetoothManager;
 
 public class BluetoothLeServiceImpl implements BluetoothLeService {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(BluetoothLeServiceImpl.class);
 
     private BluetoothManager bluetoothManager;
 
     protected void activate(ComponentContext context) {
         logger.info("Activating Bluetooth Le Service...");
-        if (!startBluetoothSystemd() && !startBluetoothInitd()) {
+        if (!startBluetoothUbuntuSnap() && !startBluetoothSystemd() && !startBluetoothInitd()) {
             startBluetoothDaemon();
         }
         try {
@@ -111,6 +111,17 @@ public class BluetoothLeServiceImpl implements BluetoothLeService {
             Runtime.getRuntime().exec(daemonCommand);
         } catch (IOException e) {
             logger.error("Failed to start linux bluetooth service", e);
+        }
+    }
+
+    private boolean startBluetoothUbuntuSnap() {
+        String snapName = System.getProperty("kura.os.snap.name");
+        if (snapName != null && snapName.length() != 0) {
+            // when running as snap, we assume bluez is installed as snap and running
+            logger.info("We are running as snap, assume bluetooth is running");
+            return true;
+        } else {
+            return false;
         }
     }
 }

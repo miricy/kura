@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 
 import org.eclipse.kura.web.client.util.FailureHandler;
+import org.eclipse.kura.web.client.util.request.RequestQueue;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
 import org.eclipse.kura.web.shared.model.GwtConfigParameter;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
@@ -40,12 +41,11 @@ import org.gwtbootstrap3.client.ui.ModalHeader;
 import org.gwtbootstrap3.client.ui.NavPills;
 import org.gwtbootstrap3.client.ui.PanelBody;
 import org.gwtbootstrap3.client.ui.TextBox;
+import org.gwtbootstrap3.client.ui.constants.ModalBackdrop;
 import org.gwtbootstrap3.client.ui.html.Span;
 import org.gwtbootstrap3.client.ui.html.Text;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Window;
@@ -115,41 +115,17 @@ public class ServicesUi extends AbstractServicesUi {
         this.fields.clear();
 
         this.apply.setText(MSGS.apply());
-        this.apply.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                apply();
-            }
-        });
+        this.apply.addClickHandler(event -> apply());
 
         this.reset.setText(MSGS.reset());
-        this.reset.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                reset();
-            }
-        });
+        this.reset.addClickHandler(event -> reset());
 
         this.delete.setText(MSGS.delete());
-        this.delete.addClickHandler(new ClickHandler() {
+        this.delete.addClickHandler(event -> ServicesUi.this.deleteModal.show());
 
-            @Override
-            public void onClick(ClickEvent event) {
-                ServicesUi.this.deleteModal.show();
-            }
-        });
-
-        this.deleteButton.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                delete();
-            }
-        });
-        this.deleteButton.setText(MSGS.delete());
-        this.cancelButton.setText(MSGS.cancelButton());
+        this.deleteButton.addClickHandler(event -> delete());
+        this.deleteButton.setText(MSGS.yesButton());
+        this.cancelButton.setText(MSGS.noButton());
         this.deleteModalBody.add(new Span(MSGS.deleteWarning()));
         this.deleteModalHeader.setTitle(MSGS.confirm());
 
@@ -181,6 +157,10 @@ public class ServicesUi extends AbstractServicesUi {
         if (isDirty()) {
             // Modal
             this.modal = new Modal();
+            modal.setClosable(false);
+            modal.setFade(true);
+            modal.setDataKeyboard(true);
+            modal.setDataBackdrop(ModalBackdrop.STATIC);
 
             ModalHeader header = new ModalHeader();
             header.setTitle(MSGS.confirm());
@@ -195,29 +175,19 @@ public class ServicesUi extends AbstractServicesUi {
             Button no = new Button();
             no.setText(MSGS.noButton());
             no.addStyleName("fa fa-times");
-            no.addClickHandler(new ClickHandler() {
-
-                @Override
-                public void onClick(ClickEvent event) {
-                    ServicesUi.this.modal.hide();
-                }
-            });
+            no.addClickHandler(event -> ServicesUi.this.modal.hide());
             group.add(no);
             Button yes = new Button();
             yes.setText(MSGS.yesButton());
             yes.addStyleName("fa fa-check");
-            yes.addClickHandler(new ClickHandler() {
-
-                @Override
-                public void onClick(ClickEvent event) {
-                    ServicesUi.this.modal.hide();
-                    restoreConfiguration(ServicesUi.this.originalConfig);
-                    renderForm();
-                    ServicesUi.this.apply.setEnabled(false);
-                    ServicesUi.this.reset.setEnabled(false);
-                    setDirty(false);
-                    ServicesUi.this.entryClass.fetchAvailableServices(null);
-                }
+            yes.addClickHandler(event -> {
+                ServicesUi.this.modal.hide();
+                restoreConfiguration(ServicesUi.this.originalConfig);
+                renderForm();
+                ServicesUi.this.apply.setEnabled(false);
+                ServicesUi.this.reset.setEnabled(false);
+                setDirty(false);
+                ServicesUi.this.entryClass.fetchAvailableServices(null);
             });
             group.add(yes);
             footer.add(group);
@@ -243,17 +213,17 @@ public class ServicesUi extends AbstractServicesUi {
                     ServicesUi.this.gwtComponentService.deleteFactoryConfiguration(token,
                             ServicesUi.this.configurableComponent.getComponentId(), true, new AsyncCallback<Void>() {
 
-                        @Override
-                        public void onFailure(Throwable caught) {
-                            EntryClassUi.hideWaitModal();
-                            errorLogger.log(Level.SEVERE, caught.getLocalizedMessage());
-                        }
+                                @Override
+                                public void onFailure(Throwable caught) {
+                                    EntryClassUi.hideWaitModal();
+                                    errorLogger.log(Level.SEVERE, caught.getLocalizedMessage());
+                                }
 
-                        @Override
-                        public void onSuccess(Void result) {
-                            Window.Location.reload();
-                        }
-                    });
+                                @Override
+                                public void onSuccess(Void result) {
+                                    Window.Location.reload();
+                                }
+                            });
                 }
             });
         }
@@ -323,69 +293,45 @@ public class ServicesUi extends AbstractServicesUi {
                 Button no = new Button();
                 no.setText(MSGS.noButton());
                 no.addStyleName("fa fa-times");
-                no.addClickHandler(new ClickHandler() {
-
-                    @Override
-                    public void onClick(ClickEvent event) {
-                        ServicesUi.this.modal.hide();
-                    }
-                });
+                no.addClickHandler(event -> ServicesUi.this.modal.hide());
 
                 group.add(no);
                 Button yes = new Button();
                 yes.setText(MSGS.yesButton());
                 yes.addStyleName("fa fa-check");
-                yes.addClickHandler(new ClickHandler() {
-
-                    @Override
-                    public void onClick(ClickEvent event) {
-                        EntryClassUi.showWaitModal();
-                        try {
-                            getUpdatedConfiguration();
-                        } catch (Exception ex) {
-                            EntryClassUi.hideWaitModal();
-                            FailureHandler.handle(ex);
-                            return;
-                        }
-                        ServicesUi.this.gwtXSRFService.generateSecurityToken(new AsyncCallback<GwtXSRFToken>() {
-
-                            @Override
-                            public void onFailure(Throwable ex) {
-                                EntryClassUi.hideWaitModal();
-                                FailureHandler.handle(ex);
-                            }
-
-                            @Override
-                            public void onSuccess(GwtXSRFToken token) {
-                                ServicesUi.this.gwtComponentService.updateComponentConfiguration(token,
-                                        ServicesUi.this.configurableComponent, new AsyncCallback<Void>() {
-
-                                    @Override
-                                    public void onFailure(Throwable caught) {
-                                        EntryClassUi.hideWaitModal();
-                                        FailureHandler.handle(caught);
-                                        errorLogger.log(
-                                                Level.SEVERE, caught.getLocalizedMessage() != null
-                                                        ? caught.getLocalizedMessage() : caught.getClass().getName(),
-                                                caught);
-                                    }
-
-                                    @Override
-                                    public void onSuccess(Void result) {
-                                        ServicesUi.this.modal.hide();
-                                        logger.info(MSGS.info() + ": " + MSGS.deviceConfigApplied());
-                                        ServicesUi.this.apply.setEnabled(false);
-                                        ServicesUi.this.reset.setEnabled(false);
-                                        setDirty(false);
-                                        ServicesUi.this.originalConfig = ServicesUi.this.configurableComponent;
-                                        ServicesUi.this.entryClass.fetchAvailableServices(null);
-                                        EntryClassUi.hideWaitModal();
-                                    }
-                                });
-
-                            }
-                        });
+                yes.addClickHandler(event -> {
+                    try {
+                        getUpdatedConfiguration();
+                    } catch (Exception ex) {
+                        FailureHandler.handle(ex);
+                        return;
                     }
+                    RequestQueue.submit(context -> ServicesUi.this.gwtXSRFService.generateSecurityToken(context
+                            .callback(token -> ServicesUi.this.gwtComponentService.updateComponentConfiguration(token,
+                                    ServicesUi.this.configurableComponent, context.callback(new AsyncCallback<Void>() {
+
+                                        @Override
+                                        public void onFailure(Throwable caught) {
+                                            FailureHandler.handle(caught);
+                                            errorLogger.log(Level.SEVERE,
+                                                    caught.getLocalizedMessage() != null ? caught.getLocalizedMessage()
+                                                            : caught.getClass().getName(),
+                                                    caught);
+                                        }
+
+                                        @Override
+                                        public void onSuccess(Void result) {
+                                            ServicesUi.this.modal.hide();
+                                            logger.info(MSGS.info() + ": " + MSGS.deviceConfigApplied());
+                                            ServicesUi.this.apply.setEnabled(false);
+                                            ServicesUi.this.reset.setEnabled(false);
+                                            setDirty(false);
+                                            ServicesUi.this.originalConfig = ServicesUi.this.configurableComponent;
+                                            context.defer(2000,
+                                                    () -> ServicesUi.this.entryClass.fetchAvailableServices(null));
+                                        }
+                                    })))));
+
                 });
                 group.add(yes);
                 footer.add(group);

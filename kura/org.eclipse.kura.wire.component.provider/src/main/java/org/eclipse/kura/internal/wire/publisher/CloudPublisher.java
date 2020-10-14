@@ -17,11 +17,14 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,6 +34,8 @@ import org.eclipse.kura.message.KuraPayload;
 import org.eclipse.kura.message.KuraPosition;
 import org.eclipse.kura.position.NmeaPosition;
 import org.eclipse.kura.position.PositionService;
+import org.eclipse.kura.type.ByteArrayValue;
+import org.eclipse.kura.type.StringValue;
 import org.eclipse.kura.type.TypedValue;
 import org.eclipse.kura.wire.WireComponent;
 import org.eclipse.kura.wire.WireEnvelope;
@@ -53,7 +58,7 @@ import org.osgi.service.wireadmin.Wire;
  */
 public final class CloudPublisher implements WireReceiver, ConfigurableComponent {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(CloudPublisher.class);
 
     private static final String ASSET_NAME_PROPERTY_KEY = "assetName";
 
@@ -84,24 +89,8 @@ public final class CloudPublisher implements WireReceiver, ConfigurableComponent
         }
     }
 
-    /**
-     * Unbinds the Wire Helper Service.
-     *
-     * @param wireHelperService
-     *            the new Wire Helper Service
-     */
-    public void unbindWireHelperService(final WireHelperService wireHelperService) {
-        if (this.wireHelperService == wireHelperService) {
-            this.wireHelperService = null;
-        }
-    }
-
     public void setPositionService(PositionService positionService) {
         this.positionService = positionService;
-    }
-
-    public void unsetPositionService(PositionService positionService) {
-        this.positionService = null;
     }
 
     public void setCloudPublisher(org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisher) {
@@ -109,7 +98,9 @@ public final class CloudPublisher implements WireReceiver, ConfigurableComponent
     }
 
     public void unsetCloudPublisher(org.eclipse.kura.cloudconnection.publisher.CloudPublisher cloudPublisher) {
-        this.cloudConnectionPublisher = null;
+        if (cloudPublisher == this.cloudConnectionPublisher) {
+            this.cloudConnectionPublisher = null;
+        }
     }
 
     // ----------------------------------------------------------------
@@ -212,11 +203,38 @@ public final class CloudPublisher implements WireReceiver, ConfigurableComponent
             kuraPayload.setPosition(kuraPosition);
         }
 
-        for (final Entry<String, TypedValue<?>> entry : wireRecord.getProperties().entrySet()) {
+        final Map<String, TypedValue<?>> wireRecordProperties = wireRecord.getProperties();
+
+        for (final Entry<String, TypedValue<?>> entry : wireRecordProperties.entrySet()) {
             kuraPayload.addMetric(entry.getKey(), entry.getValue().getValue());
         }
 
+        final Optional<String> bodyProperty = this.cloudPublisherOptions.getBodyProperty();
+
+        if (bodyProperty.isPresent()) {
+            publishBody(kuraPayload, wireRecordProperties, bodyProperty.get());
+        }
+
         return kuraPayload;
+    }
+
+    private void publishBody(final KuraPayload kuraPayload, final Map<String, TypedValue<?>> wireRecordProperties,
+            final String bodyProperty) {
+        try {
+            final TypedValue<?> bodyPropertyValue = wireRecordProperties.get(bodyProperty);
+
+            if (bodyPropertyValue == null) {
+                logger.warn("The \"{}\" property is missing, message body will not be set", bodyProperty);
+            } else if (bodyPropertyValue instanceof StringValue) {
+                kuraPayload.setBody(((String) bodyPropertyValue.getValue()).getBytes(StandardCharsets.UTF_8));
+            } else if (bodyPropertyValue instanceof ByteArrayValue) {
+                kuraPayload.setBody((byte[]) bodyPropertyValue.getValue());
+            } else {
+                logger.warn("The type of the body property must be STRING or BYTE_ARRAY");
+            }
+        } catch (final Exception e) {
+            logger.warn("failed to publish body", e);
+        }
     }
 
     private KuraPosition getPosition() {
@@ -264,8 +282,9 @@ public final class CloudPublisher implements WireReceiver, ConfigurableComponent
         Map<String, TypedValue<?>> wireRecordProps = wireRecord.getProperties();
 
         final Map<String, Object> properties = new HashMap<>();
-        if (wireRecordProps.containsKey(ASSET_NAME_PROPERTY_KEY)) {
-            properties.put(ASSET_NAME_PROPERTY_KEY, wireRecordProps.get(ASSET_NAME_PROPERTY_KEY).getValue());
+        List<String> l = new ArrayList<>(wireRecordProps.keySet());
+        for (String s : l) {
+            properties.put(s, wireRecordProps.get(s).getValue());
         }
         return properties;
     }

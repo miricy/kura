@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,7 +20,6 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -57,10 +56,13 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
     private static final String LOCALHOST = "127.0.0.1";
     private static final String CLASS_A_NETMASK = "255.0.0.0";
 
-    private static List<String> debianInterfaceComandOptions = new ArrayList<>(
-            Arrays.asList("pre-up", "up", "post-up", "pre-down", "down", "post-down"));
-    private static List<String> debianIgnoreInterfaceCommands = new ArrayList<>(
-            Arrays.asList("post-up route del default dev"));
+    private static final String REMOVE_ROUTE_COMMAND = "if ip route show dev ${IFACE} | grep default; then ip route del default dev ${IFACE}; fi";
+
+    private static List<String> debianInterfaceComandOptions = Arrays.asList("pre-up", "up", "post-up", "pre-down",
+            "down", "post-down");
+    private static List<String> debianIgnoreInterfaceCommands = Arrays.asList("post-up route del default dev", //
+            "post-up " + REMOVE_ROUTE_COMMAND //
+    );
 
     @Override
     public Properties read(String interfaceName) throws KuraException {
@@ -138,6 +140,7 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
         return val1 != null ? val1.equals(val2) : val2 == null;
     }
 
+    @SuppressWarnings("checkstyle:todoComment")
     private Properties parseNetInterfaceAddressConfig(NetInterfaceAddressConfig netInterfaceAddressConfig) {
         Properties props = new Properties();
 
@@ -221,10 +224,12 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
                             if ("auto".equals(args[0]) && args[1].equals(interfaceName)) {
                                 logger.debug("Setting ONBOOT to yes for {}", interfaceName);
                                 kuraProps.setProperty(ONBOOT_PROP_NAME, "yes");
-                            }
-                            // once the correct interface is found, read all
-                            // configuration information
-                            else if ("iface".equals(args[0]) && args[1].equals(interfaceName)) {
+                            } else if ("iface".equals(args[0]) && args[1].equals(interfaceName)) { // once the correct
+                                                                                                   // interface is
+                                                                                                   // found,
+                                                                                                   // read all
+                                                                                                   // configuration
+                                                                                                   // information
                                 kuraProps.setProperty(BOOTPROTO_PROP_NAME, args[3]);
                                 if ("dhcp".equals(args[3])) {
                                     kuraProps.setProperty(DEFROUTE_PROP_NAME, "yes");
@@ -241,7 +246,7 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
                                 break;
                             }
                         } catch (Exception e) {
-                            logger.warn("Possible malformed configuration file for " + interfaceName, e);
+                            logger.warn("Possible malformed configuration file for {}", interfaceName, e);
                         }
                     }
                 }
@@ -306,12 +311,15 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
                 sb.append(args[i]);
                 sb.append(' ');
             }
-            if (sb.toString().trim().equals("route del default dev " + ifaceName)) {
+            final String trimmed = sb.toString().trim();
+
+            if (trimmed.equals("route del default dev " + ifaceName) || trimmed.equals(REMOVE_ROUTE_COMMAND)) {
                 kuraProps.setProperty(DEFROUTE_PROP_NAME, "no");
             }
         }
     }
 
+    @SuppressWarnings("checkstyle:innerAssignment")
     private void writeDebianConfig(NetInterfaceConfig<? extends NetInterfaceAddressConfig> netInterfaceConfig)
             throws KuraException {
         StringBuilder sb = new StringBuilder();
@@ -419,6 +427,7 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
         }
     }
 
+    @SuppressWarnings("checkstyle:todoComment")
     private String debianWriteUtility(NetInterfaceConfig<? extends NetInterfaceAddressConfig> netInterfaceConfig,
             String interfaceName) {
         StringBuilder sb = new StringBuilder();
@@ -431,49 +440,47 @@ public class NetInterfaceConfigSerializationServiceImpl implements NetInterfaceC
             if (!(netConfig instanceof NetConfigIP4)) {
                 continue;
             }
-            logger.debug("Writing netconfig {} for {}", netConfig.getClass().toString(), interfaceName);
+            logger.debug("Writing netconfig {} for {}", netConfig.getClass(), interfaceName);
+
+            NetConfigIP4 netConfigIP4 = (NetConfigIP4) netConfig;
 
             // ONBOOT
-            if (((NetConfigIP4) netConfig).isAutoConnect()) {
+            if (netConfigIP4.isAutoConnect()) {
                 sb.append("auto " + interfaceName + "\n");
             }
 
             // BOOTPROTO
             sb.append("iface " + interfaceName + " inet ");
-            if (((NetConfigIP4) netConfig).getStatus() == NetInterfaceStatus.netIPv4StatusL2Only) {
+            if (netConfigIP4.getStatus() == NetInterfaceStatus.netIPv4StatusL2Only) {
                 logger.debug("new config is Layer 2 Only for {}", interfaceName);
                 sb.append("manual\n");
-            } else if (((NetConfigIP4) netConfig).isDhcp()) {
+            } else if (netConfigIP4.isDhcp()) {
                 logger.debug("new config is DHCP for {}", interfaceName);
                 sb.append("dhcp\n");
-                if (((NetConfigIP4) netConfig).getStatus() == NetInterfaceStatus.netIPv4StatusEnabledLAN) {
+                if (netConfigIP4.getStatus() == NetInterfaceStatus.netIPv4StatusEnabledLAN) {
                     // delete default route if configured as LAN
-                    sb.append("\tpost-up route del default dev ");
-                    sb.append(interfaceName);
-                    sb.append("\n");
+                    sb.append("\t").append(REMOVE_ROUTE_COMMAND).append("\n");
                 }
             } else {
                 logger.debug("new config is STATIC for {}", interfaceName);
                 sb.append("static\n");
                 // IPADDR
-                sb.append("\taddress ").append(((NetConfigIP4) netConfig).getAddress().getHostAddress()).append("\n");
+                sb.append("\taddress ").append(netConfigIP4.getAddress().getHostAddress()).append("\n");
 
                 // NETMASK
-                sb.append("\tnetmask ").append(((NetConfigIP4) netConfig).getSubnetMask().getHostAddress())
-                        .append("\n");
+                sb.append("\tnetmask ").append(netConfigIP4.getSubnetMask().getHostAddress()).append("\n");
 
                 // NETWORK
                 // TODO: Handle Debian NETWORK value
 
                 // Gateway
-                if (((NetConfigIP4) netConfig).getGateway() != null) {
-                    sb.append("\tgateway ").append(((NetConfigIP4) netConfig).getGateway().getHostAddress())
-                            .append("\n");
+                if (netConfigIP4.getGateway() != null) {
+                    sb.append("\tgateway ").append(netConfigIP4.getGateway().getHostAddress()).append("\n");
                 }
             }
 
             // DNS
-            List<? extends IPAddress> dnsAddresses = ((NetConfigIP4) netConfig).getDnsServers();
+            List<? extends IPAddress> dnsAddresses = netConfigIP4.getDnsServers();
             boolean setDns = false;
             for (IPAddress dnsAddress : dnsAddresses) {
                 if (LOCALHOST.equals(dnsAddress.getHostAddress())) {

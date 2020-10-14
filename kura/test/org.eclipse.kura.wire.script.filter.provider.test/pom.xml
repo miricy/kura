@@ -16,7 +16,7 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
     <parent>
         <groupId>org.eclipse.kura</groupId>
         <artifactId>test</artifactId>
-        <version>4.0.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>org.eclipse.kura.wire.script.filter.provider.test</artifactId>
@@ -128,11 +128,6 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                         </bundle>
                         <bundle>
                             <id>org.hamcrest.core</id>
-                            <level>4</level>
-                            <autoStart>true</autoStart>
-                        </bundle>
-                        <bundle>
-                            <id>osgi.cmpn</id>
                             <level>4</level>
                             <autoStart>true</autoStart>
                         </bundle>
@@ -298,10 +293,6 @@ Copyright (c) 2017 Eurotech and/or its affiliates and others
                         <dependency>
                             <type>p2-installable-unit</type>
                             <artifactId>org.hamcrest.core</artifactId>
-                        </dependency>
-                        <dependency>
-                            <type>p2-installable-unit</type>
-                            <artifactId>osgi.cmpn</artifactId>
                         </dependency>
                         <dependency>
                             <type>p2-installable-unit</type>

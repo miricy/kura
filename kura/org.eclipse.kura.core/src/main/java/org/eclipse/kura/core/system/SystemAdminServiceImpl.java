@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,8 +19,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.eclipse.kura.core.util.ProcessUtil;
-import org.eclipse.kura.core.util.SafeProcess;
+import org.eclipse.kura.executor.Command;
+import org.eclipse.kura.executor.CommandExecutorService;
+import org.eclipse.kura.executor.CommandStatus;
 import org.eclipse.kura.system.SystemAdminService;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
@@ -28,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 public class SystemAdminServiceImpl extends SuperSystemService implements SystemAdminService {
 
-    private static final Logger s_logger = LoggerFactory.getLogger(SystemAdminServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(SystemAdminServiceImpl.class);
 
     private static final String OS_LINUX = "Linux";
     private static final String OS_MAC_OSX = "Mac OS X";
@@ -36,13 +37,22 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
     private static final String UNKNOWN = "UNKNOWN";
 
     @SuppressWarnings("unused")
-    private ComponentContext m_ctx;
+    private ComponentContext ctx;
+    private CommandExecutorService executorService;
 
     // ----------------------------------------------------------------
     //
     // Dependencies
     //
     // ----------------------------------------------------------------
+
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public void unsetExecutorService(CommandExecutorService executorService) {
+        this.executorService = null;
+    }
 
     // ----------------------------------------------------------------
     //
@@ -53,11 +63,11 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
     protected void activate(ComponentContext componentContext) {
         //
         // save the bundle context
-        this.m_ctx = componentContext;
+        this.ctx = componentContext;
     }
 
     protected void deactivate(ComponentContext componentContext) {
-        this.m_ctx = null;
+        this.ctx = null;
     }
 
     // ----------------------------------------------------------------
@@ -72,9 +82,10 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
         String uptimeStr = UNKNOWN;
         long uptime = 0;
 
-        if (getOsName().toLowerCase().contains(OS_WINDOWS)) {
+        if (getOsName().toLowerCase().startsWith(OS_WINDOWS)) {
             try {
-                String[] lastBootUpTime = runSystemCommand("wmic os get LastBootUpTime ").split("\n");
+                String[] lastBootUpTime = runSystemCommand("wmic os get LastBootUpTime ", false, this.executorService)
+                        .split("\n");
                 if (lastBootUpTime[0].toLowerCase().startsWith("lastbootuptime")) {
                     String lastBoot = lastBootUpTime[2];
                     DateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
@@ -84,7 +95,7 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
                 }
             } catch (Exception e) {
                 uptimeStr = "0";
-                s_logger.error("Could not read uptime", e);
+                logger.error("Could not read uptime", e);
             }
         } else if (OS_LINUX.equals(getOsName())) {
             File file;
@@ -101,7 +112,7 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
                     uptimeStr = Long.toString(uptime);
                 }
             } catch (Exception e) {
-                s_logger.error("Could not read uptime", e);
+                logger.error("Could not read uptime", e);
             } finally {
                 if (br != null) {
                     try {
@@ -118,41 +129,18 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
             }
         } else if (OS_MAC_OSX.equals(getOsName())) {
             try {
-                String systemUptime = runSystemCommand("uptime");
-                if (!systemUptime.isEmpty()) {
-                    String[] uptimeParts = systemUptime.split("up\\s+")[1].split("\\s*,\\s*");
-                    int days = 0, hours = 0, mins = 0;
+                String lastBootupSysCmd = runSystemCommand("sysctl -n kern.boottime", false, this.executorService);
 
-                    String uptimePart = uptimeParts[0];
-
-                    // If up less than a day, it will only show the number of mins, hr, or HH:MM
-                    if (uptimePart.contains("days")) {
-                        days = Integer.parseInt(uptimePart.split("\\s+days")[0]);
-                        uptimePart = uptimeParts[1];
-                    } else if (uptimePart.contains("day")) {
-                        days = Integer.parseInt(uptimePart.split("\\s+day")[0]);
-                        uptimePart = uptimeParts[1];
-                    }
-
-                    if (uptimePart.contains(":")) {
-                        // Showing HH:MM
-                        hours = Integer.parseInt(uptimePart.split(":")[0]);
-                        mins = Integer.parseInt(uptimePart.split(":")[1]);
-                    } else if (uptimePart.contains("hr")) {
-                        // Only showing hr
-                        hours = Integer.parseInt(uptimePart.split("\\s*hr")[0]);
-                    } else if (uptimePart.contains("mins")) {
-                        // Only showing mins
-                        mins = Integer.parseInt(uptimePart.split("\\s*mins")[0]);
-                    } else {
-                        s_logger.error("uptime could not be parsed correctly: " + uptimeParts[0]);
-                    }
-
-                    uptime = (long) ((days * 24 + hours) * 60 + mins) * 60;
-                    uptimeStr = Long.toString(uptime * 1000);
+                if (!lastBootupSysCmd.isEmpty()) {
+                    String[] uptimePairs = lastBootupSysCmd.substring(1, lastBootupSysCmd.indexOf("}")).replace(" ", "")
+                            .split(",");
+                    String[] uptimeSeconds = uptimePairs[0].split("=");
+                    uptime = System.currentTimeMillis() - (long) (Double.parseDouble(uptimeSeconds[1]));
+                    uptimeStr = Long.toString(uptime);
                 }
             } catch (Exception e) {
-                s_logger.error("Could not parse uptime", e);
+                uptimeStr = "0";
+                logger.error("Could not read uptime", e);
             }
         }
         return uptimeStr;
@@ -160,50 +148,30 @@ public class SystemAdminServiceImpl extends SuperSystemService implements System
 
     @Override
     public void reboot() {
-        String cmd = "";
         if (OS_LINUX.equals(getOsName()) || OS_MAC_OSX.equals(getOsName())) {
-            cmd = "reboot";
-        } else if (getOsName().startsWith(OS_WINDOWS)) {
-            cmd = "shutdown -r";
+            executeCommand(new String[] { "reboot" });
+        } else if (getOsName().toLowerCase().startsWith(OS_WINDOWS)) {
+            executeCommand(new String[] { "shutdown", "-r" });
         } else {
-            s_logger.error("Unsupported OS for reboot()");
-            return;
-        }
-        SafeProcess proc = null;
-        try {
-            proc = ProcessUtil.exec(cmd);
-            proc.waitFor();
-        } catch (Exception e) {
-            s_logger.error("failed to issue reboot", e);
-        } finally {
-            if (proc != null) {
-                ProcessUtil.destroy(proc);
-            }
+            logger.error("Unsupported OS for reboot()");
         }
     }
 
     @Override
     public void sync() {
-        String cmd = "";
         if (OS_LINUX.equals(getOsName()) || OS_MAC_OSX.equals(getOsName())) {
-            cmd = "sync";
+            executeCommand(new String[] { "sync" });
         } else {
-            s_logger.error("Unsupported OS for sync()");
-            return;
+            logger.error("Unsupported OS for sync()");
         }
-        SafeProcess proc = null;
-        try {
-            proc = ProcessUtil.exec(cmd);
-            int status = proc.waitFor();
-            if (status != 0) {
-                s_logger.error("sync command failed with exit code of " + status);
-            }
-        } catch (Exception e) {
-            s_logger.error("failed to issue sync command", e);
-        } finally {
-            if (proc != null) {
-                ProcessUtil.destroy(proc);
-            }
+    }
+
+    private void executeCommand(String[] cmd) {
+        Command command = new Command(cmd);
+        command.setTimeout(60);
+        CommandStatus status = this.executorService.execute(command);
+        if (status.getExitStatus().isSuccessful()) {
+            logger.error("failed to issue {} command", cmd[0]);
         }
     }
 

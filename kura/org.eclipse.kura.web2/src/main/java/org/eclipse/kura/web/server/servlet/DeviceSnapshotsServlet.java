@@ -20,6 +20,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.eclipse.kura.configuration.ComponentConfiguration;
 import org.eclipse.kura.configuration.ConfigurationService;
@@ -28,6 +29,7 @@ import org.eclipse.kura.marshalling.Marshaller;
 import org.eclipse.kura.util.service.ServiceUtil;
 import org.eclipse.kura.web.server.KuraRemoteServiceServlet;
 import org.eclipse.kura.web.server.util.ServiceLocator;
+import org.eclipse.kura.web.session.Attributes;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
@@ -39,6 +41,7 @@ public class DeviceSnapshotsServlet extends HttpServlet {
     private static final long serialVersionUID = -2533869595709953567L;
 
     private static Logger logger = LoggerFactory.getLogger(DeviceSnapshotsServlet.class);
+    private static final Logger auditLogger = LoggerFactory.getLogger("AuditLogger");
 
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -52,14 +55,11 @@ public class DeviceSnapshotsServlet extends HttpServlet {
         }
         // END XSRF security check
 
+        HttpSession session = request.getSession(false);
+
         String snapshotId = request.getParameter("snapshotId");
 
-        response.setCharacterEncoding("UTF-8");
-        response.setContentType("application/xml");
-        response.setHeader("Content-Disposition", "attachment; filename=snapshot_" + snapshotId + ".xml");
-        response.setHeader("Cache-Control", "no-transform, max-age=0");
-        PrintWriter writer = response.getWriter();
-        try {
+        try (PrintWriter writer = response.getWriter();) {
 
             ServiceLocator locator = ServiceLocator.getInstance();
             ConfigurationService cs = locator.getService(ConfigurationService.class);
@@ -79,15 +79,23 @@ public class DeviceSnapshotsServlet extends HttpServlet {
                 //
                 // marshall the response and write it
                 String result = marshal(xmlConfigs);
+
+                response.setCharacterEncoding("UTF-8");
+                response.setContentType("application/xml");
+                response.setHeader("Content-Disposition", "attachment; filename=snapshot_" + sid + ".xml");
+                response.setHeader("Cache-Control", "no-transform, max-age=0");
+
                 writer.write(result);
+
+                auditLogger.info(
+                        "UI Snapshots - Success - Successfully returned device snapshot for user: {}, session: {}, snapshot id: {}",
+                        session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(), snapshotId);
             }
         } catch (Exception e) {
-            logger.error("Error creating Excel export", e);
+            logger.error("Error exporting snapshot");
+            auditLogger.warn("UI Snapshots - Failure - Failed to export device snapshot for user: {}, session: {}",
+                    session.getAttribute(Attributes.AUTORIZED_USER.getValue()), session.getId(), e);
             throw new ServletException(e);
-        } finally {
-            if (writer != null) {
-                writer.close();
-            }
         }
     }
 

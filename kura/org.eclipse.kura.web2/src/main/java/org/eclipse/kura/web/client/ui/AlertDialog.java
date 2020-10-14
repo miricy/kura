@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -9,6 +9,8 @@
  *******************************************************************************/
 
 package org.eclipse.kura.web.client.ui;
+
+import java.util.Optional;
 
 import org.eclipse.kura.web.client.messages.Messages;
 import org.gwtbootstrap3.client.ui.Alert;
@@ -20,8 +22,6 @@ import org.gwtbootstrap3.client.ui.html.Span;
 import org.gwtbootstrap3.client.ui.html.Strong;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
@@ -36,7 +36,7 @@ public class AlertDialog extends Composite implements HasId {
 
     private static final Messages MSGS = GWT.create(Messages.class);
 
-    private Listener listener;
+    private Optional<DismissListener> listener = Optional.empty();
 
     @UiField
     Button yes;
@@ -63,48 +63,69 @@ public class AlertDialog extends Composite implements HasId {
         this.yes.setText(MSGS.yesButton());
         this.no.setText(MSGS.noButton());
 
-        this.yes.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                if (AlertDialog.this.listener != null) {
-                    AlertDialog.this.listener.onConfirm();
-                }
-                AlertDialog.this.modal.hide();
+        this.yes.addClickHandler(event -> {
+            if (AlertDialog.this.listener.isPresent()) {
+                AlertDialog.this.listener.get().onDismissed(true);
+                AlertDialog.this.listener = Optional.empty();
             }
+            AlertDialog.this.modal.hide();
         });
 
-        this.no.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                AlertDialog.this.modal.hide();
+        this.modal.addHideHandler(event -> {
+            if (AlertDialog.this.listener.isPresent()) {
+                AlertDialog.this.listener.get().onDismissed(false);
+                AlertDialog.this.listener = Optional.empty();
             }
         });
     }
 
-    public void setListener(Listener listener) {
-        this.listener = listener;
+    public void setListener(DismissListener listener) {
+        this.listener = Optional.ofNullable(listener);
         this.alertFooter.setVisible(listener != null);
+        this.modal.setClosable(listener == null);
     }
 
-    public void show(String title, String message, Severity severity, Listener listener) {
+    public void show(String title, String message, Severity severity, DismissListener listener) {
         setAlertText(message, severity);
         setTitle(title);
         setListener(listener);
         this.modal.show();
     }
 
-    public void show(String message, Listener listener) {
+    public void show(String title, String message, Severity severity, ConfirmListener listener) {
+        show(title, message, severity, toDismissListener(listener));
+    }
+
+    public void show(String message, DismissListener listener) {
         show(MSGS.confirm(), message, Severity.INFO, listener);
     }
 
-    public void show(String message, Severity severity, Listener listener) {
-        show(severity == Severity.INFO ? MSGS.confirm() : MSGS.warning(), message, severity, listener);
+    public void show(String message, ConfirmListener listener) {
+        show(message, toDismissListener(listener));
     }
 
-    public void show(String title, String message, Listener listener) {
+    public void show(String message, Severity severity, DismissListener listener) {
+        String title= "";
+        if (severity == Severity.INFO) {
+            title =  MSGS.confirm();
+        } else if (severity == Severity.ERROR) {
+            title =  MSGS.error();
+        } else {
+            title = MSGS.warning();
+        }
+        show(title, message, severity, listener);
+    }
+
+    public void show(String message, Severity severity, ConfirmListener listener) {
+        show(message, severity, toDismissListener(listener));
+    }
+
+    public void show(String title, String message, DismissListener listener) {
         show(title, message, Severity.INFO, listener);
+    }
+
+    public void show(String title, String message, ConfirmListener listener) {
+        show(title, message, toDismissListener(listener));
     }
 
     public void setAlertText(String message, Severity severity) {
@@ -134,14 +155,33 @@ public class AlertDialog extends Composite implements HasId {
         this.modal.setTitle(title);
     }
 
-    public interface Listener {
+    public interface ConfirmListener {
 
         public void onConfirm();
 
     }
 
+    public interface DismissListener {
+
+        public void onDismissed(boolean confirmed);
+
+    }
+
+    private static DismissListener toDismissListener(final ConfirmListener listener) {
+        if (listener == null) {
+            return null;
+        }
+
+        return ok -> {
+            if (ok) {
+                listener.onConfirm();
+            }
+        };
+    }
+
     public enum Severity {
         INFO,
-        ALERT
+        ALERT,
+        ERROR
     }
 }

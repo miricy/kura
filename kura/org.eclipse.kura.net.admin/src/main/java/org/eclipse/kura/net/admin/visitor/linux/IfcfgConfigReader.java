@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -8,7 +8,7 @@
  *
  * Contributors:
  *     Eurotech
- *     Benjamin Cabé - fix for GH issue #299
+ *     Benjamin Cabé 
  *******************************************************************************/
 package org.eclipse.kura.net.admin.visitor.linux;
 
@@ -24,6 +24,7 @@ import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.NetworkConfigurationVisitor;
 import org.eclipse.kura.core.net.WifiInterfaceAddressConfigImpl;
 import org.eclipse.kura.core.net.util.NetworkUtil;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.internal.linux.net.NetInterfaceConfigSerializationService;
 import org.eclipse.kura.linux.net.dhcp.DhcpClientLeases;
 import org.eclipse.kura.linux.net.dns.LinuxDns;
@@ -56,7 +57,7 @@ public class IfcfgConfigReader implements NetworkConfigurationVisitor {
 
     private static IfcfgConfigReader instance;
 
-    private static NetInterfaceConfigSerializationService netConfigManager; // TODO: can be null
+    private static NetInterfaceConfigSerializationService netConfigManager; // can be null
 
     public static IfcfgConfigReader getInstance() {
         if (instance == null) {
@@ -67,6 +68,11 @@ public class IfcfgConfigReader implements NetworkConfigurationVisitor {
             netConfigManager = context.getService(netConfigManagerSR);
         }
         return instance;
+    }
+
+    @Override
+    public void setExecutorService(CommandExecutorService executorService) {
+        // Not needed
     }
 
     @Override
@@ -123,7 +129,7 @@ public class IfcfgConfigReader implements NetworkConfigurationVisitor {
 
             String bootproto = kuraProps.getProperty(BOOTPROTO_PROP_NAME);
             if (bootproto == null) {
-                bootproto = "static";
+                bootproto = "dhcp";
             }
 
             // correct the status if needed by validating against the actual properties
@@ -306,8 +312,8 @@ public class IfcfgConfigReader implements NetworkConfigurationVisitor {
         List<IP4Address> dnsServers = new ArrayList<>();
         int count = 1;
         while (true) {
-            String dns;
-            if ((dns = kuraProps.getProperty("DNS" + count)) != null) {
+            String dns = kuraProps.getProperty("DNS" + count);
+            if (dns != null) {
                 try {
                     dnsServers.add((IP4Address) IPAddress.parseHostAddress(dns));
                 } catch (UnknownHostException e) {

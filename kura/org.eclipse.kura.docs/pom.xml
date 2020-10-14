@@ -14,16 +14,16 @@
 	<parent>
 		<groupId>org.eclipse.kura</groupId>
 		<artifactId>kura</artifactId>
-		<version>4.0.0-SNAPSHOT</version>
+		<version>5.0.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>org.eclipse.kura.docs</artifactId>
-	<version>0.1.200-SNAPSHOT</version>
+	<version>0.1.400-SNAPSHOT</version>
 	<packaging>eclipse-plugin</packaging>
 
 	<properties>
 		<kura.basedir>${project.basedir}/..</kura.basedir>
-		<tycho.extras.version>0.26.0</tycho.extras.version>
+		<tycho.extras.version>1.6.0</tycho.extras.version>
 	</properties>
 	
 	<build>

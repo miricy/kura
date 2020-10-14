@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -10,8 +10,6 @@
  *     Eurotech
  *******************************************************************************/
 package org.eclipse.kura.internal.linux.net.modem;
-
-import java.io.IOException;
 
 import org.eclipse.kura.KuraException;
 import org.eclipse.kura.internal.board.BoardPowerState;
@@ -25,7 +23,7 @@ public interface GatewayModemDriver {
 
     /**
      * Enables the resource specified by the passed parameters
-     * 
+     *
      * @param vendor
      * @param product
      * @throws KuraException
@@ -34,7 +32,7 @@ public interface GatewayModemDriver {
 
     /**
      * Disables the resource specified by the passed parameters
-     * 
+     *
      * @param vendor
      * @param product
      * @throws KuraException
@@ -43,7 +41,7 @@ public interface GatewayModemDriver {
 
     /**
      * Resets the resource specified by the passed parameters
-     * 
+     *
      * @param vendor
      * @param product
      * @throws KuraException
@@ -56,7 +54,7 @@ public interface GatewayModemDriver {
      * @param vendor
      * @param product
      * @return a {@link BoardPowerState} representing the current status
-     * @throws IOException
+     * @throws KuraException
      */
     public BoardPowerState getState(String vendor, String product) throws KuraException;
 }

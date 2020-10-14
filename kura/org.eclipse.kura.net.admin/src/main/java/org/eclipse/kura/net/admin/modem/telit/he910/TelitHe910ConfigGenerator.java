@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,6 +19,8 @@ import org.eclipse.kura.net.modem.ModemConfig;
 import org.eclipse.kura.net.modem.ModemConfig.PdpType;
 
 public class TelitHe910ConfigGenerator implements ModemPppConfigGenerator {
+
+    private static final String ABORT = "ABORT";
 
     @Override
     public PppPeer getPppPeer(String deviceId, ModemConfig modemConfig, String logFile, String connectScript,
@@ -79,14 +81,16 @@ public class TelitHe910ConfigGenerator implements ModemPppConfigGenerator {
         }
 
         ModemXchangeScript modemXchange = new ModemXchangeScript();
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"ERROR\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"+++ath\"", "\"\""));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"AT\"", "OK"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"ERROR\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\\rAT", "\"\""));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("1", "TIMEOUT"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("ATH0", "\"OK-+++\\c-OK\""));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("45", "TIMEOUT"));
         modemXchange.addmodemXchangePair(new ModemXchangePair(formPDPcontext(pdpPid, PdpType.IP, apn), "OK"));
         modemXchange.addmodemXchangePair(new ModemXchangePair("\"\\d\\d\\d\"", "OK"));
         modemXchange.addmodemXchangePair(new ModemXchangePair(formDialString(dialString), "\"\""));
@@ -99,11 +103,11 @@ public class TelitHe910ConfigGenerator implements ModemPppConfigGenerator {
     public ModemXchangeScript getDisconnectScript(ModemConfig modemConfig) {
 
         ModemXchangeScript modemXchange = new ModemXchangeScript();
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", "ABORT"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", ABORT));
         modemXchange.addmodemXchangePair(new ModemXchangePair("BREAK", "\"\""));
         modemXchange.addmodemXchangePair(new ModemXchangePair("\"+++ATH\"", "\"\""));
 
@@ -111,7 +115,11 @@ public class TelitHe910ConfigGenerator implements ModemPppConfigGenerator {
     }
 
     private int getPdpContextNumber(String dialString) {
-        return Integer.parseInt(dialString.substring("atd*99***".length(), dialString.length() - 1));
+        int pdpPid = 1;
+        if (!dialString.isEmpty() && dialString.contains("atd*99***")) {
+            pdpPid = Integer.parseInt(dialString.substring("atd*99***".length(), dialString.length() - 1));
+        }
+        return pdpPid;
     }
 
     /*
@@ -133,7 +141,7 @@ public class TelitHe910ConfigGenerator implements ModemPppConfigGenerator {
      */
     private String formPDPcontext(int pdpPid, PdpType pdpType, String apn) {
 
-        StringBuilder pdpcontext = new StringBuilder(TelitHe910AtCommands.pdpContext.getCommand());
+        StringBuilder pdpcontext = new StringBuilder(TelitHe910AtCommands.PDP_CONTEXT.getCommand());
         pdpcontext.append('=');
         pdpcontext.append(pdpPid);
         pdpcontext.append(',');

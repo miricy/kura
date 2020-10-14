@@ -19,12 +19,12 @@
 
     <groupId>org.eclipse.kura</groupId>
     <artifactId>examples</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>5.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
     <properties>
-        <tycho-version>0.26.0</tycho-version>
+        <tycho-version>1.6.0</tycho-version>
 
         <!-- SCM: Note that we are in the "kura" sub-dir here already -->
         <tycho.scmUrl>scm:git:ssh://github.com/eclipse/kura/kura</tycho.scmUrl>
@@ -77,6 +77,8 @@
         <module>org.eclipse.kura.example.wire.math.singleport.provider</module>
         <module>org.eclipse.kura.example.driver.sensehat</module>
         <module>org.eclipse.kura.wire.devel.component.provider</module>
+        <module>org.eclipse.kura.example.web.extension</module>
+        <module>org.eclipse.kura.example.gpio.led</module>
         <module>features</module>
         <module>test</module>
     </modules>
@@ -150,17 +152,11 @@
 
     <repositories>
         <repository>
-            <id>p2-repo</id>
-            <layout>p2</layout>
-            <url>file:///${kura.basedir}/org.eclipse.kura-p2/target/repository/</url>
-        </repository>
-        <repository>
             <id>p2-repo-common</id>
             <layout>p2</layout>
             <url>file:///${kura.basedir}/target-definition/common/repository/</url>
         </repository>
     </repositories>
-
 
     <build>
         <extensions>

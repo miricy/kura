@@ -11,13 +11,13 @@ package org.eclipse.kura.net.admin.modem.telit.le910v2;
 
 import org.eclipse.kura.net.admin.modem.ModemPppConfigGenerator;
 import org.eclipse.kura.net.admin.modem.PppPeer;
-import org.eclipse.kura.net.admin.modem.telit.he910.TelitHe910AtCommands;
 import org.eclipse.kura.net.admin.visitor.linux.util.ModemXchangePair;
 import org.eclipse.kura.net.admin.visitor.linux.util.ModemXchangeScript;
 import org.eclipse.kura.net.modem.ModemConfig;
-import org.eclipse.kura.net.modem.ModemConfig.PdpType;
 
 public class TelitLe910v2ConfigGenerator implements ModemPppConfigGenerator {
+
+    private static final String ABORT = "ABORT";
 
     @Override
     public PppPeer getPppPeer(String deviceId, ModemConfig modemConfig, String logFile, String connectScript,
@@ -67,38 +67,22 @@ public class TelitLe910v2ConfigGenerator implements ModemPppConfigGenerator {
 
     @Override
     public ModemXchangeScript getConnectScript(ModemConfig modemConfig) {
-        /*
-         * We are using PDP context 2 for this modem because Telit documentation reports
-         * that setting a user defined APN on PDP context 1 might
-         * cause issues with some 4G operators (see section 4.1.40.1. of
-         * http://www.telit.com/fileadmin/user_upload/products/Downloads/3G/Telit_Modules_Software_User_Guide_2G3G4G_r19
-         * .pdf).
-         */
-        int pdpPid = 2;
         String dialString = "";
-
-        String apn = "";
-
         if (modemConfig != null) {
-            apn = modemConfig.getApn();
             dialString = modemConfig.getDialString();
-            pdpPid = getPdpContextNumber(dialString);
-            if (pdpPid < 2) {
-                dialString = "atd*99***2#";
-                pdpPid = 2;
-            }
         }
 
         ModemXchangeScript modemXchange = new ModemXchangeScript();
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"ERROR\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"+++ath\"", "\"\""));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"AT\"", "OK"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair(formPDPcontext(pdpPid, PdpType.IP, apn), "OK"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"ERROR\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\\rAT", "\"\""));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("1", "TIMEOUT"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("ATH0", "\"OK-+++\\c-OK\""));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("45", "TIMEOUT"));
         modemXchange.addmodemXchangePair(new ModemXchangePair("\"\\d\\d\\d\"", "OK"));
         modemXchange.addmodemXchangePair(new ModemXchangePair(formDialString(dialString), "\"\""));
         modemXchange.addmodemXchangePair(new ModemXchangePair("\"\\c\"", "CONNECT"));
@@ -110,19 +94,15 @@ public class TelitLe910v2ConfigGenerator implements ModemPppConfigGenerator {
     public ModemXchangeScript getDisconnectScript(ModemConfig modemConfig) {
 
         ModemXchangeScript modemXchange = new ModemXchangeScript();
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", "ABORT"));
-        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", "ABORT"));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"BUSY\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"VOICE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO CARRIER\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIALTONE\"", ABORT));
+        modemXchange.addmodemXchangePair(new ModemXchangePair("\"NO DIAL TONE\"", ABORT));
         modemXchange.addmodemXchangePair(new ModemXchangePair("BREAK", "\"\""));
         modemXchange.addmodemXchangePair(new ModemXchangePair("\"+++ATH\"", "\"\""));
 
         return modemXchange;
-    }
-
-    private int getPdpContextNumber(String dialString) {
-        return Integer.parseInt(dialString.substring("atd*99***".length(), dialString.length() - 1));
     }
 
     /*
@@ -136,29 +116,6 @@ public class TelitLe910v2ConfigGenerator implements ModemPppConfigGenerator {
         }
         buf.append('"');
         return buf.toString();
-    }
-
-    /*
-     * This method forms PDP context
-     * (e.g. AT+CGDCONT=<pid>,<pdp_type>,<apn>)
-     */
-    private String formPDPcontext(int pdpPid, PdpType pdpType, String apn) {
-
-        StringBuilder pdpcontext = new StringBuilder(TelitHe910AtCommands.pdpContext.getCommand());
-        pdpcontext.append('=');
-        pdpcontext.append(pdpPid);
-        pdpcontext.append(',');
-        pdpcontext.append('"');
-        pdpcontext.append(pdpType.toString());
-        pdpcontext.append('"');
-        pdpcontext.append(',');
-        pdpcontext.append('"');
-        if (apn != null) {
-            pdpcontext.append(apn);
-        }
-        pdpcontext.append('"');
-
-        return pdpcontext.toString();
     }
 
 }

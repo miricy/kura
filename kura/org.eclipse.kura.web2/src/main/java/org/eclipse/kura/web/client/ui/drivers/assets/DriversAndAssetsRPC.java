@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,7 +19,7 @@ import org.eclipse.kura.web.shared.model.GwtChannelOperationResult;
 import org.eclipse.kura.web.shared.model.GwtChannelRecord;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
 import org.eclipse.kura.web.shared.model.GwtWireComposerStaticInfo;
-import org.eclipse.kura.web.shared.model.GwtWireGraphConfiguration;
+import org.eclipse.kura.web.shared.model.GwtWireGraph;
 import org.eclipse.kura.web.shared.model.GwtXSRFToken;
 import org.eclipse.kura.web.shared.service.GwtAssetService;
 import org.eclipse.kura.web.shared.service.GwtAssetServiceAsync;
@@ -27,8 +27,8 @@ import org.eclipse.kura.web.shared.service.GwtComponentService;
 import org.eclipse.kura.web.shared.service.GwtComponentServiceAsync;
 import org.eclipse.kura.web.shared.service.GwtSecurityTokenService;
 import org.eclipse.kura.web.shared.service.GwtSecurityTokenServiceAsync;
-import org.eclipse.kura.web.shared.service.GwtWireService;
-import org.eclipse.kura.web.shared.service.GwtWireServiceAsync;
+import org.eclipse.kura.web.shared.service.GwtWireGraphService;
+import org.eclipse.kura.web.shared.service.GwtWireGraphServiceAsync;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.rpc.AsyncCallback;
@@ -41,7 +41,7 @@ public final class DriversAndAssetsRPC {
     private static final GwtComponentServiceAsync gwtComponentService = GWT.create(GwtComponentService.class);
     private static final GwtAssetServiceAsync gwtAssetService = GWT.create(GwtAssetService.class);
     private static final GwtSecurityTokenServiceAsync gwtXSRFService = GWT.create(GwtSecurityTokenService.class);
-    private static final GwtWireServiceAsync gwtWireService = GWT.create(GwtWireService.class);
+    private static final GwtWireGraphServiceAsync gwtWireGraphService = GWT.create(GwtWireGraphService.class);
 
     public static void loadStaticInfo(final Callback<GwtWireComposerStaticInfo> callback) {
         EntryClassUi.showWaitModal();
@@ -55,7 +55,7 @@ public final class DriversAndAssetsRPC {
 
             @Override
             public void onSuccess(GwtXSRFToken result) {
-                gwtWireService.getWireComposerStaticInfo(result, new AsyncCallback<GwtWireComposerStaticInfo>() {
+                gwtWireGraphService.getWireComposerStaticInfo(result, new AsyncCallback<GwtWireComposerStaticInfo>() {
 
                     @Override
                     public void onFailure(Throwable ex) {
@@ -65,6 +65,36 @@ public final class DriversAndAssetsRPC {
 
                     @Override
                     public void onSuccess(GwtWireComposerStaticInfo result) {
+                        EntryClassUi.hideWaitModal();
+                        callback.onSuccess(result);
+                    }
+                });
+            }
+        });
+    }
+
+    public static void loadWireGraph(final Callback<GwtWireGraph> callback) {
+        EntryClassUi.showWaitModal();
+        gwtXSRFService.generateSecurityToken(new AsyncCallback<GwtXSRFToken>() {
+
+            @Override
+            public void onFailure(Throwable ex) {
+                EntryClassUi.hideWaitModal();
+                FailureHandler.handle(ex);
+            }
+
+            @Override
+            public void onSuccess(GwtXSRFToken result) {
+                gwtWireGraphService.getWireGraph(result, new AsyncCallback<GwtWireGraph>() {
+
+                    @Override
+                    public void onFailure(Throwable ex) {
+                        EntryClassUi.hideWaitModal();
+                        FailureHandler.handle(ex);
+                    }
+
+                    @Override
+                    public void onSuccess(GwtWireGraph result) {
                         EntryClassUi.hideWaitModal();
                         callback.onSuccess(result);
                     }
@@ -165,36 +195,6 @@ public final class DriversAndAssetsRPC {
         });
     }
 
-    public static void loadWiresConfiguration(final Callback<GwtWireGraphConfiguration> callback) {
-        EntryClassUi.showWaitModal();
-        gwtXSRFService.generateSecurityToken(new AsyncCallback<GwtXSRFToken>() {
-
-            @Override
-            public void onFailure(Throwable ex) {
-                EntryClassUi.hideWaitModal();
-                FailureHandler.handle(ex);
-            }
-
-            @Override
-            public void onSuccess(GwtXSRFToken result) {
-                gwtWireService.getWiresConfiguration(result, new AsyncCallback<GwtWireGraphConfiguration>() {
-
-                    @Override
-                    public void onFailure(Throwable ex) {
-                        EntryClassUi.hideWaitModal();
-                        FailureHandler.handle(ex);
-                    }
-
-                    @Override
-                    public void onSuccess(GwtWireGraphConfiguration result) {
-                        EntryClassUi.hideWaitModal();
-                        callback.onSuccess(result);
-                    }
-                });
-            }
-        });
-    }
-
     public static void readAllChannels(final String assetPid, final Callback<GwtChannelOperationResult> callback) {
         EntryClassUi.showWaitModal();
         gwtXSRFService.generateSecurityToken(new AsyncCallback<GwtXSRFToken>() {
@@ -258,7 +258,7 @@ public final class DriversAndAssetsRPC {
 
                             @Override
                             public void onSuccess(GwtXSRFToken result) {
-                                gwtWireService.getGwtChannelDescriptor(result, pid,
+                                gwtWireGraphService.getGwtChannelDescriptor(result, pid,
                                         new AsyncCallback<GwtConfigComponent>() {
 
                                             @Override

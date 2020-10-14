@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,15 +18,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import javax.microedition.io.Connection;
-import javax.microedition.io.ConnectionNotFoundException;
 
 import org.osgi.annotation.versioning.ProviderType;
 import org.osgi.service.io.ConnectorService;
 
 /**
  * @noimplement This interface is not intended to be implemented by clients.
+ *
+ * @deprecated
+ *
  */
 @ProviderType
+@Deprecated
 public interface BluetoothConnector extends ConnectorService {
 
     /**
@@ -54,7 +57,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the requested connection cannot be made,
      *             or the protocol type does not exist.
      * @throws java.io.IOException
@@ -78,7 +81,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the requested connection cannot be made,
      *             or the protocol type does not exist.
      * @throws java.io.IOException
@@ -104,7 +107,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the requested connection cannot be made,
      *             or the protocol type does not exist.
      * @throws java.io.IOException
@@ -125,7 +128,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the connection cannot be found.
      * @throws java.io.IOException
      *             If some other kind of I/O error occurs.
@@ -145,7 +148,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the connection cannot be found.
      * @throws java.io.IOException
      *             If some other kind of I/O error occurs.
@@ -165,7 +168,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the connection cannot be found.
      * @throws java.io.IOException
      *             If some other kind of I/O error occurs.
@@ -185,7 +188,7 @@ public interface BluetoothConnector extends ConnectorService {
      *
      * @throws IllegalArgumentException
      *             If a parameter is invalid.
-     * @throws ConnectionNotFoundException
+     * @throws javax.microedition.io.ConnectionNotFoundException
      *             If the connection cannot be found.
      * @throws java.io.IOException
      *             If some other kind of I/O error occurs.

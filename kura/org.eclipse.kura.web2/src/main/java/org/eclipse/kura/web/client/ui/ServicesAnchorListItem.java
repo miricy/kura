@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,38 +13,27 @@
  *******************************************************************************/
 package org.eclipse.kura.web.client.ui;
 
-import org.eclipse.kura.web.client.messages.Messages;
+import org.eclipse.kura.web.Console;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
 import org.gwtbootstrap3.client.ui.AnchorListItem;
-import org.gwtbootstrap3.client.ui.Button;
-import org.gwtbootstrap3.client.ui.Modal;
-import org.gwtbootstrap3.client.ui.ModalBody;
-import org.gwtbootstrap3.client.ui.ModalFooter;
-import org.gwtbootstrap3.client.ui.ModalHeader;
 import org.gwtbootstrap3.client.ui.constants.IconType;
-import org.gwtbootstrap3.client.ui.html.Span;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.http.client.URL;
 
 public class ServicesAnchorListItem extends AnchorListItem {
 
-    private static final String SERVLET_URL = "/" + GWT.getModuleName() + "/file/icon?";
+    private static final String SERVLET_URL = Console.ADMIN_ROOT + '/' + GWT.getModuleName() + "/file/icon?";
 
-    EntryClassUi ui;
     GwtConfigComponent item;
     ServicesAnchorListItem instance;
-    private static final Messages MSGS = GWT.create(Messages.class);
 
-    public ServicesAnchorListItem(GwtConfigComponent service, EntryClassUi mainUi) {
+    public ServicesAnchorListItem(GwtConfigComponent service) {
         super();
-        this.ui = mainUi;
         this.item = service;
         this.instance = this;
 
-        IconType icon = getIcon(item);
+        IconType icon = getIcon(this.item);
         if (icon == null) {
             String imageURL = getImagePath();
             if (imageURL != null) {
@@ -68,60 +57,6 @@ public class ServicesAnchorListItem extends AnchorListItem {
         if (description != null && !description.isEmpty()) {
             super.setTitle(description);
         }
-
-        super.addClickHandler(new ClickHandler() {
-
-            @Override
-            public void onClick(ClickEvent event) {
-                if (ServicesAnchorListItem.this.ui.getSelected() != null
-                        && ServicesAnchorListItem.this.ui.getSelected() != ServicesAnchorListItem.this.item
-                        && ServicesAnchorListItem.this.ui.isServicesUiDirty()
-                        || ServicesAnchorListItem.this.ui.isNetworkDirty()
-                        || ServicesAnchorListItem.this.ui.isFirewallDirty()
-                        || ServicesAnchorListItem.this.ui.isSettingsDirty()) {
-                    final Modal modal = new Modal();
-
-                    ModalHeader header = new ModalHeader();
-                    header.setTitle(MSGS.warning());
-                    modal.add(header);
-
-                    ModalBody body = new ModalBody();
-                    body.add(new Span(MSGS.deviceConfigDirty()));
-                    modal.add(body);
-
-                    ModalFooter footer = new ModalFooter();
-                    Button yes = new Button(MSGS.yesButton(), new ClickHandler() {
-
-                        @Override
-                        public void onClick(ClickEvent event) {
-                            ServicesAnchorListItem.this.ui.setDirty(false);
-                            ServicesAnchorListItem.this.ui.setSelected(ServicesAnchorListItem.this.item);
-                            modal.hide();
-                            ServicesAnchorListItem.this.ui.render(ServicesAnchorListItem.this.item);
-                        }
-                    });
-
-                    Button no = new Button(MSGS.noButton(), new ClickHandler() {
-
-                        @Override
-                        public void onClick(ClickEvent event) {
-                            modal.hide();
-                        }
-                    });
-                    footer.add(no);
-                    footer.add(yes);
-                    modal.add(footer);
-
-                    modal.show();
-                    no.setFocus(true);
-
-                } else {
-                    ServicesAnchorListItem.this.ui.setSelected(ServicesAnchorListItem.this.item);
-                    ServicesAnchorListItem.this.ui.setSelectedAnchorListItem(ServicesAnchorListItem.this);
-                    ServicesAnchorListItem.this.ui.render(ServicesAnchorListItem.this.item);
-                }
-            }
-        });
 
     }
 
@@ -197,13 +132,13 @@ public class ServicesAnchorListItem extends AnchorListItem {
             return null;
         }
 
-        if ((icon.toLowerCase().startsWith("http://") || icon.toLowerCase().startsWith("https://"))) {
+        if (icon.toLowerCase().startsWith("http://") || icon.toLowerCase().startsWith("https://")) {
 
             return icon;
 
         } else {
 
-            final String factoryId = item.getFactoryId();
+            final String factoryId = this.item.getFactoryId();
             if (factoryId != null) {
                 return SERVLET_URL + "factoryId=" + URL.encodeQueryString(factoryId);
             }

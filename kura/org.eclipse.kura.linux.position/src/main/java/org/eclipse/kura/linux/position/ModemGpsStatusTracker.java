@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,7 +29,7 @@ public class ModemGpsStatusTracker implements EventHandler {
     private GpsDeviceAvailabilityListener listener;
 
     public synchronized CommURI getGpsDeviceUri() {
-        return modemGpsPort;
+        return this.modemGpsPort;
     }
 
     public synchronized void reset() {
@@ -51,7 +51,7 @@ public class ModemGpsStatusTracker implements EventHandler {
     }
 
     private void handleModemGpsDisabledEvent() {
-        if (modemGpsPort == null) {
+        if (this.modemGpsPort == null) {
             return;
         }
 
@@ -66,11 +66,11 @@ public class ModemGpsStatusTracker implements EventHandler {
         }
 
         try {
-            final String port = (String) event.getProperty(ModemGpsEnabledEvent.Port);
-            final int baudRate = (Integer) event.getProperty(ModemGpsEnabledEvent.BaudRate);
-            final int dataBits = (Integer) event.getProperty(ModemGpsEnabledEvent.DataBits);
-            final int stopBits = (Integer) event.getProperty(ModemGpsEnabledEvent.StopBits);
-            final int parity = (Integer) event.getProperty(ModemGpsEnabledEvent.Parity);
+            final String port = (String) event.getProperty(ModemGpsEnabledEvent.PORT);
+            final int baudRate = (Integer) event.getProperty(ModemGpsEnabledEvent.BAUD_RATE);
+            final int dataBits = (Integer) event.getProperty(ModemGpsEnabledEvent.DATA_BITS);
+            final int stopBits = (Integer) event.getProperty(ModemGpsEnabledEvent.STOP_BITS);
+            final int parity = (Integer) event.getProperty(ModemGpsEnabledEvent.PARITY);
 
             final CommURI uri = new CommURI.Builder(port).withBaudRate(baudRate).withDataBits(dataBits)
                     .withStopBits(stopBits).withParity(parity).build();

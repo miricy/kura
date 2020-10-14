@@ -13,8 +13,6 @@ package org.eclipse.kura.web.shared.model;
 
 import java.io.Serializable;
 
-import org.eclipse.kura.web.client.util.KuraBaseModel;
-
 public class GwtModemPdpEntry extends KuraBaseModel implements Serializable {
 
     private static final long serialVersionUID = -5616083805637215506L;
@@ -26,23 +24,23 @@ public class GwtModemPdpEntry extends KuraBaseModel implements Serializable {
             return 0;
         }
     }
-    
+
     public String getPdpType() {
         return get("pdptype");
     }
-    
+
     public String getApn() {
         return get("apn");
     }
-    
+
     public void setContextNumber(int contextnum) {
         set("contextnum", contextnum);
     }
-    
+
     public void setPdpType(String pdptype) {
         set("pdptype", pdptype);
     }
-    
+
     public void setApn(String apn) {
         set("apn", apn);
     }

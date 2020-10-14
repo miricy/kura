@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -58,7 +57,7 @@ import org.osgi.service.wireadmin.Wire;
 public final class RegexFilter implements WireEmitter, WireReceiver, ConfigurableComponent {
 
     /** Logger instance */
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(RegexFilter.class);
 
     /** Regular Expression Metatype Attribute Definition Property Key */
     private static final String REGEX_PROP = "regex.filter";
@@ -214,7 +213,7 @@ public final class RegexFilter implements WireEmitter, WireReceiver, Configurabl
      * @return the list of {@link WireRecord}s containing the filtered properties
      * @throws NullPointerException
      *             if any of the arguments is null
-     * @throws PatternSyntaxException
+     * @throws java.util.regex.PatternSyntaxException
      *             If the filter's syntax is invalid
      */
     private static List<WireRecord> filter(final List<WireRecord> wireRecords, final String filter,
@@ -252,7 +251,7 @@ public final class RegexFilter implements WireEmitter, WireReceiver, Configurabl
      *            the associated type that signifies either to retain matched keys or remove
      * @return the {@link Map} instance comprising the keys
      *         that match the provided regular expression
-     * @throws PatternSyntaxException
+     * @throws java.util.regex.PatternSyntaxException
      *             If the regular expression's syntax is invalid
      */
     private static <V> Map<String, V> match(final String regularExpression, final Map<String, V> map,

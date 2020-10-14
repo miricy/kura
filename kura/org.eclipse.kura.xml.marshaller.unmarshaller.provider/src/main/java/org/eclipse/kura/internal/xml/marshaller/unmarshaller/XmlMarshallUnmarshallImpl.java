@@ -55,7 +55,7 @@ public class XmlMarshallUnmarshallImpl implements Marshaller, Unmarshaller {
         try {
             marshal(object, sw);
         } catch (Exception e) {
-            throw new KuraException(KuraErrorCode.ENCODE_ERROR);
+            throw new KuraException(KuraErrorCode.ENCODE_ERROR, "value");
         }
         return sw.toString();
     }
@@ -119,6 +119,8 @@ public class XmlMarshallUnmarshallImpl implements Marshaller, Unmarshaller {
 
             // write the content into xml file
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            
             Transformer transformer = transformerFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
@@ -165,7 +167,7 @@ public class XmlMarshallUnmarshallImpl implements Marshaller, Unmarshaller {
             doc = parser.parse(is);
             doc.getDocumentElement().normalize();
         } catch (SAXException | IOException | IllegalArgumentException se) {
-            throw new KuraException(KuraErrorCode.DECODER_ERROR, se);
+            throw new KuraException(KuraErrorCode.DECODER_ERROR, "value", se);
         }
 
         // identify the correct parser that has to execute
@@ -174,7 +176,7 @@ public class XmlMarshallUnmarshallImpl implements Marshaller, Unmarshaller {
                 // Snapshot parser
                 return new XmlJavaComponentConfigurationsMapper().unmarshal(doc);
             } catch (Exception e) {
-                throw new KuraException(KuraErrorCode.DECODER_ERROR, e);
+                throw new KuraException(KuraErrorCode.DECODER_ERROR, "value", e);
             }
         } else if (clazz.equals(MetaData.class) || clazz.equals(Tmetadata.class)) {
             // MetaData parser

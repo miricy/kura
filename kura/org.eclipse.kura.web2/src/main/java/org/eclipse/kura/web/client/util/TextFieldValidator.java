@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -75,7 +75,8 @@ public class TextFieldValidator {
         NUMERIC("numeric", "^[+0-9.]+$"),
         NETWORK("network", "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,3})"),
         IPv4_ADDRESS("ipv4_address", "\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b"),
-        PORT_RANGE("port_range", "^[0-9]+:*[0-9]+$"),
+        PORT("port", "^[0-9]*$"),
+        PORT_RANGE("port_range", "^[0-9]+:[0-9]+$"),
         MAC_ADDRESS("mac_address", "^([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})$");
 
         private final String m_name;

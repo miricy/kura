@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2016, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,12 +18,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.kura.web.client.messages.Messages;
 import org.eclipse.kura.web.client.util.LabelComparator;
-import org.eclipse.kura.web.client.util.MessageUtils;
+import org.eclipse.kura.web.client.util.ValidationUtil;
 import org.eclipse.kura.web.client.util.request.RequestQueue;
 import org.eclipse.kura.web.shared.model.GwtCloudEntry;
 import org.eclipse.kura.web.shared.model.GwtConfigComponent;
@@ -59,17 +58,12 @@ import org.gwtbootstrap3.client.ui.gwt.FlowPanel;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.editor.client.Editor;
 import com.google.gwt.editor.client.EditorError;
-import com.google.gwt.user.client.TakesValue;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Widget;
 
 public abstract class AbstractServicesUi extends Composite {
 
     private static final String TARGET_SUFFIX = ".target";
-    private static final String CONFIG_MAX_VALUE = "configMaxValue";
-    private static final String CONFIG_MIN_VALUE = "configMinValue";
-    private static final String INVALID_VALUE = "invalidValue";
-    private static final String INVALID_BOOLEAN_VALUE = "invalidBooleanValue";
 
     protected static final Logger logger = Logger.getLogger(ServicesUi.class.getSimpleName());
     protected static final Logger errorLogger = Logger.getLogger("ErrorLogger");
@@ -86,9 +80,9 @@ public abstract class AbstractServicesUi extends Composite {
 
     protected HashMap<String, Boolean> valid = new HashMap<>();
 
-    protected abstract void setDirty(boolean flag);
+    public abstract void setDirty(boolean flag);
 
-    protected abstract boolean isDirty();
+    public abstract boolean isDirty();
 
     protected abstract void reset();
 
@@ -132,7 +126,7 @@ public abstract class AbstractServicesUi extends Composite {
     }
 
     // Checks if all the fields are valid according to the Validate() method
-    protected boolean isValid() {
+    public boolean isValid() {
         // check if all fields are valid
         for (Map.Entry<String, Boolean> entry : this.valid.entrySet()) {
             if (!entry.getValue()) {
@@ -237,10 +231,13 @@ public abstract class AbstractServicesUi extends Composite {
         });
         textBox.addKeyUpHandler(event -> {
             textBox.validate(true);
+        });
+        textBox.addValueChangeHandler(event -> {
             setDirty(true);
         });
 
         if (param.getId().endsWith(TARGET_SUFFIX)) {
+            textBox.setReadOnly(true);
             String targetedService = param.getId().split(TARGET_SUFFIX)[0];
 
             DropDown dropDown = new DropDown();
@@ -276,6 +273,8 @@ public abstract class AbstractServicesUi extends Composite {
 
             formGroup.add(dropDown);
         }
+
+        textBox.validate(true);
     }
 
     private AnchorListItem createListItem(final TextBoxBase textBox, String targetEntry) {
@@ -421,6 +420,8 @@ public abstract class AbstractServicesUi extends Composite {
         });
 
         formGroup.add(input);
+
+        input.validate(true);
     }
 
     protected void renderBooleanField(final GwtConfigParameter param, boolean isFirstInstance, FormGroup formGroup) {
@@ -553,7 +554,10 @@ public abstract class AbstractServicesUi extends Composite {
 
             final String text = currentText.getText();
 
-            validate(param, text, errorDescription -> {
+            if ((text == null || text.isEmpty()) && !param.isRequired()) {
+                return editorErrors;
+            }
+            ValidationUtil.validateParameter(param, text, errorDescription -> {
                 AbstractServicesUi.this.valid.put(param.getId(), false);
                 editorErrors.add(new BasicEditorError(currentText, text, errorDescription));
             });
@@ -561,77 +565,6 @@ public abstract class AbstractServicesUi extends Composite {
         }
 
         return editorErrors;
-    }
-
-    // Validates all the entered values
-    protected void validate(GwtConfigParameter param, String value, ValidationErrorConsumer consumer) {
-
-        String trimmedValue = value.trim();
-        final boolean isEmpty = trimmedValue.isEmpty();
-
-        if (param.isRequired() && isEmpty) {
-            consumer.addError(MSGS.formRequiredParameter());
-        }
-
-        if (!isEmpty) {
-            try {
-                switch (param.getType()) {
-                case BOOLEAN:
-                    new BooleanGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case CHAR:
-                    new CharGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case STRING:
-                    new StringGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case FLOAT:
-                    new FloatGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case INTEGER:
-                    new IntegerGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case SHORT:
-                    new ShortGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case BYTE:
-                    new ByteGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case LONG:
-                    new LongGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                case DOUBLE:
-                    new DoubleGwtValue().setValue(trimmedValue, param, consumer);
-                    break;
-                default:
-                    consumer.addError("Unsupported data type: " + param.getType().toString());
-                    break;
-                }
-            } catch (NumberFormatException e) {
-                consumer.addError(MessageUtils.get(INVALID_VALUE, trimmedValue));
-            }
-        }
-    }
-
-    protected boolean isValid(GwtConfigParameter param, String value) {
-        final TakesValue<Boolean> isValid = new TakesValue<Boolean>() {
-
-            private boolean value = true;
-
-            @Override
-            public void setValue(Boolean value) {
-                this.value = value;
-            }
-
-            @Override
-            public Boolean getValue() {
-                return this.value;
-            }
-        };
-
-        validate(param, value, errorDescription -> isValid.setValue(false));
-
-        return isValid.getValue();
     }
 
     protected void fillUpdatedConfiguration(FormGroup fg) {
@@ -643,7 +576,6 @@ public abstract class AbstractServicesUi extends Composite {
 
             if (fg.getWidget(i) instanceof FormLabel) {
                 param = this.configurableComponent.getParameter(fg.getWidget(i).getTitle());
-                logger.fine("Param: " + fg.getTitle() + " -> " + param);
 
             } else if (fg.getWidget(i) instanceof ListBox || fg.getWidget(i) instanceof Input
                     || fg.getWidget(i) instanceof TextBoxBase) {
@@ -722,161 +654,6 @@ public abstract class AbstractServicesUi extends Composite {
             }
         }
         return null;
-    }
-
-    protected interface ValidationErrorConsumer {
-
-        public void addError(String errorDescription);
-    }
-
-    private abstract class GwtValue<T> {
-
-        T value;
-
-        public abstract void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer);
-    }
-
-    private class BooleanGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            if ("true".equalsIgnoreCase(csvInput)) {
-                this.value = true;
-            } else if ("false".equalsIgnoreCase(csvInput)) {
-                this.value = false;
-            } else {
-                consumer.addError(MessageUtils.get(INVALID_BOOLEAN_VALUE, csvInput));
-            }
-        }
-
-    }
-
-    private class CharGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = csvInput.charAt(0);
-            if (csvInput.length() > 1) {
-                consumer.addError(MessageUtils.get(Integer.toString(csvInput.length()), csvInput));
-            }
-            if (param.getMin() != null && param.getMin().charAt(0) > csvInput.charAt(0)) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin().charAt(0)));
-            }
-            if (param.getMax() != null && param.getMax().charAt(0) < csvInput.charAt(0)) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax().charAt(0)));
-            }
-        }
-    }
-
-    private class StringGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            int configMinValue = 0;
-            int configMaxValue = Integer.MAX_VALUE;
-            this.value = csvInput;
-            try {
-                configMinValue = Integer.parseInt(param.getMin());
-            } catch (NumberFormatException nfe) {
-                errorLogger.log(Level.FINE, "Configuration min value error! Applying UI defaults...");
-            }
-            try {
-                configMaxValue = Integer.parseInt(param.getMax());
-            } catch (NumberFormatException nfe) {
-                errorLogger.log(Level.FINE, "Configuration max value error! Applying UI defaults...");
-            }
-
-            if (String.valueOf(csvInput).length() < configMinValue) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, configMinValue));
-            }
-            if (String.valueOf(csvInput).length() > configMaxValue) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, configMaxValue));
-            }
-        }
-    }
-
-    private class LongGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Long.parseLong(csvInput);
-            if (param.getMin() != null && Long.parseLong(param.getMin()) > (Long) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Long.parseLong(param.getMax()) < (Long) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
-    }
-
-    private class DoubleGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Double.parseDouble(csvInput);
-            if (param.getMin() != null && Double.parseDouble(param.getMin()) > (Double) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Double.parseDouble(param.getMax()) < (Double) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
-    }
-
-    private class ByteGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Byte.parseByte(csvInput);
-            if (param.getMin() != null && Byte.parseByte(param.getMin()) > (Byte) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Byte.parseByte(param.getMax()) < (Byte) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
-    }
-
-    private class ShortGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Short.parseShort(csvInput);
-            if (param.getMin() != null && Short.parseShort(param.getMin()) > (Short) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Short.parseShort(param.getMax()) < (Short) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
-    }
-
-    private class IntegerGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Integer.parseInt(csvInput);
-            if (param.getMin() != null && Integer.parseInt(param.getMin()) > (Integer) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Integer.parseInt(param.getMax()) < (Integer) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
-    }
-
-    private class FloatGwtValue extends GwtValue<Object> {
-
-        @Override
-        public void setValue(String csvInput, GwtConfigParameter param, ValidationErrorConsumer consumer) {
-            this.value = Float.parseFloat(csvInput);
-            if (param.getMin() != null && Float.parseFloat(param.getMin()) > (Float) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MIN_VALUE, param.getMin()));
-            }
-            if (param.getMax() != null && Float.parseFloat(param.getMax()) < (Float) this.value) {
-                consumer.addError(MessageUtils.get(CONFIG_MAX_VALUE, param.getMax()));
-            }
-        }
     }
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,8 @@ import org.gwtbootstrap3.client.ui.Modal;
 import org.gwtbootstrap3.client.ui.Panel;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.StatusCodeException;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.VerticalPanel;
@@ -34,11 +36,27 @@ public class FailureHandler {
     }
 
     public static void handle(Throwable caught, String name) {
+        if (caught instanceof StatusCodeException) {
+            final StatusCodeException statusCodeException = (StatusCodeException) caught;
+            if (statusCodeException.getStatusCode() == 401) {
+                showErrorMessage("The session has expired", null);
+                Timer timer = new Timer() {
+
+                    @Override
+                    public void run() {
+                        Window.Location.reload();
+                    }
+                };
+
+                timer.schedule(2000);
+                return;
+            }
+        }
         printMessage(caught, name);
     }
 
     public static void handle(Throwable caught) {
-        printMessage(caught, "");
+        handle(caught, "");
     }
 
     public static void showErrorMessage(String message) {
@@ -57,17 +75,16 @@ public class FailureHandler {
 
         if (stackTrace == null) {
             stackTraceContainer.setVisible(false);
-            return;
-        }
+        } else {
+            errorStackTrace.clear();
 
-        errorStackTrace.clear();
-
-        for (StackTraceElement element : stackTrace) {
-            Label tempLabel = new Label();
-            tempLabel.setText(element.toString());
-            errorStackTrace.add(tempLabel);
+            for (StackTraceElement element : stackTrace) {
+                Label tempLabel = new Label();
+                tempLabel.setText(element.toString());
+                errorStackTrace.add(tempLabel);
+            }
+            stackTraceContainer.setVisible(true);
         }
-        stackTraceContainer.setVisible(true);
         popup.show();
     }
 

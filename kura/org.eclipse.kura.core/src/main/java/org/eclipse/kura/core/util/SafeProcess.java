@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,13 +27,11 @@ import org.slf4j.LoggerFactory;
 
 public class SafeProcess {
 
-    private static final Logger s_logger = LoggerFactory.getLogger(SafeProcess.class);
+    private static final Logger logger = LoggerFactory.getLogger(SafeProcess.class);
 
-    private static final ExecutorService s_streamGobblers = Executors.newFixedThreadPool(2);
+    private static ExecutorService streamGobblers = Executors.newFixedThreadPool(2);
 
     private Process process;
-    private Future<byte[]> futureInputGobbler;
-    private Future<byte[]> futureErrorGobbler;
     private byte[] inBytes;
     private byte[] errBytes;
     private boolean waited;
@@ -45,55 +42,45 @@ public class SafeProcess {
     }
 
     public OutputStream getOutputStream() {
-        s_logger.warn("getOutputStream() is unsupported");
+        logger.warn("getOutputStream() is unsupported");
         return null;
     }
 
     public InputStream getInputStream() {
         if (!this.waited) {
-            s_logger.warn("getInputStream() must be called after waitFor()");
-            // Thread.dumpStack();
+            logger.warn("getInputStream() must be called after waitFor()");
         }
         return new ByteArrayInputStream(this.inBytes);
     }
 
     public InputStream getErrorStream() {
         if (!this.waited) {
-            s_logger.warn("getErrorStream() must be called after waitFor()");
-            // Thread.dumpStack();
+            logger.warn("getErrorStream() must be called after waitFor()");
         }
         return new ByteArrayInputStream(this.errBytes);
     }
 
     void exec(String[] cmdarray) throws IOException {
-        s_logger.debug("Executing: {}", Arrays.toString(cmdarray));
+        logger.debug("Executing: {}", Arrays.toString(cmdarray));
         ProcessBuilder pb = new ProcessBuilder(cmdarray);
         this.process = pb.start();
 
         // process the input stream
-        this.futureInputGobbler = s_streamGobblers.submit(new Callable<byte[]>() {
-
-            @Override
-            public byte[] call() throws Exception {
-                Thread.currentThread().setName("SafeProcess InputStream Gobbler");
-                return readStreamFully(SafeProcess.this.process.getInputStream());
-            }
+        Future<byte[]> futureInputGobbler = streamGobblers.submit(() -> {
+            Thread.currentThread().setName("SafeProcess InputStream Gobbler");
+            return readStreamFully(SafeProcess.this.process.getInputStream());
         });
 
         // process the error stream
-        this.futureErrorGobbler = s_streamGobblers.submit(new Callable<byte[]>() {
-
-            @Override
-            public byte[] call() throws Exception {
-                Thread.currentThread().setName("SafeProcess ErrorStream Gobbler");
-                return readStreamFully(SafeProcess.this.process.getErrorStream());
-            }
+        Future<byte[]> futureErrorGobbler = streamGobblers.submit(() -> {
+            Thread.currentThread().setName("SafeProcess ErrorStream Gobbler");
+            return readStreamFully(SafeProcess.this.process.getErrorStream());
         });
 
         // wait for the process execution
         try {
-            this.inBytes = this.futureInputGobbler.get();
-            this.errBytes = this.futureErrorGobbler.get();
+            this.inBytes = futureInputGobbler.get();
+            this.errBytes = futureErrorGobbler.get();
             this.exitValue = this.process.waitFor();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -120,7 +107,7 @@ public class SafeProcess {
 
     public void destroy() {
         if (!this.waited) {
-            s_logger.warn("Calling destroy() before waitFor() might lead to resource leaks");
+            logger.warn("Calling destroy() before waitFor() might lead to resource leaks");
             Thread.dumpStack();
             if (this.process != null) {
                 this.process.destroy();
@@ -147,7 +134,7 @@ public class SafeProcess {
                 is.close();
                 is = null;
             } catch (IOException e) {
-                s_logger.warn("Failed to close process input stream", e);
+                logger.warn("Failed to close process input stream", e);
             }
         }
     }
@@ -158,7 +145,7 @@ public class SafeProcess {
                 os.close();
                 os = null;
             } catch (IOException e) {
-                s_logger.warn("Failed to close process output stream", e);
+                logger.warn("Failed to close process output stream", e);
             }
         }
     }

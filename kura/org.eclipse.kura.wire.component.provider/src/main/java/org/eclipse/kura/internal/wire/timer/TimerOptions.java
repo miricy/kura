@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2016, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -9,7 +9,7 @@
  * Contributors:
  *  Eurotech
  *  Amit Kumar Mondal
- *  
+ *
  *******************************************************************************/
 package org.eclipse.kura.internal.wire.timer;
 
@@ -18,6 +18,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.eclipse.kura.configuration.ConfigurationService;
 
 /**
  * The Class TimerOptions is responsible to contain all the Timer related
@@ -32,6 +34,11 @@ final class TimerOptions {
     private static final String PROP_SIMPLE_INTERVAL = "simple.interval";
 
     private static final String PROP_SIMPLE_TIME_UNIT = "simple.time.unit";
+
+    private static final String PROP_SIMPLE_TICK_POLICY = "simple.first.tick.policy";
+    private static final String PROP_SIMPLE_TICK_POLICY_DEFAULT_VALUE = "DEFAULT";
+
+    private static final String PROP_SIMPLE_TICK_CUSTOM_INTERVAL = "simple.custom.first.tick.interval";
 
     private static final String PROP_INTERVAL_TYPE = "type";
 
@@ -76,6 +83,29 @@ final class TimerOptions {
         return interval;
     }
 
+    boolean isDefaultFirstTickBehavior() {
+        String behavior = PROP_SIMPLE_TICK_POLICY_DEFAULT_VALUE;
+        final Object selectedBehavior = this.properties.get(PROP_SIMPLE_TICK_POLICY);
+        if (nonNull(selectedBehavior) && selectedBehavior instanceof String) {
+            behavior = (String) selectedBehavior;
+        }
+
+        boolean result = false;
+        if (PROP_SIMPLE_TICK_POLICY_DEFAULT_VALUE.equalsIgnoreCase(behavior)) {
+            result = true;
+        }
+        return result;
+    }
+
+    int firstTickInterval() {
+        int interval = 0;
+        final Object firstTickInterval = this.properties.get(PROP_SIMPLE_TICK_CUSTOM_INTERVAL);
+        if (nonNull(firstTickInterval) && firstTickInterval instanceof Integer) {
+            interval = (Integer) firstTickInterval;
+        }
+        return interval;
+    }
+
     /**
      * Returns type as configured.
      *
@@ -90,9 +120,13 @@ final class TimerOptions {
         return type;
     }
 
-    long getSimpleTimeUnitMultiplier() throws IllegalArgumentException {
-        String timeUnitString = (String) properties.getOrDefault(PROP_SIMPLE_TIME_UNIT, "SECONDS");
-        TimeUnit timeUnit = TimeUnit.SECONDS;
+    String getOwnPid() {
+        return (String) this.properties.get(ConfigurationService.KURA_SERVICE_PID);
+    }
+
+    long getSimpleTimeUnitMultiplier() {
+        String timeUnitString = (String) this.properties.getOrDefault(PROP_SIMPLE_TIME_UNIT, "SECONDS");
+        TimeUnit timeUnit;
 
         if (TimeUnit.MILLISECONDS.name().equals(timeUnitString)) {
             timeUnit = TimeUnit.MILLISECONDS;

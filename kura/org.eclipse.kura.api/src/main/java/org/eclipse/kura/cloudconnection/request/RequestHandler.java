@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,7 +29,7 @@ import org.osgi.annotation.versioning.ConsumerType;
  * <li>{@link RequestHandler#doExec} is used to perform application operation not necessary tied to a given
  * resource.</li>
  * </ul>
- * 
+ *
  * Every request is also associated to a {@link RequestHandlerContext} that specifies the request context and can be
  * used to send notification messages, keeping the link with the original cloud stack that started the interaction.
  *
@@ -53,7 +53,7 @@ public interface RequestHandler {
      *             request parameters or exceptions during processing
      */
     public default KuraMessage doGet(RequestHandlerContext context, KuraMessage reqMessage) throws KuraException {
-        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, "get");
     }
 
     /**
@@ -70,7 +70,7 @@ public interface RequestHandler {
      *             request parameters or exceptions during processing
      */
     public default KuraMessage doPut(RequestHandlerContext context, KuraMessage reqMessage) throws KuraException {
-        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, "put");
     }
 
     /**
@@ -87,7 +87,7 @@ public interface RequestHandler {
      *             request parameters or exceptions during processing
      */
     public default KuraMessage doPost(RequestHandlerContext context, KuraMessage reqMessage) throws KuraException {
-        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, "post");
     }
 
     /**
@@ -104,7 +104,7 @@ public interface RequestHandler {
      *             request parameters or exceptions during processing
      */
     public default KuraMessage doDel(RequestHandlerContext context, KuraMessage reqMessage) throws KuraException {
-        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, "delete");
     }
 
     /**
@@ -121,7 +121,7 @@ public interface RequestHandler {
      *             request parameters or exceptions during processing
      */
     public default KuraMessage doExec(RequestHandlerContext context, KuraMessage reqMessage) throws KuraException {
-        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED, "exec");
     }
 
 }

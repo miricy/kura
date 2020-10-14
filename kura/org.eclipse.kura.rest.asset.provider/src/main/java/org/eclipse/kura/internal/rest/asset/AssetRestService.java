@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Eurotech and/or its affiliates and others
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -10,7 +10,7 @@
 
 package org.eclipse.kura.internal.rest.asset;
 
-import static org.eclipse.kura.internal.rest.asset.Validable.validate;
+import static org.eclipse.kura.rest.utils.Validable.validate;
 
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -48,8 +48,10 @@ import com.google.gson.JsonSerializer;
 @Path("/assets")
 public class AssetRestService {
 
-    private static final String BAD_WRITE_REQUEST_ERROR_MESSAGE = "Bad request, expected request format: {\"channels\": [{\"name\": \"channel-1\", \"type\": \"INTEGER\", \"value\": 10 }]}";
-    private static final String BAD_READ_REQUEST_ERROR_MESSAGE = "Bad request, expected request format: { \"channels\": [ \"channel-1\", \"channel-2\"]}";
+    private static final String BAD_WRITE_REQUEST_ERROR_MESSAGE = "Bad request, "
+            + "expected request format: {\"channels\": [{\"name\": \"channel-1\", \"type\": \"INTEGER\", \"value\": 10 }]}";
+    private static final String BAD_READ_REQUEST_ERROR_MESSAGE = "Bad request, "
+            + "expected request format: { \"channels\": [ \"channel-1\", \"channel-2\"]}";
     private static final Encoder BASE64_ENCODER = Base64.getEncoder();
 
     private AssetService assetService;

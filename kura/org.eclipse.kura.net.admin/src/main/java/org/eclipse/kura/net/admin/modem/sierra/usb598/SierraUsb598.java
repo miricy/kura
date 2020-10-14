@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -40,7 +40,6 @@ import org.eclipse.kura.net.modem.ModemDevice;
 import org.eclipse.kura.net.modem.ModemPdpContext;
 import org.eclipse.kura.net.modem.ModemRegistrationStatus;
 import org.eclipse.kura.net.modem.ModemTechnologyType;
-import org.eclipse.kura.net.modem.SerialModemDevice;
 import org.eclipse.kura.usb.UsbModemDevice;
 import org.osgi.service.event.EventConstants;
 import org.osgi.service.io.ConnectionFactory;
@@ -136,7 +135,8 @@ public class SierraUsb598 implements EvdoCellularModem {
      * @param connectionFactory
      *            - connection factory as {@link ConnectionFactory}
      * @param technologyType
-     *            - cellular technology type as {@link ModemTechnologyType}
+     *            - cellular technology type as
+     *            {@link ModemTechnologyType}
      */
     public SierraUsb598(ModemDevice device, ConnectionFactory connectionFactory) {
 
@@ -396,8 +396,6 @@ public class SierraUsb598 implements EvdoCellularModem {
                 } else {
                     throw new KuraException(KuraErrorCode.SERIAL_PORT_NOT_EXISTING, "No PPP serial port available");
                 }
-            } else if (this.device instanceof SerialModemDevice) {
-                // TODO
             } else {
                 throw new KuraException(KuraErrorCode.UNAVAILABLE_DEVICE, "Unsupported modem device");
             }
@@ -420,8 +418,6 @@ public class SierraUsb598 implements EvdoCellularModem {
                 } else {
                     throw new KuraException(KuraErrorCode.SERIAL_PORT_NOT_EXISTING, "No AT serial port available");
                 }
-            } else if (this.device instanceof SerialModemDevice) {
-                // TODO
             } else {
                 throw new KuraException(KuraErrorCode.UNAVAILABLE_DEVICE, "Unsupported modem device");
             }
@@ -490,12 +486,12 @@ public class SierraUsb598 implements EvdoCellularModem {
     public List<ModemTechnologyType> getTechnologyTypes() throws KuraException {
 
         List<ModemTechnologyType> modemTechnologyTypes;
-        ModemDevice device = getModemDevice();
-        if (device == null) {
+        ModemDevice modemDevice = getModemDevice();
+        if (modemDevice == null) {
             throw new KuraException(KuraErrorCode.UNAVAILABLE_DEVICE, "No modem device");
         }
-        if (device instanceof UsbModemDevice) {
-            SupportedUsbModemInfo usbModemInfo = SupportedUsbModemsInfo.getModem((UsbModemDevice) device);
+        if (modemDevice instanceof UsbModemDevice) {
+            SupportedUsbModemInfo usbModemInfo = SupportedUsbModemsInfo.getModem((UsbModemDevice) modemDevice);
             if (usbModemInfo != null) {
                 modemTechnologyTypes = usbModemInfo.getTechnologyTypes();
             } else {
@@ -613,7 +609,8 @@ public class SierraUsb598 implements EvdoCellularModem {
             return "";
         }
 
-        // remove the command and space at the beginning, and the 'OK' and spaces at the end
+        // remove the command and space at the beginning, and the 'OK' and spaces at the
+        // end
         return resp.replaceFirst("^\\S*\\s*", "").replaceFirst("\\s*(OK)?\\s*$", "");
     }
 
@@ -970,10 +967,29 @@ public class SierraUsb598 implements EvdoCellularModem {
     }
 
     /*
-     * This method sends CnS command to the modem and obtains reply. Default
-     * timeout is set to 500 msec
+     * This method sends CnS command to the modem and obtains reply. Default timeout
+     * is set to 500 msec
      */
     private CnS cnsExchange(CnS cnsCommand) throws Exception {
         return this.cnsExchange(cnsCommand, 500);
+    }
+
+    public boolean hasDiversityAntenna() {
+        return false;
+    }
+
+    @Override
+    public boolean isDiversityEnabled() {
+        return false;
+    }
+
+    @Override
+    public void enableDiversity() throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
+    }
+
+    @Override
+    public void disableDiversity() throws KuraException {
+        throw new KuraException(KuraErrorCode.OPERATION_NOT_SUPPORTED);
     }
 }

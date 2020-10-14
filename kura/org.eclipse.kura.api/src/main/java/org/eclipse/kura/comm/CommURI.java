@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -46,14 +46,14 @@ public class CommURI {
     public static final int FLOWCONTROL_XONXOFF_IN = SerialPort.FLOWCONTROL_XONXOFF_IN;
     public static final int FLOWCONTROL_XONXOFF_OUT = SerialPort.FLOWCONTROL_XONXOFF_OUT;
 
-    private final String m_port;
-    private final int m_baudRate;
-    private final int m_dataBits;
-    private final int m_stopBits;
-    private final int m_parity;
-    private final int m_flowControl;
-    private final int m_openTimeout;
-    private final int m_receiveTimeout;
+    private final String port;
+    private final int baudRate;
+    private final int dataBits;
+    private final int stopBits;
+    private final int parity;
+    private final int flowControl;
+    private final int openTimeout;
+    private final int receiveTimeout;
 
     /**
      * Constructor to build the CommURI
@@ -62,14 +62,14 @@ public class CommURI {
      *            the builder that contains the comm port parameters
      */
     private CommURI(Builder builder) {
-        this.m_port = builder.m_port;
-        this.m_baudRate = builder.m_baudRate;
-        this.m_dataBits = builder.m_dataBits;
-        this.m_stopBits = builder.m_stopBits;
-        this.m_parity = builder.m_parity;
-        this.m_flowControl = builder.m_flowControl;
-        this.m_openTimeout = builder.m_openTimeout;
-        this.m_receiveTimeout = builder.m_receiveTimeout;
+        this.port = builder.builderPort;
+        this.baudRate = builder.builderBaudRate;
+        this.dataBits = builder.builderDdataBits;
+        this.stopBits = builder.builderStopBits;
+        this.parity = builder.builderParity;
+        this.flowControl = builder.builderFlowControl;
+        this.openTimeout = builder.builderOpenTimeout;
+        this.receiveTimeout = builder.builderReceiveTimeout;
     }
 
     /**
@@ -78,7 +78,7 @@ public class CommURI {
      * @return a {@link String } representing the port
      */
     public String getPort() {
-        return this.m_port;
+        return this.port;
     }
 
     /**
@@ -87,7 +87,7 @@ public class CommURI {
      * @return an int representing the baud rate
      */
     public int getBaudRate() {
-        return this.m_baudRate;
+        return this.baudRate;
     }
 
     /**
@@ -96,7 +96,7 @@ public class CommURI {
      * @return an int representing the number of data bits
      */
     public int getDataBits() {
-        return this.m_dataBits;
+        return this.dataBits;
     }
 
     /**
@@ -105,7 +105,7 @@ public class CommURI {
      * @return an int representing the number of stop bits
      */
     public int getStopBits() {
-        return this.m_stopBits;
+        return this.stopBits;
     }
 
     /**
@@ -114,7 +114,7 @@ public class CommURI {
      * @return an int representing the parity
      */
     public int getParity() {
-        return this.m_parity;
+        return this.parity;
     }
 
     /**
@@ -123,7 +123,7 @@ public class CommURI {
      * @return an int representing the flow control
      */
     public int getFlowControl() {
-        return this.m_flowControl;
+        return this.flowControl;
     }
 
     /**
@@ -135,27 +135,27 @@ public class CommURI {
      */
     @Deprecated
     public int getTimeout() {
-        return this.m_openTimeout;
+        return this.openTimeout;
     }
 
     /**
      * The open timeout associated with the port
-     * 
+     *
      * @return an int representing the open timeout in milliseconds
      * @since 1.2
      */
     public int getOpenTimeout() {
-        return this.m_openTimeout;
+        return this.openTimeout;
     }
 
     /**
      * The receive timeout associated with the port
-     * 
+     *
      * @return an int representing the receive timeout in milliseconds
      * @since 1.2
      */
     public int getReceiveTimeout() {
-        return this.m_receiveTimeout;
+        return this.receiveTimeout;
     }
 
     /**
@@ -164,10 +164,10 @@ public class CommURI {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("comm:").append(this.m_port).append(";baudrate=").append(this.m_baudRate).append(";databits=")
-                .append(this.m_dataBits).append(";stopbits=").append(this.m_stopBits).append(";parity=")
-                .append(this.m_parity).append(";flowcontrol=").append(this.m_flowControl).append(";timeout=")
-                .append(this.m_openTimeout).append(";receivetimeout=").append(this.m_receiveTimeout);
+        sb.append("comm:").append(this.port).append(";baudrate=").append(this.baudRate).append(";databits=")
+                .append(this.dataBits).append(";stopbits=").append(this.stopBits).append(";parity=")
+                .append(this.parity).append(";flowcontrol=").append(this.flowControl).append(";timeout=")
+                .append(this.openTimeout).append(";receivetimeout=").append(this.receiveTimeout);
         return sb.toString();
     }
 
@@ -222,53 +222,53 @@ public class CommURI {
 
     /**
      * Builder class used as a helper in building the components of a CommURI.
-     * 
+     *
      * @noextend This class is not intended to be subclassed by clients.
      */
     @ProviderType
     public static class Builder {
 
-        private final String m_port;
-        private int m_baudRate = 19200;
-        private int m_dataBits = 8;
-        private int m_stopBits = 1;
-        private int m_parity = 0;
-        private int m_flowControl = 0;
-        private int m_openTimeout = 2000;
-        private int m_receiveTimeout = 0;
+        private final String builderPort;
+        private int builderBaudRate = 19200;
+        private int builderDdataBits = 8;
+        private int builderStopBits = 1;
+        private int builderParity = 0;
+        private int builderFlowControl = 0;
+        private int builderOpenTimeout = 2000;
+        private int builderReceiveTimeout = 0;
 
         public Builder(String port) {
-            this.m_port = port;
+            this.builderPort = port;
         }
 
         public Builder withBaudRate(int baudRate) {
-            this.m_baudRate = baudRate;
+            this.builderBaudRate = baudRate;
             return this;
         }
 
         public Builder withDataBits(int dataBits) {
-            this.m_dataBits = dataBits;
+            this.builderDdataBits = dataBits;
             return this;
         }
 
         public Builder withStopBits(int stopBits) {
-            this.m_stopBits = stopBits;
+            this.builderStopBits = stopBits;
             return this;
         }
 
         public Builder withParity(int parity) {
-            this.m_parity = parity;
+            this.builderParity = parity;
             return this;
         }
 
         public Builder withFlowControl(int flowControl) {
-            this.m_flowControl = flowControl;
+            this.builderFlowControl = flowControl;
             return this;
         }
 
         /**
          * Sets the open timeout associated with the port, this method is identical to {@link #withOpenTimeout(int)}
-         * 
+         *
          * @deprecated use {@link #withOpenTimeout(int)} and {@link #withReceiveTimeout(int)} instead
          * @since 1.1.0
          * @param timeout
@@ -282,28 +282,28 @@ public class CommURI {
 
         /**
          * Sets the open timeout associated with the port
-         * 
+         *
          * @param timeout
          *            The open timeout in milliseconds.
          * @return
          * @since 1.2
          */
         public Builder withOpenTimeout(int timeout) {
-            this.m_openTimeout = timeout;
+            this.builderOpenTimeout = timeout;
             return this;
         }
 
         /**
          * Sets the receive timeout associated with the port. Pass 0 to disable the receive timeout. The receive timeout
          * is disabled by default.
-         * 
+         *
          * @param timeout
          *            The receive timeout in milliseconds.
          * @return
          * @since 1.2
          */
         public Builder withReceiveTimeout(int timeout) {
-            this.m_receiveTimeout = timeout;
+            this.builderReceiveTimeout = timeout;
             return this;
         }
 

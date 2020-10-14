@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2018, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -9,23 +9,25 @@
  *******************************************************************************/
 package org.eclipse.kura.cloudconnection.subscriber;
 
-import org.eclipse.kura.cloudconnection.CloudEndpoint;
 import org.eclipse.kura.cloudconnection.listener.CloudConnectionListener;
 import org.eclipse.kura.cloudconnection.subscriber.listener.CloudSubscriberListener;
 import org.osgi.annotation.versioning.ProviderType;
 
 /**
- * Interface intended to have a specific implementation associated to a {@link CloudEndpoint} that wraps the
+ * Interface intended to have a specific implementation associated to a
+ * {@link org.eclipse.kura.cloudconnection.CloudEndpoint} that wraps the
  * specificities related to the targeted cloud provider.
  *
- * The {@link CloudSubscriber} interface is an abstraction on top of the {@link CloudEndpoint} to simplify the
+ * The {@link CloudSubscriber} interface is an abstraction on top of the
+ * {@link org.eclipse.kura.cloudconnection.CloudEndpoint} to simplify the
  * subscription and notification process, for each application running in the framework.
  *
  * When an application wants to receive a message from the cloud, it has to take a {@link CloudSubscriber} instance and
  * register itself as a {@link CloudSubscriberListener}, in order to be notified when a message is received from the
  * associated cloud stack.
  *
- * In most cases, the consumers are not interested in the header of the received message and assume to always receive the
+ * In most cases, the consumers are not interested in the header of the received message and assume to always receive
+ * the
  * same kind of message. In order to receive different kinds of messages, the consumer should register to multiple
  * subscribers.
  *

@@ -5,7 +5,7 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  *******************************************************************************/
 package org.eclipse.kura.web.client.util.request;
 
@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import org.eclipse.kura.web.client.ui.EntryClassUi;
 import org.eclipse.kura.web.client.util.FailureHandler;
 
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
 /*
@@ -23,7 +24,7 @@ public class RequestQueue {
 
     private static final RequestQueue instance = new RequestQueue();
 
-    private final LinkedList<PendingRequest> requests = new LinkedList<PendingRequest>();
+    private final LinkedList<PendingRequest> requests = new LinkedList<>();
     private PendingRequest pending;
 
     public static void submit(final Request request) {
@@ -40,21 +41,21 @@ public class RequestQueue {
     }
 
     private void runNext() {
-        if (pending != null) {
+        if (this.pending != null) {
             return;
         }
-        if (requests.isEmpty()) {
+        if (this.requests.isEmpty()) {
             return;
         }
 
-        pending = requests.pop();
+        this.pending = this.requests.pop();
 
         try {
-            pending.request.run(pending.context);
+            this.pending.request.run(this.pending.context);
         } catch (Exception e) {
             FailureHandler.handle(e);
             EntryClassUi.hideWaitModal();
-            pending = null;
+            this.pending = null;
         }
     }
 
@@ -68,23 +69,23 @@ public class RequestQueue {
         }
 
         private void completed() {
-            if (enableWaitModal) {
+            if (this.enableWaitModal) {
                 EntryClassUi.hideWaitModal();
             }
-            pending = null;
+            RequestQueue.this.pending = null;
             runNext();
         }
 
         private void newRequest() {
-            requests++;
-            if (enableWaitModal) {
+            this.requests++;
+            if (this.enableWaitModal) {
                 EntryClassUi.showWaitModal();
             }
         }
 
         private void requestCompleted() {
-            requests--;
-            if (requests == 0) {
+            this.requests--;
+            if (this.requests == 0) {
                 completed();
             }
         }
@@ -124,7 +125,7 @@ public class RequestQueue {
                     try {
                         callback.onSuccess(result);
                         requestCompleted();
-                    } catch (Throwable e) {
+                    } catch (final Exception e) {
                         onFailure(e);
                     }
                 }
@@ -133,13 +134,27 @@ public class RequestQueue {
 
         @Override
         public <T> AsyncCallback<T> callback() {
-            // TODO Auto-generated method stub
-            return callback(new SuccessCallback<T>() {
+            return callback(result -> {
+            });
+        }
+
+        @Override
+        public void defer(final int delayMs, final Runnable action) {
+            newRequest();
+            final Timer timer = new Timer() {
 
                 @Override
-                public void onSuccess(T result) {
+                public void run() {
+                    try {
+                        action.run();
+                    } catch (final Exception e) {
+                        FailureHandler.handle(e);
+                    } finally {
+                        requestCompleted();
+                    }
                 }
-            });
+            };
+            timer.schedule(delayMs);
         }
     }
 

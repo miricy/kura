@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Eurotech and/or its affiliates and others
+ * Copyright (c) 2017, 2019 Eurotech and/or its affiliates and others
  *
  *   All rights reserved. This program and the accompanying materials
  *   are made available under the terms of the Eclipse Public License v1.0
@@ -58,10 +58,10 @@ public class PppConfigTest {
                 return null;
             }
 
-            @Override
-            protected boolean hasAddress(int pppNumber) throws KuraException {
-                return true;
-            }
+            // @Override
+            // protected boolean hasAddress(int pppNumber) throws KuraException {
+            // return true;
+            // }
 
             @Override
             protected List<IPAddress> getPppDnServers() throws KuraException {
@@ -135,7 +135,6 @@ public class PppConfigTest {
             fw.write("expectedresult send\n");
             fw.write("dial a number\n");
             fw.write("CONNECT connect\n");
-            fw.write("OK 1,PPP,apn\n");
         }
 
         PppConfigReader reader = new PppConfigReader() {
@@ -150,15 +149,19 @@ public class PppConfigTest {
                     return "true";
                 } else if (key.equals("net.interface." + intfName + ".config.resetTimeout")) {
                     return "123";
+                } else if (key.equals("net.interface." + intfName + ".config.apn")) {
+                    return "apn";
+                } else if (key.equals("net.interface." + intfName + ".config.pdpType")) {
+                    return "PPP";
                 }
 
                 return null;
             }
 
-            @Override
-            protected boolean hasAddress(int pppNumber) throws KuraException {
-                return true;
-            }
+            // @Override
+            // protected boolean hasAddress(int pppNumber) throws KuraException {
+            // return true;
+            // }
 
             @Override
             protected List<IPAddress> getPppDnServers() throws KuraException {

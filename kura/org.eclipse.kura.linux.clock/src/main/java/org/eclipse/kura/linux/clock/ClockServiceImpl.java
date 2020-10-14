@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2017 Eurotech and others
+ * Copyright (c) 2011, 2020 Eurotech and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,7 +12,6 @@
  *******************************************************************************/
 package org.eclipse.kura.linux.clock;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
@@ -22,23 +21,26 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.clock.ClockEvent;
 import org.eclipse.kura.clock.ClockService;
 import org.eclipse.kura.configuration.ConfigurableComponent;
-import org.eclipse.kura.core.util.ProcessUtil;
-import org.eclipse.kura.core.util.SafeProcess;
+import org.eclipse.kura.executor.Command;
+import org.eclipse.kura.executor.CommandExecutorService;
+import org.eclipse.kura.executor.CommandStatus;
 import org.osgi.service.event.EventAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ClockServiceImpl implements ConfigurableComponent, ClockService, ClockSyncListener {
 
-    private static final ClockEvent EMPTY_EVENT = new ClockEvent(Collections.<String, Object> emptyMap());
+    private static final ClockEvent EMPTY_EVENT = new ClockEvent(Collections.<String, Object>emptyMap());
 
     private static final String PROP_CLOCK_PROVIDER = "clock.provider";
     private static final String PROP_CLOCK_SET_HWCLOCK = "clock.set.hwclock";
+    private static final String PROP_RTC_FILENAME = "rtc.filename";
     private static final String PROP_ENABLED = "enabled";
 
     private static final Logger logger = LoggerFactory.getLogger(ClockServiceImpl.class);
 
     private EventAdmin eventAdmin;
+    private CommandExecutorService executorService;
     private Map<String, Object> properties;
     private ClockSyncProvider provider;
     private boolean configEnabled;
@@ -55,6 +57,14 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
 
     public void unsetEventAdmin(EventAdmin eventAdmin) {
         this.eventAdmin = null;
+    }
+
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public void unsetExecutorService(CommandExecutorService executorService) {
+        this.executorService = null;
     }
 
     // ----------------------------------------------------------------
@@ -135,7 +145,7 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
         if (this.provider != null) {
             return this.provider.getLastSync();
         } else {
-            throw new KuraException(KuraErrorCode.INTERNAL_ERROR, "Clock service not configured yet");
+            throw new KuraException(KuraErrorCode.SERVICE_UNAVAILABLE, "Clock service not configured yet");
         }
     }
 
@@ -151,8 +161,8 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
         if ("java-ntp".equals(sprovider)) {
             this.provider = new JavaNtpClockSyncProvider();
         } else if ("ntpd".equals(sprovider)) {
-            this.provider = new NtpdClockSyncProvider();
-        }         
+            this.provider = new NtpdClockSyncProvider(this.executorService);
+        }
         if (this.provider != null) {
             this.provider.init(this.properties, this);
             this.provider.start();
@@ -178,24 +188,16 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
         boolean bClockUpToDate = false;
         if (offset != 0) {
             long time = System.currentTimeMillis() + offset;
-            SafeProcess proc = null;
-            try {
-                proc = exec("date -s @" + time / 1000);		// divide by 1000 to switch to seconds
-                proc.waitFor();
-                final int rc = proc.exitValue();
-                if (rc == 0) {
-                    bClockUpToDate = true;
-                    logger.info("System Clock Updated to {}", new Date());
-                } else {
-                    logger.error("Unexpected error while updating System Clock - rc = {}, it should've been {}", rc,
-                            new Date());
-                }
-            } catch (Exception e) {
-                logger.error("Error updating System Clock", e);
-            } finally {
-                if (proc != null) {
-                    ProcessUtil.destroy(proc);
-                }
+            Command command = new Command(new String[] { "date", "-s", "@" + Long.toString(time / 1000) });
+            command.setTimeout(60);
+            CommandStatus status = this.executorService.execute(command);
+            if (status.getExitStatus().isSuccessful()) {
+                bClockUpToDate = true;
+                logger.info("System Clock Updated to {}", new Date());
+            } else {
+                logger.error(
+                        "Unexpected error while updating System Clock - rc = {}, CommandLine:{}, it should've been {}",
+                        status.getExitStatus().getExitCode(), command.getCommandLine(), new Date());
             }
         } else {
             bClockUpToDate = true;
@@ -206,23 +208,18 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
         if (this.properties.containsKey(PROP_CLOCK_SET_HWCLOCK)) {
             updateHwClock = (Boolean) this.properties.get(PROP_CLOCK_SET_HWCLOCK);
         }
+
+        String path = (String) this.properties.getOrDefault(PROP_RTC_FILENAME, "/dev/rtc0");
+
         if (updateHwClock) {
-            SafeProcess proc = null;
-            try {
-                proc = exec("hwclock --utc --systohc");
-                proc.waitFor();
-                final int rc = proc.exitValue();
-                if (rc == 0) {
-                    logger.info("Hardware Clock Updated");
-                } else {
-                    logger.error("Unexpected error while updating Hardware Clock - rc = {}", rc);
-                }
-            } catch (Exception e) {
-                logger.error("Error updating Hardware Clock", e);
-            } finally {
-                if (proc != null) {
-                    ProcessUtil.destroy(proc);
-                }
+            Command command = new Command(new String[] { "hwclock", "--utc", "--systohc", "-f", path });
+            command.setTimeout(60);
+            CommandStatus status = this.executorService.execute(command);
+            if (status.getExitStatus().isSuccessful()) {
+                logger.info("Hardware Clock Updated");
+            } else {
+                logger.error("Unexpected error while updating Hardware Clock - rc = {}",
+                        status.getExitStatus().getExitCode());
             }
         }
 
@@ -232,7 +229,4 @@ public class ClockServiceImpl implements ConfigurableComponent, ClockService, Cl
         }
     }
 
-    protected SafeProcess exec(String command) throws IOException {
-        return ProcessUtil.exec(command);
-    }
 }

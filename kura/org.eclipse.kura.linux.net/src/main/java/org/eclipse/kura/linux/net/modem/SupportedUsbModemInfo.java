@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -8,6 +8,7 @@
  *
  * Contributors:
  *     Eurotech
+ *     3 PORT d.o.o.
  *******************************************************************************/
 package org.eclipse.kura.linux.net.modem;
 
@@ -18,7 +19,8 @@ import org.eclipse.kura.net.modem.ModemTechnologyType;
 
 public enum SupportedUsbModemInfo {
 
-    // device name, vendor, product, ttyDevs, blockDevs, AT Port, Data Port, GPS Port, Turn off delay, technology types,
+    // device name, vendor, product, ttyDevs, blockDevs, AT Port, Data Port, GPS Port, turn off delay, turn on delay,
+    // technology types,
     // device driver
     Telit_HE910_DG("HE910-DG", "1bc7", "0021", 6, 0, 3, 0, 3, 5000, 10000, Arrays.asList(ModemTechnologyType.HSPA,
             ModemTechnologyType.UMTS), Arrays.asList(new UsbModemDriver("cdc_acm", "1bc7", "0021")), "6 CDC-ACM"),
@@ -42,7 +44,24 @@ public enum SupportedUsbModemInfo {
     Sierra_USB598("USB598", "1199", "0025", 4, 1, 0, 0, -1, 5000, 10000, Arrays.asList(ModemTechnologyType.EVDO), Arrays
             .asList(new UsbModemDriver("sierra", "1199", "0025")), ""),
     Ublox_SARA_U2("SARA-U2", "1546", "1102", 7, 0, 1, 0, -1, 5000, 10000, Arrays
-            .asList(ModemTechnologyType.HSPA), Arrays.asList(new UsbModemDriver("cdc_acm", "1546", "1102")), "");
+            .asList(ModemTechnologyType.HSPA), Arrays.asList(new UsbModemDriver("cdc_acm", "1546", "1102")), ""),
+    UBLOX_LARA_R2("LARA-R2", "1546", "110a", 6, 0, 1, 0, -1, 5000, 10000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.HSPA,
+            ModemTechnologyType.UMTS), Arrays.asList(new UsbModemDriver("cdc_acm", "1546", "110a")), ""),
+    Zte_ME3630("ME3630", "19d2", "1476", 3, 0, 1, 2, 1, 5000, 10000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.GSM_GPRS,
+            ModemTechnologyType.UMTS), Arrays.asList(new OptionModemDriver("19d2", "1476")), ""),
+    SimTech_SIM7000("SIM7000", "1e0e", "9001", 5, 0, 3, 2, 3, 5000, 10000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.GSM_GPRS), Arrays.asList(new OptionModemDriver("1e0e", "9001")), ""),
+    QUECTEL_EG25("EG25", "2c7c", "0125", 4, 0, 2, 3, -1, 5000, 10000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.HSPA,
+            ModemTechnologyType.UMTS), Arrays.asList(new UsbModemDriver("cdc_acm", "2c7c", "0125")), ""),
+    HUAWEI_MS2372("MS2372", "12d1", "1506", 3, 0, 2, 0, -1, 5000, 15000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.HSPA, ModemTechnologyType.HSDPA, ModemTechnologyType.UMTS,
+            ModemTechnologyType.GSM_GPRS), Arrays.asList(new UsbModemDriver("option", "12d1", "1506")), ""),
+    TELEFONICA_IK41VE("IK41VE", "1bbb", "00b6", 3, 0, 2, 0, -1, 5000, 15000, Arrays.asList(ModemTechnologyType.LTE,
+            ModemTechnologyType.HSPA, ModemTechnologyType.HSDPA, ModemTechnologyType.UMTS,
+            ModemTechnologyType.GSM_GPRS), Arrays.asList(new UsbModemDriver("option", "1bbb", "00b6")), "");
 
     private String deviceName;
     private String vendorId;
@@ -61,6 +80,7 @@ public enum SupportedUsbModemInfo {
 
     private String productName;
 
+    @SuppressWarnings("checkstyle:parameterNumber")
     private SupportedUsbModemInfo(String deviceName, String vendorId, String productId, int numTtyDevs,
             int numBlockDevs, int atPort, int dataPort, int gpsPort, long turnOffDelay, long turnOnDelay,
             List<ModemTechnologyType> modemTechnology, List<? extends UsbModemDriver> drivers, String prodName) {

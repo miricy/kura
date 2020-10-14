@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -77,7 +77,7 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
     private ScheduledExecutorService selfUpdaterExecutor;
     private ScheduledFuture<?> selfUpdaterFuture;
 
-    private Map<ConnectionSslOptions, SSLSocketFactory> sslSocketFactories;
+    private Map<ConnectionSslOptions, SSLContext> sslContexts;
 
     private SystemService systemService;
 
@@ -125,7 +125,7 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
         this.ctx = componentContext;
         this.properties = properties;
         this.options = new SslManagerServiceOptions(properties);
-        this.sslSocketFactories = new ConcurrentHashMap<>();
+        this.sslContexts = new ConcurrentHashMap<>();
 
         this.selfUpdaterExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -146,7 +146,7 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
 
         this.properties = properties;
         this.options = new SslManagerServiceOptions(properties);
-        this.sslSocketFactories = new ConcurrentHashMap<>();
+        this.sslContexts = new ConcurrentHashMap<>();
 
         accessKeystore();
 
@@ -172,31 +172,31 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
     // ----------------------------------------------------------------
 
     @Override
-    public SSLSocketFactory getSSLSocketFactory() throws GeneralSecurityException, IOException {
-        return getSSLSocketFactory("");
+    public SSLContext getSSLContext() throws GeneralSecurityException, IOException {
+        return getSSLContext("");
     }
 
     @Override
-    public SSLSocketFactory getSSLSocketFactory(String keyAlias) throws GeneralSecurityException, IOException {
+    public SSLContext getSSLContext(String keyAlias) throws GeneralSecurityException, IOException {
         String protocol = this.options.getSslProtocol();
         String ciphers = this.options.getSslCiphers();
         String trustStore = this.options.getSslKeyStore();
         char[] keyStorePassword = getKeyStorePassword();
         boolean hostnameVerifcation = this.options.isSslHostnameVerification();
 
-        return getSSLSocketFactory(protocol, ciphers, trustStore, trustStore, keyStorePassword, keyAlias,
+        return getSSLContext(protocol, ciphers, trustStore, trustStore, keyStorePassword, keyAlias,
                 hostnameVerifcation);
     }
 
     @Override
-    public SSLSocketFactory getSSLSocketFactory(String protocol, String ciphers, String trustStore, String keyStore,
+    public SSLContext getSSLContext(String protocol, String ciphers, String trustStore, String keyStore,
             char[] keyStorePassword, String keyAlias) throws GeneralSecurityException, IOException {
-        return getSSLSocketFactory(protocol, ciphers, trustStore, keyStore, keyStorePassword, keyAlias,
+        return getSSLContext(protocol, ciphers, trustStore, keyStore, keyStorePassword, keyAlias,
                 this.options.isSslHostnameVerification());
     }
 
     @Override
-    public SSLSocketFactory getSSLSocketFactory(String protocol, String ciphers, String trustStore, String keyStore,
+    public SSLContext getSSLContext(String protocol, String ciphers, String trustStore, String keyStore,
             char[] keyStorePassword, String keyAlias, boolean hostnameVerification)
             throws GeneralSecurityException, IOException {
         ConnectionSslOptions connSslOpts = new ConnectionSslOptions(this.options);
@@ -212,7 +212,31 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
         connSslOpts.setAlias(keyAlias);
         connSslOpts.setHostnameVerification(hostnameVerification);
 
-        return getSSLSocketFactoryInternal(connSslOpts);
+        return getSSLContextInternal(connSslOpts);
+    }
+
+    @Override
+    public SSLSocketFactory getSSLSocketFactory() throws GeneralSecurityException, IOException {
+        return getSSLContext().getSocketFactory();
+    }
+
+    @Override
+    public SSLSocketFactory getSSLSocketFactory(String keyAlias) throws GeneralSecurityException, IOException {
+        return getSSLContext(keyAlias).getSocketFactory();
+    }
+
+    @Override
+    public SSLSocketFactory getSSLSocketFactory(String protocol, String ciphers, String trustStore, String keyStore,
+            char[] keyStorePassword, String keyAlias) throws GeneralSecurityException, IOException {
+        return getSSLContext(protocol, ciphers, trustStore, keyStore, keyStorePassword, keyAlias).getSocketFactory();
+    }
+
+    @Override
+    public SSLSocketFactory getSSLSocketFactory(String protocol, String ciphers, String trustStore, String keyStore,
+            char[] keyStorePassword, String keyAlias, boolean hostnameVerification)
+            throws GeneralSecurityException, IOException {
+        return getSSLContext(protocol, ciphers, trustStore, keyStore, keyStorePassword, keyAlias, hostnameVerification)
+                .getSocketFactory();
     }
 
     @Override
@@ -367,21 +391,17 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
         Map<String, Object> props = new HashMap<>(this.properties);
         props.put(SslManagerServiceOptions.PROP_TRUST_PASSWORD, new Password(newPassword));
 
-        this.selfUpdaterFuture = this.selfUpdaterExecutor.scheduleAtFixedRate(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    if (SslManagerServiceImpl.this.ctx.getServiceReference() != null
-                            && SslManagerServiceImpl.this.configurationService.getComponentConfiguration(pid) != null) {
-                        SslManagerServiceImpl.this.configurationService.updateConfiguration(pid, props);
-                        throw new RuntimeException("Updated. The task will be terminated.");
-                    } else {
-                        logger.info("No service or configuration available yet.");
-                    }
-                } catch (KuraException e) {
-                    logger.warn("Cannot get/update configuration for pid: {}", pid, e);
+        this.selfUpdaterFuture = this.selfUpdaterExecutor.scheduleAtFixedRate(() -> {
+            try {
+                if (SslManagerServiceImpl.this.ctx.getServiceReference() != null
+                        && SslManagerServiceImpl.this.configurationService.getComponentConfiguration(pid) != null) {
+                    SslManagerServiceImpl.this.configurationService.updateConfiguration(pid, props);
+                    throw new RuntimeException("Updated. The task will be terminated.");
+                } else {
+                    logger.info("No service or configuration available yet.");
                 }
+            } catch (KuraException e) {
+                logger.warn("Cannot get/update configuration for pid: {}", pid, e);
             }
         }, 1000, 1000, TimeUnit.MILLISECONDS);
     }
@@ -431,34 +451,34 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
     //
     // ----------------------------------------------------------------
 
-    private SSLSocketFactory getSSLSocketFactoryInternal(ConnectionSslOptions options)
+    private SSLContext getSSLContextInternal(ConnectionSslOptions options)
             throws GeneralSecurityException, IOException {
         // Only create a new SSLSocketFactory instance if the configuration has
         // changed or
         // for a new alias.
         // This allows for SSL Context Resumption and abbreviated SSL handshake
         // in case of reconnects to the same host.
-        SSLSocketFactory factory = this.sslSocketFactories.get(options);
-        if (factory == null) {
+        SSLContext context = this.sslContexts.get(options);
+        if (context == null) {
             logger.info("Creating a new SSLSocketFactory instance");
 
             TrustManager[] tms = getTrustManagers(options.getTrustStore(), options.getKeyStorePassword());
 
             KeyManager[] kms = getKeyManagers(options.getKeyStore(), options.getKeyStorePassword(), options.getAlias());
 
-            factory = createSSLSocketFactory(options.getProtocol(), options.getCiphers(), kms, tms,
+            context = createSSLContext(options.getProtocol(), options.getCiphers(), kms, tms,
                     options.getHostnameVerification());
-            this.sslSocketFactories.put(options, factory);
+            this.sslContexts.put(options, context);
         }
 
-        return factory;
+        return context;
     }
 
-    private static SSLSocketFactory createSSLSocketFactory(String protocol, String ciphers, KeyManager[] kms,
-            TrustManager[] tms, boolean hostnameVerification) throws NoSuchAlgorithmException, KeyManagementException {
+    private static SSLContext createSSLContext(String protocol, String ciphers, KeyManager[] kms, TrustManager[] tms,
+            boolean hostnameVerification) throws NoSuchAlgorithmException, KeyManagementException {
         // inits the SSL context
         SSLContext sslCtx;
-        if (protocol == null) {
+        if (protocol == null || protocol.isEmpty()) {
             sslCtx = SSLContext.getDefault();
         } else {
             sslCtx = SSLContext.getInstance(protocol);
@@ -466,10 +486,14 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
         }
 
         // get the SSLSocketFactory
-        SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
+        final SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
+        final SSLSocketFactoryWrapper socketFactoryWrapper = new SSLSocketFactoryWrapper(sslSocketFactory, ciphers,
+                hostnameVerification);
 
         // wrap it
-        return new SSLSocketFactoryWrapper(sslSocketFactory, ciphers, hostnameVerification);
+        return new SSLContext(new SSLContextSPIWrapper(sslCtx, socketFactoryWrapper), sslCtx.getProvider(),
+                sslCtx.getProtocol()) {
+        };
     }
 
     private static TrustManager[] getTrustManagers(String trustStore, char[] keyStorePassword)
@@ -559,7 +583,7 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
         Enumeration<String> aliases = keystore.aliases();
         while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
-            if (keystore.isKeyEntry(alias)) { // TODO: not sure why this check
+            if (keystore.isKeyEntry(alias)) {
                 PasswordProtection oldPP = new PasswordProtection(oldPassword);
                 Entry entry = keystore.getEntry(alias, oldPP);
                 PasswordProtection newPP = new PasswordProtection(newPassword);
@@ -567,4 +591,5 @@ public class SslManagerServiceImpl implements SslManagerService, ConfigurableCom
             }
         }
     }
+
 }

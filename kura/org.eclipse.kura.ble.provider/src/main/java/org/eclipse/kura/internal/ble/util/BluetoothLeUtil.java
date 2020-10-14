@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2017, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -9,24 +9,27 @@
  *******************************************************************************/
 package org.eclipse.kura.internal.ble.util;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.apache.commons.io.FileUtils;
-import org.eclipse.kura.bluetooth.le.beacon.AdvertisingReportRecord;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.eclipse.kura.bluetooth.le.beacon.AdvertisingReportRecord;
+import org.eclipse.kura.core.linux.executor.LinuxSignal;
+import org.eclipse.kura.executor.CommandExecutorService;
 
 public class BluetoothLeUtil {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(BluetoothLeUtil.class);
+    
+    @SuppressWarnings("checkstyle:constantName")
     private static final ExecutorService processExecutor = Executors.newSingleThreadExecutor();
 
     public static final String HCITOOL = "hcitool";
@@ -42,49 +45,17 @@ public class BluetoothLeUtil {
             FileUtils.writeStringToFile(f, "#!/bin/bash\n" + "set -e\n" + "ADAPTER=$1\n"
                     + "{ exec hcidump -i $ADAPTER -R -w /dev/fd/3 >/dev/null; } 3>&1", false);
 
-            f.setExecutable(true);
+            if (!f.setExecutable(true)) {
+                logger.warn("Unable to set as executable");
+            }
         } catch (IOException e) {
             logger.info("Unable to update", e);
         }
 
     }
 
-    /*
-     * Utility method to send specific kill commands to processes.
-     */
-    public static void killCmd(String cmd, String signal) {
-        String[] commandPidOf = { "pidof", cmd };
-        BluetoothSafeProcess proc = null;
-        BufferedReader br = null;
-        try {
-            proc = BluetoothProcessUtil.exec(commandPidOf);
-            proc.waitFor();
-            br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String pid = br.readLine();
-
-            // Check if the pid is not empty
-            if (pid != null) {
-                String[] commandKill = { "kill", "-" + signal, pid };
-                proc = BluetoothProcessUtil.exec(commandKill);
-            }
-
-        } catch (IOException e) {
-            logger.error(COMMAND_ERROR, commandPidOf, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error(COMMAND_ERROR, commandPidOf, e);
-        } finally {
-            if (proc != null) {
-                proc.destroy();
-            }
-            try {
-                if (br != null) {
-                    br.close();
-                }
-            } catch (IOException e) {
-                logger.warn("Error closing process for command: {}", commandPidOf, e);
-            }
-        }
+    private BluetoothLeUtil() {
+        // Empty constructor
     }
 
     /**
@@ -96,27 +67,28 @@ public class BluetoothLeUtil {
      *            Listener for receiving btsnoop records
      * @return BluetoothProcess created
      */
-    public static BluetoothProcess btdumpCmd(String name, BTSnoopListener listener) throws IOException {
+    public static BluetoothProcess btdumpCmd(String name, CommandExecutorService executorService,
+            BTSnoopListener listener) throws IOException {
         String[] command = { BTDUMP, name };
-        return execSnoop(command, listener);
+        return execSnoop(command, executorService, listener);
     }
 
     /*
      * Method to utilize BluetoothProcess and the hcitool utility. These processes run indefinitely, so the
      * BluetoothProcessListener is used to receive output from the process.
      */
-    public static BluetoothProcess hcitoolCmd(String name, String cmd, BluetoothProcessListener listener)
-            throws IOException {
+    public static BluetoothProcess hcitoolCmd(String name, String cmd, CommandExecutorService executorService,
+            BluetoothProcessListener listener) throws IOException {
         String[] command = { HCITOOL, "-i", name, cmd };
-        return exec(command, listener);
+        return exec(command, executorService, listener);
     }
 
     /*
      * Method to utilize BluetoothProcess and the hcitool utility. These processes run indefinitely, so the
      * BluetoothProcessListener is used to receive output from the process.
      */
-    public static BluetoothProcess hcitoolCmd(String name, String[] cmd, BluetoothProcessListener listener)
-            throws IOException {
+    public static BluetoothProcess hcitoolCmd(String name, String[] cmd, CommandExecutorService executorService,
+            BluetoothProcessListener listener) throws IOException {
         String[] command = new String[3 + cmd.length];
         command[0] = HCITOOL;
         command[1] = "-i";
@@ -124,19 +96,19 @@ public class BluetoothLeUtil {
         for (int i = 0; i < cmd.length; i++) {
             command[i + 3] = cmd[i];
         }
-        return exec(command, listener);
+        return exec(command, executorService, listener);
     }
 
     /*
      * Method to create a separate thread for the BluetoothProcesses.
      */
-    private static BluetoothProcess exec(final String[] cmdArray, final BluetoothProcessListener listener)
-            throws IOException {
+    private static BluetoothProcess exec(final String[] cmdArray, CommandExecutorService executorService,
+            final BluetoothProcessListener listener) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
         Future<BluetoothProcess> futureSafeProcess = processExecutor.submit(() -> {
             Thread.currentThread().setName("BluetoothProcessExecutor");
-            BluetoothProcess bluetoothProcess = new BluetoothProcess();
+            BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
             bluetoothProcess.exec(cmdArray, listener);
             return bluetoothProcess;
         });
@@ -152,13 +124,13 @@ public class BluetoothLeUtil {
     /*
      * Method to create a separate thread for the BluetoothProcesses.
      */
-    private static BluetoothProcess execSnoop(final String[] cmdArray, final BTSnoopListener listener)
-            throws IOException {
+    private static BluetoothProcess execSnoop(final String[] cmdArray, CommandExecutorService executorService,
+            final BTSnoopListener listener) throws IOException {
 
         // Serialize process executions. One at a time so we can consume all streams.
         Future<BluetoothProcess> futureSafeProcess = processExecutor.submit(() -> {
             Thread.currentThread().setName("BTSnoopProcessExecutor");
-            BluetoothProcess bluetoothProcess = new BluetoothProcess();
+            BluetoothProcess bluetoothProcess = new BluetoothProcess(executorService);
             bluetoothProcess.execSnoop(cmdArray, listener);
             return bluetoothProcess;
         });
@@ -234,4 +206,17 @@ public class BluetoothLeUtil {
         return reportRecords;
     }
 
+    public static boolean stopHcitool(String interfaceName, CommandExecutorService executorService, String... params) {
+        List<String> killCommand = new ArrayList<>();
+        killCommand.add(HCITOOL);
+        killCommand.add("-i");
+        killCommand.add(interfaceName);
+        Arrays.asList(params).stream().forEach(s -> killCommand.add(s));
+        return executorService.kill(killCommand.toArray(new String[0]), LinuxSignal.SIGINT);
+    }
+
+    public static boolean stopBtdump(String interfaceName, CommandExecutorService executorService) {
+        String[] killCommand = { BTDUMP, interfaceName };
+        return executorService.kill(killCommand, null);
+    }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,8 +18,12 @@ import org.osgi.annotation.versioning.ProviderType;
  * BluetoothAdapter represents the physical Bluetooth adapter on the host machine (ex: hci0).
  *
  * @noimplement This interface is not intended to be implemented by clients.
+ *
+ * @deprecated This class is deprecated in favor of {@link org.eclipse.kura.bluetooth.le.BluetoothLeAdapter}
+ *
  */
 @ProviderType
+@Deprecated
 public interface BluetoothAdapter {
 
     /**
@@ -147,20 +151,21 @@ public interface BluetoothAdapter {
      *            Transmitting power \@1m
      * @param companyCode
      *            Indicates the manufacturer
-     * @param LELimited
+     * @param leLimited
      *            Indicates LE Limited Discoverable Mode (the device advertises for 30.72s and then stops)
-     * @param LEGeneral
+     * @param leGeneral
      *            Indicates LE General Discoverable Mode (the device advertises indefinitely)
-     * @param BR_EDRSupported
+     * @param brEDRSupported
      *            Indicates whether BR/EDR is supported
-     * @param LE_BRController
+     * @param leBRController
      *            Indicates whether LE and BR/EDR Controller operates simultaneously
-     * @param LE_BRHost
+     * @param leBRHost
      *            Indicates whether LE and BR/EDR Host operates simultaneously
      *
      */
+    @SuppressWarnings("checkstyle:parameterNumber")
     public void setBeaconAdvertisingData(String uuid, Integer major, Integer minor, String companyCode, Integer txPower,
-            boolean LELimited, boolean LEGeneral, boolean BR_EDRSupported, boolean LE_BRController, boolean LE_BRHost);
+            boolean leLimited, boolean leGeneral, boolean brEDRSupported, boolean leBRController, boolean leBRHost);
 
     /**
      * Execute a command to the given interface.
@@ -173,6 +178,7 @@ public interface BluetoothAdapter {
      *            Parameters passed to the command
      *
      */
+    @SuppressWarnings("checkstyle:methodName")
     public void ExecuteCmd(String ogf, String ocf, String parameter);
 
 }

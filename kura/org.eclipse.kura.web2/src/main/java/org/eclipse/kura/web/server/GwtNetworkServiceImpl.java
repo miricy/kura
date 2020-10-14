@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2019 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -74,11 +74,11 @@ import org.eclipse.kura.net.wifi.WifiRadioMode;
 import org.eclipse.kura.net.wifi.WifiSecurity;
 import org.eclipse.kura.system.SystemService;
 import org.eclipse.kura.usb.UsbDevice;
-import org.eclipse.kura.web.client.util.GwtSafeHtmlUtils;
 import org.eclipse.kura.web.server.util.KuraExceptionHandler;
 import org.eclipse.kura.web.server.util.ServiceLocator;
 import org.eclipse.kura.web.shared.GwtKuraErrorCode;
 import org.eclipse.kura.web.shared.GwtKuraException;
+import org.eclipse.kura.web.shared.GwtSafeHtmlUtils;
 import org.eclipse.kura.web.shared.model.GwtFirewallNatEntry;
 import org.eclipse.kura.web.shared.model.GwtFirewallOpenPortEntry;
 import org.eclipse.kura.web.shared.model.GwtFirewallPortForwardEntry;
@@ -594,6 +594,7 @@ public class GwtNetworkServiceImpl extends OsgiRemoteServiceServlet implements G
                                 gwtModemConfig.setLcpEchoFailure(modemConfig.getLcpEchoFailure());
 
                                 gwtModemConfig.setGpsEnabled(modemConfig.isGpsEnabled());
+                                gwtModemConfig.setDiversityEnabled(modemConfig.isDiversityEnabled());
 
                                 gwtModemConfig.setProfileID(modemConfig.getProfileID());
 
@@ -728,7 +729,6 @@ public class GwtNetworkServiceImpl extends OsgiRemoteServiceServlet implements G
         if (GwtNetIfStatus.netIPv4StatusDisabled.name().equals(status)) {
             autoConnect = false;
         }
-
         try {
             // Interface status
             NetInterfaceStatus netInterfaceStatus;
@@ -895,6 +895,7 @@ public class GwtNetworkServiceImpl extends OsgiRemoteServiceServlet implements G
                     modemConfig.setLcpEchoInterval(gwtModemConfig.getLcpEchoInterval());
                     modemConfig.setLcpEchoFailure(gwtModemConfig.getLcpEchoFailure());
                     modemConfig.setGpsEnabled(gwtModemConfig.isGpsEnabled());
+                    modemConfig.setDiversityEnabled(gwtModemConfig.isDiversityEnabled());
 
                     GwtModemAuthType authType = gwtModemConfig.getAuthType();
                     if (authType != null) {
@@ -1316,12 +1317,16 @@ public class GwtNetworkServiceImpl extends OsgiRemoteServiceServlet implements G
                 }
 
                 FirewallOpenPortConfigIP<IP4Address> firewallOpenPortConfigIP = new FirewallOpenPortConfigIP4();
-                if (entry.getPortRange() != null) {
-                    if (entry.getPortRange().indexOf(':') > 0) {
+
+                if (entry.getPortRange().indexOf(':') != -1) {
+                    String[] parts = entry.getPortRange().split(":");
+                    if (Integer.valueOf(parts[0].trim()) < Integer.valueOf(parts[1].trim())) {
                         firewallOpenPortConfigIP.setPortRange(entry.getPortRange());
                     } else {
-                        firewallOpenPortConfigIP.setPort(Integer.parseInt(entry.getPortRange()));
+                        throw new KuraException(KuraErrorCode.BAD_REQUEST);
                     }
+                } else {
+                    firewallOpenPortConfigIP.setPort(Integer.parseInt(entry.getPortRange()));
                 }
                 firewallOpenPortConfigIP
                         .setProtocol(NetProtocol.valueOf(GwtSafeHtmlUtils.htmlEscape(entry.getProtocol())));

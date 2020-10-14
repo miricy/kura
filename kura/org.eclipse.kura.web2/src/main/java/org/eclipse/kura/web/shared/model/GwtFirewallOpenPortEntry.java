@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates
+ * Copyright (c) 2011, 2018 Eurotech and/or its affiliates
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,6 @@ package org.eclipse.kura.web.shared.model;
 
 import java.io.Serializable;
 
-import org.eclipse.kura.web.client.util.KuraBaseModel;
-
 public class GwtFirewallOpenPortEntry extends KuraBaseModel implements Serializable {
 
     /**
@@ -24,21 +22,6 @@ public class GwtFirewallOpenPortEntry extends KuraBaseModel implements Serializa
 
     public GwtFirewallOpenPortEntry() {
     }
-
-    /*
-     * public Integer getPort() {
-     * if (get("port") != null) {
-     * return (Integer) get("port");
-     * }
-     * else {
-     * return 0;
-     * }
-     * }
-     *
-     * public void setPort(int port) {
-     * set("port", port);
-     * }
-     */
 
     public String getPortRange() {
         return get("portRange");
@@ -94,5 +77,24 @@ public class GwtFirewallOpenPortEntry extends KuraBaseModel implements Serializa
 
     public void setSourcePortRange(String sourcePortRange) {
         set("sourcePortRange", sourcePortRange);
+    }
+
+    public String toString() {
+        StringBuilder output = new StringBuilder();
+        output.append("portRange : ").append(getPortRange());
+        output.append(" ");
+        output.append("protocol : ").append(getProtocol());
+        output.append(" ");
+        output.append("permittedNetwork : ").append(getPermittedNetwork());
+        output.append(" ");
+        output.append("permittedInterfaceName : ").append(getPermittedInterfaceName());
+        output.append(" ");
+        output.append("unpermittedInterfaceName : ").append(getUnpermittedInterfaceName());
+        output.append(" ");
+        output.append("permittedMAC : ").append(getPermittedMAC());
+        output.append(" ");
+        output.append("sourcePortRange : ").append(getSourcePortRange());
+
+        return output.toString();
     }
 }

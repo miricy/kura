@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2018 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2020 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@ import org.eclipse.kura.KuraException;
 import org.eclipse.kura.core.net.AbstractNetInterface;
 import org.eclipse.kura.core.net.NetworkConfiguration;
 import org.eclipse.kura.core.net.modem.ModemInterfaceConfigImpl;
+import org.eclipse.kura.executor.CommandExecutorService;
 import org.eclipse.kura.internal.linux.net.dns.DnsServerService;
 import org.eclipse.kura.linux.net.dns.LinuxDns;
 import org.eclipse.kura.linux.net.util.LinuxNetworkUtil;
@@ -77,6 +78,9 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
 
     private LinuxDns dnsUtil;
     private DnsServerService dnsServer;
+    private CommandExecutorService executorService;
+
+    private LinuxNetworkUtil linuxNetworkUtil;
 
     public void setNetworkConfigurationService(NetworkConfigurationService netConfigService) {
         this.netConfigService = netConfigService;
@@ -94,6 +98,14 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
         this.dnsServer = null;
     }
 
+    public void setExecutorService(CommandExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public void unsetExecutorService(CommandExecutorService executorService) {
+        this.executorService = null;
+    }
+
     protected void activate(ComponentContext componentContext) {
         logger.debug("Activating DnsProxyMonitor Service...");
 
@@ -108,6 +120,7 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
         }
 
         this.dnsUtil = LinuxDns.getInstance();
+        this.linuxNetworkUtil = new LinuxNetworkUtil(this.executorService);
 
         stopThread = new AtomicBoolean();
 
@@ -128,9 +141,9 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
 
                 Set<IP4Address> fwds = new HashSet<>();
                 if (dnsServers != null && !dnsServers.isEmpty()) {
-                    for (IPAddress dnsServer : dnsServers) {
-                        logger.debug("Found DNS Server: {}", dnsServer.getHostAddress());
-                        fwds.add((IP4Address) dnsServer);
+                    for (IPAddress dnsServerTmp : dnsServers) {
+                        logger.debug("Found DNS Server: {}", dnsServerTmp.getHostAddress());
+                        fwds.add((IP4Address) dnsServerTmp);
                     }
                 }
 
@@ -186,11 +199,11 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
     }
 
     protected String getCurrentIpAddress(String interfaceName) throws KuraException {
-        return LinuxNetworkUtil.getCurrentIpAddress(interfaceName);
+        return this.linuxNetworkUtil.getCurrentIpAddress(interfaceName);
     }
 
     protected boolean pppHasAddress(int pppNo) throws KuraException {
-        return LinuxNetworkUtil.hasAddress("ppp" + pppNo);
+        return this.linuxNetworkUtil.hasAddress("ppp" + pppNo);
     }
 
     protected void reconfigureDNSProxy(DnsServerConfigIP4 dnsServerConfigIP4) {
@@ -273,9 +286,9 @@ public class DnsMonitorServiceImpl implements DnsMonitorService, EventHandler {
 
         Set<IPAddress> dnsServers = this.dnsUtil.getDnServers();
         if (dnsServers != null && !dnsServers.isEmpty()) {
-            for (IPAddress dnsServer : dnsServers) {
-                logger.debug("Found DNS Server: {}", dnsServer.getHostAddress());
-                this.forwarders.add((IP4Address) dnsServer);
+            for (IPAddress dnsServerTmp : dnsServers) {
+                logger.debug("Found DNS Server: {}", dnsServerTmp.getHostAddress());
+                this.forwarders.add((IP4Address) dnsServerTmp);
             }
         }
 
